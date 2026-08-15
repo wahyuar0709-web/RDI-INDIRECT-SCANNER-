@@ -4,13 +4,13 @@
 // Sengaja TIDAK mengintersep request ke Firebase/Firestore — auth & data tetap
 // selalu lewat network langsung, supaya tidak mengganggu realtime sync/transaksi.
 
-const CACHE_NAME = 'rdi-shell-v4.1';
+const CACHE_NAME = 'rdi-shell-v4.2';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
