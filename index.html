@@ -256,6 +256,21 @@
   .nav-item.active{color:var(--red-600);background:rgba(20,108,67,.1);}
   .nav-item:active{transform:scale(.94);}
   .nav-item[hidden]{display:none;}
+  /* PHASE: center Scan FAB, BCA-style — pops above the bar, no text label */
+  .nav-item-fab{
+    background:none;padding:0;margin-top:-30px;max-width:none;flex:0 0 auto;
+  }
+  .nav-item-fab span:not(.fab-circle){display:none;}
+  .nav-item-fab .fab-circle{
+    width:54px;height:54px;border-radius:50%;
+    background:var(--red-600);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 12px 26px -8px rgba(20,108,67,.6),0 0 0 5px var(--glass-bg-strong);
+  }
+  .nav-item-fab .fab-circle svg{width:22px;height:22px;}
+  .nav-item-fab:active{transform:none;}
+  .nav-item-fab:active .fab-circle{transform:scale(.94);}
+  .nav-item-fab.active .fab-circle{background:var(--red-700);}
 
   .toast{
     position:fixed;left:50%;bottom:104px;transform:translateX(-50%);
@@ -639,6 +654,17 @@
         <div class="m-empty">Memuat data…</div>
       </div>
     </section>
+
+    <section class="view" data-view="pengaturan">
+      <div class="glass" style="border-radius:var(--radius-lg);padding:20px;">
+        <h2 style="font-size:15px;margin:0 0 14px;">Pengaturan</h2>
+        <div class="detail-grid" style="margin-bottom:18px;">
+          <div class="detail-kv"><div class="k">Nama</div><div class="v" id="pgn-username">—</div></div>
+          <div class="detail-kv"><div class="k">Role</div><div class="v" id="pgn-userrole">—</div></div>
+        </div>
+        <button type="button" class="btn-primary" id="btn-logout-2" style="background:var(--danger);">Keluar</button>
+      </div>
+    </section>
   </main>
 
   <!-- ============ MODAL: FORM ============ -->
@@ -711,21 +737,22 @@
       <svg viewBox="0 0 24 24" fill="none"><path d="M3 13h4v8H3zM10 3h4v18h-4zM17 8h4v13h-4z" stroke="currentColor" stroke-width="1.8"/></svg>
       <span>Dashboard</span>
     </button>
-    <button class="nav-item" data-nav="scan" data-role="ADMIN,WAREHOUSE" hidden>
-      <svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <span>Scan</span>
+    <button class="nav-item" data-nav="master" data-role="ADMIN" hidden>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+      <span>Master</span>
     </button>
-    <button class="nav-item" data-nav="transaksi" data-role="ADMIN,WAREHOUSE" hidden>
-      <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <span>Transaksi</span>
+    <button class="nav-item nav-item-fab" data-nav="scan" data-role="ADMIN,WAREHOUSE" hidden title="Scan">
+      <span class="fab-circle">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/></svg>
+      </span>
     </button>
     <button class="nav-item" data-nav="history">
       <svg viewBox="0 0 24 24" fill="none"><path d="M3 3v5h5M3.05 13a9 9 0 1 0 2.13-6.36L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>History</span>
     </button>
-    <button class="nav-item" data-nav="master" data-role="ADMIN" hidden>
-      <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
-      <span>Master</span>
+    <button class="nav-item" data-nav="pengaturan">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Pengaturan</span>
     </button>
   </nav>
 </div>
@@ -805,6 +832,9 @@ function showApp(role, name, email) {
   appShell.classList.add('show');
   $('#tb-username').textContent = name || email || 'User';
   $('#tb-userrole').textContent = role;
+  const pgnName = $('#pgn-username'), pgnRole = $('#pgn-userrole');
+  if (pgnName) pgnName.textContent = name || email || 'User';
+  if (pgnRole) pgnRole.textContent = role;
   document.querySelectorAll('[data-role]').forEach(el => {
     const allowedRoles = el.dataset.role.split(',').map(r => r.trim());
     el.hidden = !allowedRoles.includes(role);
@@ -893,10 +923,12 @@ $('#btn-forgot').addEventListener('click', async () => {
   }
 });
 
-$('#btn-logout').addEventListener('click', async () => {
+async function doLogout() {
   await signOut(auth);
   showLogin();
-});
+}
+$('#btn-logout').addEventListener('click', doLogout);
+$('#btn-logout-2').addEventListener('click', doLogout);
 
 // ---------- NAV / ROUTING ----------
 document.querySelectorAll('.nav-item').forEach(btn => {
