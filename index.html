@@ -3,10 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v3.3</title>
+<title>RDI Indirect Inventory v3.6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<!-- STEP 7: Scan QR — generate QR dari itemCode + scan kamera -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root{
     --red-600:#E1342C;
@@ -324,6 +327,20 @@
   .btn-action.warn{background:rgba(217,138,23,.13);color:var(--warn);}
   .btn-action.ok{background:rgba(30,158,100,.13);color:var(--ok);}
   .btn-action:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* ---- STEP 7: Scan QR ---- */
+  .scan-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;}
+  #qr-reader{width:100%;max-width:360px;border-radius:16px;overflow:hidden;background:#000;}
+  #qr-reader video{border-radius:16px;}
+  .scan-status{font-size:12px;color:var(--ink-600);text-align:center;min-height:16px;}
+  .scan-result-item{font-size:13px;font-weight:600;color:var(--ink-900);}
+  #qr-code-canvas-wrap{display:flex;justify-content:center;padding:10px 0;}
+
+  /* ---- STEP 10: Dashboard ---- */
+  .dash-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .dash-card{border-radius:14px;padding:14px;text-align:center;}
+  .dash-card-value{font-size:22px;font-weight:800;color:var(--ink-900);}
+  .dash-card-label{font-size:11px;color:var(--ink-600);margin-top:2px;}
 </style>
 </head>
 <body>
@@ -369,7 +386,7 @@
     </form>
     <div class="login-divider"></div>
     <div class="login-foot">Belum punya akun? Hubungi Admin</div>
-    <div class="login-foot" style="margin-top:6px;opacity:.6;">v3.3 · Step 6</div>
+    <div class="login-foot" style="margin-top:6px;opacity:.6;">v3.6 · Step 10</div>
   </div>
 </div>
 
@@ -395,20 +412,46 @@
 
   <main>
     <section class="view active" data-view="dashboard">
-      <div class="placeholder-card glass">
-        <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 13h4v8H3zM10 3h4v18h-4zM17 8h4v13h-4z" stroke="currentColor" stroke-width="1.6"/></svg></div>
-        <h2>Dashboard</h2>
-        <p>Ringkasan total item, stok, dan aktivitas akan tampil di sini.</p>
-        <span class="step-tag">STEP 10 — belum dibangun</span>
+      <div class="dash-cards">
+        <div class="dash-card glass">
+          <div class="dash-card-value" id="dash-total-item">0</div>
+          <div class="dash-card-label">Item Aktif</div>
+        </div>
+        <div class="dash-card glass">
+          <div class="dash-card-value" id="dash-low-stock" style="color:var(--danger);">0</div>
+          <div class="dash-card-label">Stok Rendah</div>
+        </div>
+        <div class="dash-card glass">
+          <div class="dash-card-value" id="dash-trx-masuk" style="color:var(--ok);">0</div>
+          <div class="dash-card-label">Masuk Hari Ini</div>
+        </div>
+        <div class="dash-card glass">
+          <div class="dash-card-value" id="dash-trx-keluar" style="color:var(--danger);">0</div>
+          <div class="dash-card-label">Keluar Hari Ini</div>
+        </div>
+      </div>
+
+      <div class="glass" style="border-radius:var(--radius-lg);padding:18px;margin-top:14px;">
+        <h2 style="font-size:14px;margin:0 0 12px;">⚠️ Stok Rendah</h2>
+        <div id="dash-lowstock-list"></div>
+        <p id="dash-lowstock-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:12px 0;" hidden>Tidak ada item dengan stok di bawah minimum.</p>
+      </div>
+
+      <div class="glass" style="border-radius:var(--radius-lg);padding:18px;margin-top:14px;">
+        <h2 style="font-size:14px;margin:0 0 12px;">Aktivitas Terbaru</h2>
+        <div id="dash-recent-list"></div>
+        <p id="dash-recent-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:12px 0;" hidden>Belum ada transaksi.</p>
       </div>
     </section>
 
     <section class="view" data-view="scan">
-      <div class="placeholder-card glass">
-        <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
-        <h2>Scan QR</h2>
-        <p>Kamera scanner untuk lookup item akan tampil di sini.</p>
-        <span class="step-tag">STEP 7 — belum dibangun</span>
+      <div class="glass" style="border-radius:var(--radius-lg);padding:18px;">
+        <h2 style="font-size:15px;margin:0 0 14px;">Scan QR Item</h2>
+        <div class="scan-wrap">
+          <div id="qr-reader"></div>
+          <div class="scan-status" id="scan-status">Arahkan kamera ke QR item.</div>
+          <button type="button" class="btn-action ghost" id="scan-restart-btn" hidden>Scan Lagi</button>
+        </div>
       </div>
     </section>
 
@@ -442,11 +485,18 @@
     </section>
 
     <section class="view" data-view="history">
-      <div class="placeholder-card glass">
-        <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 3v5h5M3.05 13a9 9 0 1 0 2.13-6.36L3 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <h2>History</h2>
-        <p>Riwayat transaksi dan Stock Card akan tampil di sini.</p>
-        <span class="step-tag">STEP 8 — belum dibangun</span>
+      <div class="glass" style="border-radius:var(--radius-lg);padding:18px;">
+        <h2 style="font-size:15px;margin:0 0 14px;">History Transaksi</h2>
+        <div class="m-field">
+          <input type="text" id="hist-search" placeholder="Cari kode/nama item…">
+        </div>
+        <div class="segmented glass" id="hist-type-tabs" style="margin:10px 0 14px;">
+          <button type="button" class="active" data-type="ALL">Semua</button>
+          <button type="button" data-type="MASUK">Masuk</button>
+          <button type="button" data-type="KELUAR">Keluar</button>
+        </div>
+        <div id="hist-list"></div>
+        <p id="hist-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;" hidden>Belum ada transaksi.</p>
       </div>
     </section>
 
@@ -496,12 +546,35 @@
     </div>
   </div>
 
+  <!-- ============ MODAL: QR ITEM (STEP 7) ============ -->
+  <div class="modal-overlay" id="modal-qr-overlay">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h3 id="modal-qr-title">QR Item</h3>
+        <button class="modal-close" id="modal-qr-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div id="qr-code-canvas-wrap"></div>
+      <p style="text-align:center;font-size:11.5px;color:var(--ink-600);margin:0 0 4px;">Cetak atau simpan gambar ini untuk ditempel di rak/kemasan item.</p>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: STOCK CARD (STEP 8) ============ -->
+  <div class="modal-overlay" id="modal-stockcard-overlay">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h3 id="modal-stockcard-title">Stock Card</h3>
+        <button class="modal-close" id="modal-stockcard-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div id="modal-stockcard-body"></div>
+    </div>
+  </div>
+
   <nav class="bottom-nav glass">
     <button class="nav-item active" data-nav="dashboard">
       <svg viewBox="0 0 24 24" fill="none"><path d="M3 13h4v8H3zM10 3h4v18h-4zM17 8h4v13h-4z" stroke="currentColor" stroke-width="1.8"/></svg>
       <span>Dashboard</span>
     </button>
-    <button class="nav-item" data-nav="scan">
+    <button class="nav-item" data-nav="scan" data-role="ADMIN,WAREHOUSE" hidden>
       <svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       <span>Scan</span>
     </button>
@@ -529,8 +602,8 @@ import {
   setPersistence, browserLocalPersistence, browserSessionPersistence, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, enableIndexedDbPersistence,
-  collection, query, orderBy, onSnapshot, setDoc, updateDoc,
+  getFirestore, doc, getDoc, getDocs, enableIndexedDbPersistence,
+  collection, query, orderBy, where, limit, onSnapshot, setDoc, updateDoc,
   runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
@@ -551,7 +624,7 @@ const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
 
-const APP_VERSION = 'v3.3'; // Step 6: Transaksi MASUK/KELUAR + role-gating fix
+const APP_VERSION = 'v3.6'; // Step 10: Dashboard
 console.log('RDI Indirect Inventory', APP_VERSION);
 
 try { enableIndexedDbPersistence(db); } catch (e) { /* multi-tab / unsupported: ignore */ }
@@ -695,6 +768,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b === btn));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === target));
     if (target === 'transaksi') refreshTrxSelectOptions();
+    if (target === 'scan') { startScanner(); } else { stopScanner(); }
   });
 });
 
@@ -726,24 +800,27 @@ function startMasterListeners() {
 
   onSnapshot(query(collection(db,'vendors'), orderBy('vendorCode')), snap => {
     state.vendors = {}; snap.forEach(d => state.vendors[d.id] = { id:d.id, ...d.data() });
-    refreshSelectOptions(); renderMasterList(); refreshTrxSelectOptions();
+    refreshSelectOptions(); renderMasterList(); refreshTrxSelectOptions(); renderHistoryList();
   }, err => console.error('vendors', err));
 
   onSnapshot(query(collection(db,'racks'), orderBy('rackCode')), snap => {
     state.racks = {}; snap.forEach(d => state.racks[d.id] = { id:d.id, ...d.data() });
-    refreshSelectOptions(); renderMasterList(); refreshTrxSelectOptions();
+    refreshSelectOptions(); renderMasterList(); refreshTrxSelectOptions(); renderHistoryList();
   }, err => console.error('racks', err));
 
   onSnapshot(query(collection(db,'items'), orderBy('itemCode')), snap => {
     state.items = {}; snap.forEach(d => state.items[d.id] = { id:d.id, ...d.data() });
-    renderMasterList(); refreshTrxSelectOptions();
+    renderMasterList(); refreshTrxSelectOptions(); renderHistoryList(); renderDashboard();
   }, err => console.error('items', err));
 
   // ---- STEP 5: Stok Saat Ini (real-time dari stockBalances) ----
   onSnapshot(collection(db,'stockBalances'), snap => {
     state.stockBalances = {}; snap.forEach(d => state.stockBalances[d.id] = d.data());
-    renderMasterList(); updateTrxStockInfo();
+    renderMasterList(); updateTrxStockInfo(); renderDashboard();
   }, err => console.error('stockBalances', err));
+
+  // ---- STEP 8: History transaksi global ----
+  startHistoryListener();
 }
 
 // ---- STEP 5: helper ambil stok saat ini (default 0 kalau belum ada data transaksi) ----
@@ -878,6 +955,296 @@ trxForm.addEventListener('submit', async (e) => {
     submitBtn.disabled = false; submitBtn.textContent = 'Simpan Transaksi';
   }
 });
+
+// ================= QR GENERATE MODULE (STEP 7) =================
+// QR berisi itemCode item (tidak ada field qrCode terpisah).
+function showItemQR(item) {
+  $('#modal-qr-title').textContent = `QR — ${item.itemCode}`;
+  const wrap = $('#qr-code-canvas-wrap');
+  wrap.innerHTML = '';
+  if (typeof QRCode === 'undefined') {
+    wrap.innerHTML = '<p style="font-size:12px;color:var(--danger);text-align:center;">Gagal memuat library QR. Cek koneksi internet.</p>';
+  } else {
+    new QRCode(wrap, { text: item.itemCode, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+  }
+  $('#modal-qr-overlay').classList.add('show');
+}
+$('#modal-qr-close').addEventListener('click', () => $('#modal-qr-overlay').classList.remove('show'));
+$('#modal-qr-overlay').addEventListener('click', (e) => { if (e.target === $('#modal-qr-overlay')) $('#modal-qr-overlay').classList.remove('show'); });
+
+// ================= SCAN QR MODULE (STEP 7) =================
+// Hasil scan (itemCode) di-lookup ke state.items, lalu langsung buka form
+// Transaksi dengan item ter-prefill. Nav "scan" sudah di-gating ADMIN/WAREHOUSE.
+let html5QrScanner = null;
+let scanIsRunning = false;
+
+async function startScanner() {
+  const statusEl = $('#scan-status');
+  const restartBtn = $('#scan-restart-btn');
+  restartBtn.hidden = true;
+  if (typeof Html5Qrcode === 'undefined') {
+    statusEl.textContent = 'Gagal memuat library scanner. Cek koneksi internet.';
+    return;
+  }
+  statusEl.textContent = 'Membuka kamera…';
+  if (!html5QrScanner) html5QrScanner = new Html5Qrcode('qr-reader');
+  try {
+    await html5QrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      onScanSuccess,
+      () => {} // abaikan kegagalan per-frame (normal selama belum ketemu QR)
+    );
+    scanIsRunning = true;
+    statusEl.textContent = 'Arahkan kamera ke QR item.';
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Tidak bisa mengakses kamera. Cek izin kamera di browser.';
+  }
+}
+
+async function stopScanner() {
+  if (html5QrScanner && scanIsRunning) {
+    try { await html5QrScanner.stop(); html5QrScanner.clear(); } catch (e) { /* noop */ }
+    scanIsRunning = false;
+  }
+}
+
+function onScanSuccess(decodedText) {
+  if (!scanIsRunning) return; // cegah callback dobel sebelum stop() selesai
+  stopScanner();
+  const statusEl = $('#scan-status');
+  const code = decodedText.trim();
+  const item = Object.values(state.items).find(i => i.itemCode === code);
+  if (!item) {
+    statusEl.textContent = `Item dengan kode "${esc(code)}" tidak ditemukan.`;
+    $('#scan-restart-btn').hidden = false;
+    return;
+  }
+  if (item.status === 'ARCHIVED') {
+    statusEl.textContent = `Item "${esc(item.itemCode)}" berstatus ARSIP, tidak bisa dipakai transaksi.`;
+    $('#scan-restart-btn').hidden = false;
+    return;
+  }
+  toast(`Item ditemukan: ${item.itemCode}`);
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === 'transaksi'));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === 'transaksi'));
+  openTransaksiForm(item.id);
+}
+
+$('#scan-restart-btn').addEventListener('click', startScanner);
+
+// ================= HISTORY & STOCK CARD MODULE (STEP 8) =================
+// History global: listener real-time (150 transaksi terbaru, lintas item).
+// Stock Card per item: query terpisah (where itemId==) dihitung saldo berjalan.
+// CATATAN: query Stock Card butuh composite index (itemId + createdAt). Kalau
+// muncul error "failed-precondition" di console browser saat pertama dipakai,
+// Firestore akan kasih link otomatis untuk create index — tinggal diklik sekali.
+let histTransactions = [];
+let histTypeFilter = 'ALL';
+let histSearchTerm = '';
+let histListenerStarted = false;
+
+function startHistoryListener() {
+  if (histListenerStarted) return;
+  histListenerStarted = true;
+  onSnapshot(query(collection(db,'transactions'), orderBy('createdAt','desc'), limit(150)), snap => {
+    histTransactions = [];
+    snap.forEach(d => histTransactions.push({ id:d.id, ...d.data() }));
+    renderHistoryList();
+    renderDashboard();
+  }, err => console.error('transactions history', err));
+}
+
+function fmtDateTime(ts) {
+  if (!ts || typeof ts.toDate !== 'function') return '—';
+  return ts.toDate().toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function renderHistoryList() {
+  const listEl = $('#hist-list');
+  const emptyEl = $('#hist-empty');
+  if (!listEl) return;
+  let data = histTransactions;
+  if (histTypeFilter !== 'ALL') data = data.filter(t => t.type === histTypeFilter);
+  if (histSearchTerm) {
+    data = data.filter(t => {
+      const item = state.items[t.itemId];
+      const code = item?.itemCode || '';
+      const name = item?.name || '';
+      return (code + ' ' + name).toLowerCase().includes(histSearchTerm);
+    });
+  }
+  if (!data.length) {
+    listEl.innerHTML = '';
+    emptyEl.hidden = false;
+    return;
+  }
+  emptyEl.hidden = true;
+  listEl.innerHTML = data.map(renderHistRow).join('');
+  listEl.querySelectorAll('.m-row[data-itemid]').forEach(row => {
+    row.addEventListener('click', () => {
+      const item = state.items[row.dataset.itemid];
+      if (item) openStockCard(item);
+    });
+  });
+}
+
+function renderHistRow(t) {
+  const item = state.items[t.itemId];
+  const itemLabel = item ? `${esc(item.itemCode)} — ${esc(item.name)}` : `(item ${esc(t.itemId||'—')})`;
+  const isMasuk = t.type === 'MASUK';
+  const sign = isMasuk ? '+' : '−';
+  const badgeStyle = isMasuk ? '' : 'background:rgba(214,54,44,.13);color:var(--danger);';
+  const sub = [
+    t.rackId ? (state.racks[t.rackId]?.rackCode || '') : '',
+    isMasuk && t.vendorId ? (state.vendors[t.vendorId]?.vendorName || '') : '',
+    isMasuk && t.noSjPo ? t.noSjPo : '',
+    t.createdByName || ''
+  ].filter(Boolean).join(' · ');
+  return `<div class="m-row glass" data-itemid="${esc(t.itemId||'')}">
+    <div class="m-row-main">
+      <div class="m-row-title">${itemLabel}</div>
+      <div class="m-row-sub">${fmtDateTime(t.createdAt)}${sub ? ' · ' + esc(sub) : ''}</div>
+    </div>
+    <div class="m-row-tags"><span class="badge active" style="${badgeStyle}">${sign}${t.qty} ${esc(item?.unit||'')}</span></div>
+  </div>`;
+}
+
+$('#hist-search').addEventListener('input', (e) => { histSearchTerm = e.target.value.trim().toLowerCase(); renderHistoryList(); });
+$('#hist-type-tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-type]');
+  if (!btn) return;
+  histTypeFilter = btn.dataset.type;
+  document.querySelectorAll('#hist-type-tabs button').forEach(b => b.classList.toggle('active', b === btn));
+  renderHistoryList();
+});
+
+// ---- Stock Card: query transaksi 1 item, hitung saldo berjalan kronologis ----
+async function fetchItemLedger(itemId) {
+  const snap = await getDocs(query(collection(db,'transactions'), where('itemId','==', itemId), orderBy('createdAt','asc')));
+  const rows = [];
+  snap.forEach(d => rows.push({ id:d.id, ...d.data() }));
+  let running = 0;
+  const withBalance = rows.map(t => {
+    running += t.type === 'MASUK' ? t.qty : -t.qty;
+    return { ...t, saldo: running };
+  });
+  const totalMasuk = rows.filter(t => t.type === 'MASUK').reduce((s,t) => s+t.qty, 0);
+  const totalKeluar = rows.filter(t => t.type === 'KELUAR').reduce((s,t) => s+t.qty, 0);
+  return { rows: withBalance, totalMasuk, totalKeluar, saldoAkhir: running };
+}
+
+async function openStockCard(item) {
+  const overlay = $('#modal-stockcard-overlay');
+  const body = $('#modal-stockcard-body');
+  $('#modal-stockcard-title').textContent = `Stock Card — ${item.itemCode}`;
+  body.innerHTML = `<p style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;">Memuat riwayat…</p>`;
+  overlay.classList.add('show');
+
+  try {
+    const ledger = await fetchItemLedger(item.id);
+    if (!ledger.rows.length) {
+      body.innerHTML = `<p style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;">Belum ada transaksi untuk item ini.</p>`;
+      return;
+    }
+    const summaryHtml = `<div class="detail-grid" style="margin-bottom:14px;">
+      <div class="detail-kv"><div class="k">Total Masuk</div><div class="v" style="color:var(--ok);font-weight:700;">+${ledger.totalMasuk} ${esc(item.unit||'')}</div></div>
+      <div class="detail-kv"><div class="k">Total Keluar</div><div class="v" style="color:var(--danger);font-weight:700;">−${ledger.totalKeluar} ${esc(item.unit||'')}</div></div>
+      <div class="detail-kv" style="grid-column:1/-1;"><div class="k">Saldo Akhir</div><div class="v" style="font-weight:700;">${ledger.saldoAkhir} ${esc(item.unit||'')}</div></div>
+    </div>`;
+    const listHtml = ledger.rows.slice().reverse().map(t => {
+      const isMasuk = t.type === 'MASUK';
+      const sign = isMasuk ? '+' : '−';
+      const badgeStyle = isMasuk ? '' : 'background:rgba(214,54,44,.13);color:var(--danger);';
+      const sub = [
+        isMasuk && t.vendorId ? (state.vendors[t.vendorId]?.vendorName || '') : '',
+        isMasuk && t.noSjPo ? t.noSjPo : '',
+        t.rackId ? (state.racks[t.rackId]?.rackCode || '') : '',
+        t.createdByName || ''
+      ].filter(Boolean).join(' · ');
+      return `<div class="m-row glass">
+        <div class="m-row-main">
+          <div class="m-row-title">${isMasuk?'MASUK':'KELUAR'} ${sign}${t.qty} ${esc(item.unit||'')}</div>
+          <div class="m-row-sub">${fmtDateTime(t.createdAt)}${sub ? ' · ' + esc(sub) : ''}</div>
+        </div>
+        <div class="m-row-tags"><span class="badge active" style="${badgeStyle}">Saldo: ${t.saldo}</span></div>
+      </div>`;
+    }).join('');
+    body.innerHTML = summaryHtml + listHtml;
+  } catch (err) {
+    console.error(err);
+    const hint = err.code === 'failed-precondition'
+      ? ' Firestore butuh index baru untuk query ini — buka console browser (F12), klik link yang muncul di error untuk membuat index otomatis, lalu coba lagi.'
+      : '';
+    body.innerHTML = `<p style="text-align:center;font-size:12px;color:var(--danger);padding:20px 0;">Gagal memuat riwayat.${hint}</p>`;
+  }
+}
+
+$('#modal-stockcard-close').addEventListener('click', () => $('#modal-stockcard-overlay').classList.remove('show'));
+$('#modal-stockcard-overlay').addEventListener('click', (e) => { if (e.target === $('#modal-stockcard-overlay')) $('#modal-stockcard-overlay').classList.remove('show'); });
+
+// ================= DASHBOARD MODULE (STEP 10) =================
+// Murni komputasi dari data yang sudah ada di state (items, stockBalances,
+// histTransactions) — tidak ada query Firestore tambahan.
+function renderDashboard() {
+  const totalItemEl = $('#dash-total-item');
+  if (!totalItemEl) return;
+
+  const activeItems = Object.values(state.items).filter(i => i.status !== 'ARCHIVED');
+  totalItemEl.textContent = activeItems.length;
+
+  const lowStockItems = activeItems.filter(i => getCurrentStock(i.id) < (i.minimumStock ?? 0));
+  $('#dash-low-stock').textContent = lowStockItems.length;
+
+  const todayStr = new Date().toDateString();
+  const todaysTrx = histTransactions.filter(t =>
+    t.createdAt && typeof t.createdAt.toDate === 'function' && t.createdAt.toDate().toDateString() === todayStr
+  );
+  $('#dash-trx-masuk').textContent = todaysTrx.filter(t => t.type === 'MASUK').length;
+  $('#dash-trx-keluar').textContent = todaysTrx.filter(t => t.type === 'KELUAR').length;
+
+  // ---- daftar stok rendah ----
+  const lsListEl = $('#dash-lowstock-list');
+  const lsEmptyEl = $('#dash-lowstock-empty');
+  if (!lowStockItems.length) {
+    lsListEl.innerHTML = '';
+    lsEmptyEl.hidden = false;
+  } else {
+    lsEmptyEl.hidden = true;
+    lsListEl.innerHTML = lowStockItems
+      .sort((a,b) => getCurrentStock(a.id) - getCurrentStock(b.id))
+      .slice(0, 10)
+      .map(i => `<div class="m-row glass" data-id="${i.id}">
+        <div class="m-row-main">
+          <div class="m-row-title">${esc(i.name || i.itemCode)}</div>
+          <div class="m-row-sub">${esc(i.itemCode||'')} · min ${i.minimumStock ?? 0} ${esc(i.unit||'')}</div>
+        </div>
+        <div class="m-row-tags"><span class="badge archived" style="background:rgba(214,54,44,.13);color:var(--danger);">${getCurrentStock(i.id)} ${esc(i.unit||'')}</span></div>
+      </div>`).join('');
+    lsListEl.querySelectorAll('.m-row[data-id]').forEach(row => {
+      row.addEventListener('click', () => openDetailItem(row.dataset.id));
+    });
+  }
+
+  // ---- aktivitas terbaru (reuse renderHistRow dari Step 8) ----
+  const recEl = $('#dash-recent-list');
+  const recEmptyEl = $('#dash-recent-empty');
+  const recent = histTransactions.slice(0, 8);
+  if (!recent.length) {
+    recEl.innerHTML = '';
+    recEmptyEl.hidden = false;
+  } else {
+    recEmptyEl.hidden = true;
+    recEl.innerHTML = recent.map(renderHistRow).join('');
+    recEl.querySelectorAll('.m-row[data-itemid]').forEach(row => {
+      row.addEventListener('click', () => {
+        const item = state.items[row.dataset.itemid];
+        if (item) openStockCard(item);
+      });
+    });
+  }
+}
 
 // ---- sequential ID generator (ADMIN client-side, via transaction) ----
 async function nextSeq(field, prefix, pad) {
@@ -1145,18 +1512,21 @@ function openDetailItem(id) {
       <div class="detail-kv"><div class="k">Minimum Stock</div><div class="v">${minStock}</div></div>
       <div class="detail-kv" style="grid-column:1/-1;"><div class="k">Spesifikasi</div><div class="v">${esc(d.specification||'—')}</div></div>
       <div class="detail-kv"><div class="k">Stok Saat Ini</div><div class="v" style="color:${stockColor};font-weight:700;">${currentStock} ${esc(d.unit||'')}${isLowStock ? ' ⚠️' : ''}</div></div>
-      <div class="detail-kv"><div class="k">Total Masuk/Keluar</div><div class="v">— <span style="font-size:9px;color:var(--ink-400);font-weight:500;">(Step 8)</span></div></div>
+      <div class="detail-kv"><div class="k">Total Masuk/Keluar</div><div class="v" id="dd-total-mk">Memuat…</div></div>
     </div>
     <div class="detail-actions">
       <button class="btn-action ghost" id="da-edit"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Edit</button>
       <button class="btn-action ghost" id="da-transaksi" ${currentRole === 'VIEWER' ? 'hidden' : ''}>Transaksi</button>
-      <button class="btn-action ghost" disabled title="Step 8 belum dibangun">Lihat History</button>
+      <button class="btn-action ghost" id="da-qr">Lihat QR</button>
+      <button class="btn-action ghost" id="da-history">Lihat History</button>
       <button class="btn-action ghost" disabled title="Step 19 belum dibangun">Cetak Kartu</button>
       <button class="btn-action ${isArchived?'ok':'warn'}" id="da-archive" style="grid-column:1/-1;">${isArchived?'Aktifkan Kembali':'Arsipkan Item'}</button>
     </div>`;
 
   $('#da-edit').addEventListener('click', () => { detailOverlay.classList.remove('show'); openFormModal('item', id); });
   $('#da-transaksi').addEventListener('click', () => { detailOverlay.classList.remove('show'); openTransaksiForm(id); });
+  $('#da-qr').addEventListener('click', () => { showItemQR(d); });
+  $('#da-history').addEventListener('click', () => { detailOverlay.classList.remove('show'); openStockCard(d); });
   $('#da-archive').addEventListener('click', async () => {
     const newStatus = isArchived ? 'ACTIVE' : 'ARCHIVED';
     if (!confirm(isArchived ? 'Aktifkan kembali item ini?' : 'Arsipkan item ini? Item ARCHIVED tidak bisa dipakai transaksi baru.')) return;
@@ -1168,6 +1538,19 @@ function openDetailItem(id) {
   });
 
   detailOverlay.classList.add('show');
+
+  // ---- STEP 8: isi Total Masuk/Keluar secara lazy (query terpisah dari saldo real-time) ----
+  detailOverlay.dataset.itemId = id;
+  fetchItemLedger(id).then(ledger => {
+    if (detailOverlay.dataset.itemId !== id) return; // user sudah pindah ke item lain
+    const cell = $('#dd-total-mk');
+    if (cell) cell.textContent = `+${ledger.totalMasuk} / −${ledger.totalKeluar} ${d.unit||''}`;
+  }).catch(err => {
+    console.error(err);
+    if (detailOverlay.dataset.itemId !== id) return;
+    const cell = $('#dd-total-mk');
+    if (cell) cell.textContent = 'Gagal memuat';
+  });
 }
 </script>
 </body>
