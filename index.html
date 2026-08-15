@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>RDI Indirect Inventory v4.1</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#146C43">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RDI Inventory">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -56,6 +63,10 @@
     --shadow-elevated:0 16px 36px -16px rgba(30,36,48,.24);
     --shadow-pressed:0 1px 4px -1px rgba(30,36,48,.14);
     --font-mono:'JetBrains Mono',ui-monospace,monospace;
+    /* ---- PREMIUM PASS: refined gradient/highlight tokens ---- */
+    --primary-gradient:linear-gradient(155deg,#1a7d4d 0%,var(--red-600) 55%,var(--red-700) 100%);
+    --glass-highlight:inset 0 1px 0 rgba(255,255,255,.55);
+    --shadow-btn:0 10px 22px -8px rgba(20,108,67,.45);
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
@@ -66,7 +77,7 @@
     -webkit-tap-highlight-color:transparent;
     overscroll-behavior:none;
   }
-  h1,h2,h3,.font-display{font-family:'Sora',system-ui,sans-serif;}
+  h1,h2,h3,.font-display{font-family:'Sora',system-ui,sans-serif;letter-spacing:-.01em;}
   button{font-family:inherit;}
 
   /* ---------- BLURRED GRADIENT BACKGROUND (dipakai di semua layar) ---------- */
@@ -89,8 +100,13 @@
     backdrop-filter:blur(22px) saturate(160%);
     -webkit-backdrop-filter:blur(22px) saturate(160%);
     border:1px solid var(--glass-border);
-    box-shadow:var(--glass-shadow);
+    box-shadow:var(--glass-shadow),var(--glass-highlight);
   }
+  /* PREMIUM PASS: slim, quiet scrollbars */
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:rgba(30,36,48,.18);border-radius:999px;}
+  *{scrollbar-width:thin;scrollbar-color:rgba(30,36,48,.18) transparent;}
   /* PHASE 1: tap/press micro-interaction, shared by tappable surfaces */
   .m-row,.dash-card,.nav-item,.badge,.icon-btn,.conn-pill,.btn-primary,.btn-action,.btn-ghost{
     transition:background .15s ease,transform .1s ease,color .15s ease,box-shadow .15s ease;
@@ -132,10 +148,10 @@
   }
   .login-avatar{
     width:78px;height:78px;border-radius:50%;
-    background:var(--red-600);
+    background:var(--primary-gradient);
     display:flex;align-items:center;justify-content:center;
     margin-top:-39px;margin-bottom:16px;
-    box-shadow:0 12px 28px -8px rgba(20,108,67,.55);
+    box-shadow:0 12px 28px -8px rgba(20,108,67,.55),var(--glass-highlight);
     border:4px solid rgba(255,255,255,.8);
   }
   .login-avatar svg{width:34px;height:34px;}
@@ -147,8 +163,10 @@
     border-radius:999px;
     padding:12px 16px;
     border:1px solid rgba(255,255,255,.9);
+    box-shadow:var(--shadow-sm);
+    transition:box-shadow .18s ease;
   }
-  .field-wrap:focus-within{box-shadow:0 0 0 2px rgba(20,108,67,.3);}
+  .field-wrap:focus-within{box-shadow:0 0 0 3px rgba(20,108,67,.16),var(--shadow-sm);border-color:rgba(20,108,67,.35);}
   .field-wrap svg{width:16px;height:16px;color:var(--ink-400);flex-shrink:0;}
   .field-wrap input{
     border:none;outline:none;background:transparent;
@@ -162,12 +180,13 @@
   #login-error.show{display:block;}
   .btn-primary{
     width:100%;padding:13px;border:none;border-radius:999px;
-    background:var(--red-600);color:#fff;font-weight:700;font-size:14.5px;
-    cursor:pointer;transition:background .15s ease, transform .1s ease;margin-top:4px;
+    background:var(--primary-gradient);color:#fff;font-weight:700;font-size:14.5px;letter-spacing:.01em;
+    cursor:pointer;transition:box-shadow .15s ease,transform .1s ease,filter .15s ease;margin-top:4px;
+    box-shadow:var(--shadow-btn);
   }
-  .btn-primary:hover{background:var(--red-700);}
-  .btn-primary:active{transform:scale(.98);}
-  .btn-primary:disabled{background:var(--ink-400);cursor:default;}
+  .btn-primary:hover{filter:brightness(1.06);}
+  .btn-primary:active{transform:scale(.98);box-shadow:var(--shadow-pressed);}
+  .btn-primary:disabled{background:var(--ink-400);box-shadow:none;cursor:default;}
   .login-row{
     width:100%;display:flex;align-items:center;justify-content:space-between;
     margin-top:14px;font-size:12px;
@@ -191,8 +210,9 @@
   }
   .tb-left{display:flex;align-items:center;gap:10px;min-width:0;}
   .tb-badge{
-    width:36px;height:36px;border-radius:50%;background:var(--red-600);
+    width:36px;height:36px;border-radius:50%;background:var(--primary-gradient);
     display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    box-shadow:0 4px 12px -4px rgba(20,108,67,.5);
   }
   .tb-badge svg{width:18px;height:18px;}
   .tb-name{color:var(--ink-900);font-size:13px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -290,22 +310,24 @@
     font-size:11.5px;font-weight:700;color:var(--ink-600);cursor:pointer;white-space:nowrap;
     transition:background .15s ease,color .15s ease;
   }
-  .segmented button.active{background:var(--red-600);color:#fff;}
+  .segmented button.active{background:var(--primary-gradient);color:#fff;box-shadow:0 4px 10px -4px rgba(20,108,67,.5);}
 
   .m-toolbar{display:flex;gap:8px;margin-bottom:12px;}
   .m-search{flex:1;}
   .m-search .field-wrap{background:rgba(255,255,255,.7);}
   .m-add-btn{
-    width:44px;height:44px;border-radius:50%;border:none;background:var(--red-600);
+    width:44px;height:44px;border-radius:50%;border:none;background:var(--primary-gradient);
     color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
-    box-shadow:0 8px 20px -8px rgba(20,108,67,.6);
+    box-shadow:var(--shadow-btn);transition:transform .1s ease,filter .15s ease;
   }
+  .m-add-btn:hover{filter:brightness(1.06);}
+  .m-add-btn:active{transform:scale(.94);}
   .m-add-btn svg{width:18px;height:18px;}
 
   .m-list{
     display:flex;flex-direction:column;gap:1px;border-radius:16px;overflow:hidden;
     background:var(--glass-bg);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
-    border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);
+    border:1px solid var(--glass-border);box-shadow:var(--glass-shadow),var(--glass-highlight);
   }
   .m-list .m-empty{background:transparent;}
   /* PHASE 3/11/12: rows now read as one cohesive list, not stacked individual cards.
@@ -325,11 +347,12 @@
   .m-row-sub{font-size:11px;color:var(--ink-600);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-mono);letter-spacing:-.01em;}
   .m-row-tags{display:flex;gap:6px;flex-shrink:0;align-items:center;font-family:var(--font-mono);}
   .badge{
-    font-size:9.5px;font-weight:700;letter-spacing:.02em;padding:3px 8px 3px 7px;border-radius:999px;
-    display:inline-flex;align-items:center;gap:5px;
+    font-size:9.5px;font-weight:700;letter-spacing:.03em;padding:3px 9px 3px 8px;border-radius:999px;
+    display:inline-flex;align-items:center;gap:5px;box-shadow:inset 0 0 0 1px currentColor;
   }
+  .badge{opacity:.92;}
   .badge::before{
-    content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0;background:currentColor;
+    content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;background:currentColor;
   }
   .badge.active{background:rgba(30,158,100,.13);color:var(--ok);}
   .badge.archived{background:rgba(138,147,163,.15);color:var(--ink-400);}
@@ -415,10 +438,13 @@
   .detail-kv .v{font-size:13px;font-weight:700;color:var(--ink-900);word-break:break-word;}
   .detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;}
 
-  /* ---- STEP 7: Scan QR ---- */
+  /* ---- STEP 7: Scan QR (PREMIUM PASS: viewfinder framing) ---- */
   .scan-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;}
-  #qr-reader{width:100%;max-width:360px;border-radius:16px;overflow:hidden;background:#000;}
-  #qr-reader video{border-radius:16px;}
+  #qr-reader{
+    width:100%;max-width:360px;border-radius:18px;overflow:hidden;background:#000;
+    position:relative;box-shadow:0 0 0 3px rgba(20,108,67,.18),var(--shadow-elevated);
+  }
+  #qr-reader video{border-radius:18px;}
   .scan-status{font-size:12px;color:var(--ink-600);text-align:center;min-height:16px;}
   .scan-result-item{font-size:13px;font-weight:600;color:var(--ink-900);}
   #qr-code-canvas-wrap{display:flex;justify-content:center;padding:10px 0;}
@@ -429,7 +455,7 @@
   .dash-cards{
     display:grid;grid-template-columns:1fr 1fr;border-radius:var(--radius-lg);overflow:hidden;
     background:var(--glass-bg);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
-    border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);
+    border:1px solid var(--glass-border);box-shadow:var(--glass-shadow),var(--glass-highlight);
   }
   .dash-card{
     padding:16px 14px;text-align:center;background:none;border:none;box-shadow:none;
@@ -1886,6 +1912,14 @@ function openDetailItem(id) {
     if (cell) cell.textContent = 'Gagal memuat';
   });
 }
+</script>
+<script>
+  // PWA: registrasi service worker terpisah dari module script utama.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((err) => console.error('SW register gagal:', err));
+    });
+  }
 </script>
 </body>
 </html>
