@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v4.0</title>
+<title>RDI Indirect Inventory v4.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -51,6 +51,11 @@
     /* ---- shadow scale (section 32 brief) ---- */
     --shadow-sm:0 2px 8px -4px rgba(30,36,48,.18);
     --shadow-md:0 10px 26px -10px rgba(30,36,48,.22);
+    /* ---- PHASE 1: depth/elevation scale (premium pass) ---- */
+    --line-subtle:rgba(30,36,48,.06);
+    --shadow-elevated:0 16px 36px -16px rgba(30,36,48,.24);
+    --shadow-pressed:0 1px 4px -1px rgba(30,36,48,.14);
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
@@ -85,6 +90,10 @@
     -webkit-backdrop-filter:blur(22px) saturate(160%);
     border:1px solid var(--glass-border);
     box-shadow:var(--glass-shadow);
+  }
+  /* PHASE 1: tap/press micro-interaction, shared by tappable surfaces */
+  .m-row,.dash-card,.nav-item,.badge,.icon-btn,.conn-pill,.btn-primary,.btn-action,.btn-ghost{
+    transition:background .15s ease,transform .1s ease,color .15s ease,box-shadow .15s ease;
   }
 
   /* ---------- BOOT SPLASH ---------- */
@@ -203,7 +212,7 @@
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 
   .icon-btn{
-    width:32px;height:32px;border-radius:50%;border:none;
+    width:40px;height:40px;border-radius:50%;border:none;
     background:rgba(255,255,255,.6);color:var(--ink-900);
     display:flex;align-items:center;justify-content:center;cursor:pointer;
   }
@@ -240,11 +249,12 @@
   .nav-item{
     display:flex;flex-direction:column;align-items:center;gap:3px;
     background:none;border:none;cursor:pointer;padding:6px 10px;border-radius:14px;
-    color:var(--ink-400);flex:1;max-width:88px;transition:color .15s ease;
+    color:var(--ink-400);flex:1;max-width:88px;transition:color .15s ease,background .15s ease,transform .1s ease;
   }
   .nav-item svg{width:19px;height:19px;}
   .nav-item span{font-size:9.5px;font-weight:600;}
-  .nav-item.active{color:var(--red-600);}
+  .nav-item.active{color:var(--red-600);background:rgba(20,108,67,.1);}
+  .nav-item:active{transform:scale(.94);}
   .nav-item[hidden]{display:none;}
 
   .toast{
@@ -271,20 +281,34 @@
   .m-search{flex:1;}
   .m-search .field-wrap{background:rgba(255,255,255,.7);}
   .m-add-btn{
-    width:42px;height:42px;border-radius:50%;border:none;background:var(--red-600);
+    width:44px;height:44px;border-radius:50%;border:none;background:var(--red-600);
     color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
     box-shadow:0 8px 20px -8px rgba(20,108,67,.6);
   }
   .m-add-btn svg{width:18px;height:18px;}
 
-  .m-list{display:flex;flex-direction:column;gap:8px;}
-  .m-row{
-    border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;
+  .m-list{
+    display:flex;flex-direction:column;gap:1px;border-radius:16px;overflow:hidden;
+    background:var(--glass-bg);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+    border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);
   }
+  .m-list .m-empty{background:transparent;}
+  /* PHASE 3/11/12: rows now read as one cohesive list, not stacked individual cards.
+     Neutralize the nested .glass (blur/border/shadow) that was making every row its
+     own elevated card; keep only a hairline separator + hover/press feedback. */
+  .m-row{
+    padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;
+    background:rgba(255,255,255,.24);
+    border:none;border-bottom:1px solid var(--line-subtle);
+    backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;border-radius:0;
+  }
+  .m-list .m-row:last-child{border-bottom:none;}
+  .m-row:hover{background:rgba(255,255,255,.5);}
+  .m-row:active{background:rgba(255,255,255,.6);transform:scale(.99);}
   .m-row-main{flex:1;min-width:0;}
   .m-row-title{font-size:13px;font-weight:700;color:var(--ink-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .m-row-sub{font-size:11px;color:var(--ink-600);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .m-row-tags{display:flex;gap:6px;flex-shrink:0;align-items:center;}
+  .m-row-sub{font-size:11px;color:var(--ink-600);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-mono);letter-spacing:-.01em;}
+  .m-row-tags{display:flex;gap:6px;flex-shrink:0;align-items:center;font-family:var(--font-mono);}
   .badge{
     font-size:9.5px;font-weight:700;letter-spacing:.02em;padding:3px 8px 3px 7px;border-radius:999px;
     display:inline-flex;align-items:center;gap:5px;
@@ -305,22 +329,53 @@
   }
   .modal-overlay.show{display:flex;}
   .modal-sheet{
+    position:relative;
     width:100%;max-width:480px;max-height:88vh;overflow-y:auto;
-    border-radius:26px 26px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom,0px));
+    border-radius:26px 26px 0 0;padding:24px 20px calc(20px + env(safe-area-inset-bottom,0px));
     background:var(--glass-bg-strong);backdrop-filter:blur(26px) saturate(160%);
     -webkit-backdrop-filter:blur(26px) saturate(160%);
-    border:1px solid var(--glass-border);
+    border:1px solid var(--glass-border);box-shadow:var(--shadow-elevated);
+  }
+  /* PHASE 20: drag-handle affordance, subtle */
+  .modal-sheet::before{
+    content:'';position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    width:36px;height:4px;border-radius:999px;background:rgba(30,36,48,.14);
   }
   @media (min-width:560px){
     .modal-overlay{align-items:center;}
     .modal-sheet{border-radius:24px;max-height:84vh;}
+    .modal-sheet::before{display:none;}
+  }
+  /* PHASE 9: narrow-phone polish (360-390px) — tighter shell chrome, same structure */
+  @media (max-width:390px){
+    header.topbar{margin:10px 10px 0;padding:9px 12px;}
+    nav.bottom-nav{left:10px;right:10px;bottom:10px;}
+    main{padding:12px;}
+    .dash-card{padding:14px 10px;}
+    .dash-card:nth-child(-n+2) .dash-card-value{font-size:23px;}
   }
   .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
   .modal-head h3{font-size:15px;margin:0;}
-  .modal-close{
-    width:30px;height:30px;border-radius:50%;border:none;background:rgba(30,36,48,.08);
-    display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-600);flex-shrink:0;
+  .btn-action{
+    padding:11px 8px;border-radius:14px;border:none;font-size:11.5px;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:6px;
   }
+  .btn-action svg{width:15px;height:15px;}
+  .btn-action.primary{background:var(--red-600);color:#fff;}
+  .btn-action.primary:hover{background:var(--red-700);}
+  .btn-action.ghost{background:rgba(30,36,48,.06);color:var(--ink-700,var(--ink-900));}
+  .btn-action.ghost:hover{background:rgba(30,36,48,.1);}
+  .btn-action.warn{background:rgba(217,138,23,.13);color:var(--warn);}
+  .btn-action.ok{background:rgba(30,158,100,.13);color:var(--ok);}
+  .btn-action:active{transform:scale(.97);}
+  .btn-action:disabled{opacity:.4;cursor:not-allowed;}
+  .modal-close{
+    width:36px;height:36px;border-radius:50%;border:none;background:rgba(30,36,48,.08);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-600);flex-shrink:0;
+    transition:background .15s ease,transform .1s ease;
+  }
+  .modal-close:hover{background:rgba(30,36,48,.14);}
+  .modal-close:active{transform:scale(.92);}
   .modal-close svg{width:14px;height:14px;}
   .m-field{margin-bottom:12px;}
   .m-field label{display:block;font-size:11.5px;font-weight:700;color:var(--ink-600);margin-bottom:5px;}
@@ -344,16 +399,6 @@
   .detail-kv .k{font-size:10px;color:var(--ink-400);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px;}
   .detail-kv .v{font-size:13px;font-weight:700;color:var(--ink-900);word-break:break-word;}
   .detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;}
-  .btn-action{
-    padding:11px 8px;border-radius:14px;border:none;font-size:11.5px;font-weight:700;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;gap:6px;
-  }
-  .btn-action svg{width:15px;height:15px;}
-  .btn-action.primary{background:var(--red-600);color:#fff;}
-  .btn-action.ghost{background:rgba(30,36,48,.06);color:var(--ink-700,var(--ink-900));}
-  .btn-action.warn{background:rgba(217,138,23,.13);color:var(--warn);}
-  .btn-action.ok{background:rgba(30,158,100,.13);color:var(--ok);}
-  .btn-action:disabled{opacity:.4;cursor:not-allowed;}
 
   /* ---- STEP 7: Scan QR ---- */
   .scan-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;}
@@ -363,11 +408,23 @@
   .scan-result-item{font-size:13px;font-weight:600;color:var(--ink-900);}
   #qr-code-canvas-wrap{display:flex;justify-content:center;padding:10px 0;}
 
-  /* ---- STEP 10: Dashboard ---- */
-  .dash-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .dash-card{border-radius:14px;padding:14px;text-align:center;}
-  .dash-card-value{font-size:22px;font-weight:800;color:var(--ink-900);}
-  .dash-card-label{font-size:11px;color:var(--ink-600);margin-top:2px;}
+  /* ---- STEP 10: Dashboard (PHASE 10: composition over card-stacking) ----
+     .dash-cards is now the single glass surface; individual .dash-card cells
+     are flat quadrants divided by hairlines, not four stacked elevated cards. */
+  .dash-cards{
+    display:grid;grid-template-columns:1fr 1fr;border-radius:var(--radius-lg);overflow:hidden;
+    background:var(--glass-bg);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+    border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);
+  }
+  .dash-card{
+    padding:16px 14px;text-align:center;background:none;border:none;box-shadow:none;
+  }
+  .dash-card:nth-child(1){border-right:1px solid var(--line-subtle);border-bottom:1px solid var(--line-subtle);}
+  .dash-card:nth-child(2){border-bottom:1px solid var(--line-subtle);}
+  .dash-card:nth-child(3){border-right:1px solid var(--line-subtle);}
+  .dash-card:nth-child(-n+2) .dash-card-value{font-size:26px;}
+  .dash-card-value{font-size:19px;font-weight:800;color:var(--ink-900);font-family:var(--font-mono);letter-spacing:-.01em;}
+  .dash-card-label{font-size:10.5px;color:var(--ink-600);margin-top:3px;letter-spacing:.01em;}
   /* ============ STEP 19: CETAK KARTU STOK ============ */
   #print-area{display:none;}
   @media print{
@@ -446,7 +503,7 @@
     </form>
     <div class="login-divider"></div>
     <div class="login-foot">Belum punya akun? Hubungi Admin</div>
-    <div class="login-foot" style="margin-top:6px;opacity:.6;">v4.0 · Step 20</div>
+    <div class="login-foot" style="margin-top:6px;opacity:.6;">v4.1 · UI Premium Refresh</div>
   </div>
 </div>
 
@@ -704,7 +761,7 @@ const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
 
-const APP_VERSION = 'v4.0'; // Step 20 Phase 1: Design Foundation (rebrand hijau, tokens)
+const APP_VERSION = 'v4.1'; // UI Premium Refresh: Phase 1-10 (design system, depth, hierarchy)
 console.log('RDI Indirect Inventory', APP_VERSION);
 
 try { enableIndexedDbPersistence(db); } catch (e) { /* multi-tab / unsupported: ignore */ }
