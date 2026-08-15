@@ -215,8 +215,7 @@
     box-shadow:0 4px 12px -4px rgba(20,108,67,.5);
   }
   .tb-badge svg{width:18px;height:18px;}
-  .tb-name{color:var(--ink-900);font-size:13px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .tb-role{color:var(--ink-600);font-size:10px;letter-spacing:.03em;text-transform:uppercase;}
+  .tb-name{color:var(--ink-900);font-size:14px;font-weight:700;line-height:36px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .tb-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 
   .conn-pill{
@@ -556,8 +555,7 @@
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
       <div style="min-width:0;">
-        <div class="tb-name" id="tb-username">—</div>
-        <div class="tb-role" id="tb-userrole">—</div>
+        <div class="tb-name">RDI Inventory</div>
       </div>
     </div>
     <div class="tb-right">
@@ -852,12 +850,12 @@ function showLogin() {
 }
 
 let currentRole = null;
+let currentUserName = null;
 function showApp(role, name, email) {
   currentRole = role;
+  currentUserName = name || email || 'User';
   loginScreen.classList.remove('show');
   appShell.classList.add('show');
-  $('#tb-username').textContent = name || email || 'User';
-  $('#tb-userrole').textContent = role;
   const pgnName = $('#pgn-username'), pgnRole = $('#pgn-userrole');
   if (pgnName) pgnName.textContent = name || email || 'User';
   if (pgnRole) pgnRole.textContent = role;
@@ -1135,7 +1133,7 @@ trxForm.addEventListener('submit', async (e) => {
       tx.set(trxRef, {
         itemId, type: trxType, qty, rackId: rackId || null,
         vendorId: vendorId || null, noSjPo: noSjPo || null, note: note || null,
-        createdAt: serverTimestamp(), createdBy: auth.currentUser.uid, createdByName: $('#tb-username').textContent
+        createdAt: serverTimestamp(), createdBy: auth.currentUser.uid, createdByName: currentUserName
       });
     });
 
