@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>RDI Indirect Inventory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red-600:#E1342C;
+    --red-700:#C21E17;
+    --navy-900:#151B2B;
+    --ink-900:#1E2430;
+    --ink-600:#586071;
+    --ink-400:#8A93A3;
+    --glass-bg:rgba(255,255,255,.55);
+    --glass-bg-strong:rgba(255,255,255,.72);
+    --glass-border:rgba(255,255,255,.65);
+    --glass-shadow:0 20px 50px -18px rgba(30,36,48,.28);
+    --line:rgba(30,36,48,.08);
+    --ok:#1E9E64;
+    --warn:#D98A17;
+    --danger:#D6362C;
+    --radius-lg:22px;
+    --radius-md:14px;
+    --radius-sm:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:'Inter',system-ui,sans-serif;
+    color:var(--ink-900);
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+  }
+  h1,h2,h3,.font-display{font-family:'Sora',system-ui,sans-serif;}
+  button{font-family:inherit;}
+
+  /* ---------- BLURRED GRADIENT BACKGROUND (dipakai di semua layar) ---------- */
+  .bg-scene{
+    position:fixed;inset:0;z-index:-1;overflow:hidden;
+    background:#EDEFF4;
+  }
+  .bg-scene span{
+    position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;
+  }
+  .bg-scene .b1{width:420px;height:420px;background:#FFE3A0;top:-120px;left:-100px;}
+  .bg-scene .b2{width:380px;height:380px;background:#8FD9E3;top:-60px;right:-120px;}
+  .bg-scene .b3{width:460px;height:460px;background:#F2C2D6;bottom:-160px;left:-80px;}
+  .bg-scene .b4{width:400px;height:400px;background:#C6B8F2;bottom:-140px;right:-100px;}
+  .bg-scene .b5{width:340px;height:340px;background:#FFD1B0;top:38%;left:38%;opacity:.35;}
+
+  /* ---------- GLASS PRIMITIVE ---------- */
+  .glass{
+    background:var(--glass-bg);
+    backdrop-filter:blur(22px) saturate(160%);
+    -webkit-backdrop-filter:blur(22px) saturate(160%);
+    border:1px solid var(--glass-border);
+    box-shadow:var(--glass-shadow);
+  }
+
+  /* ---------- BOOT SPLASH ---------- */
+  #boot-splash{
+    position:fixed;inset:0;z-index:9999;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    transition:opacity .4s ease, visibility .4s ease;
+  }
+  #boot-splash.hide{opacity:0;visibility:hidden;pointer-events:none;}
+  .boot-badge{
+    width:80px;height:80px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .boot-badge svg{width:38px;height:38px;}
+  .boot-title{color:var(--ink-900);font-weight:700;font-size:15px;letter-spacing:.02em;text-align:center;}
+  .boot-sub{color:var(--ink-400);font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;}
+  .boot-ring{
+    width:26px;height:26px;border-radius:50%;
+    border:2.5px solid rgba(225,52,44,.2);
+    border-top-color:var(--red-600);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- LOGIN ---------- */
+  #login-screen{
+    position:fixed;inset:0;z-index:900;
+    display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+  }
+  #login-screen.show{display:flex;}
+  .login-card{
+    width:100%;max-width:360px;
+    border-radius:var(--radius-lg);
+    padding:0 26px 24px;
+    display:flex;flex-direction:column;align-items:center;
+  }
+  .login-avatar{
+    width:78px;height:78px;border-radius:50%;
+    background:var(--red-600);
+    display:flex;align-items:center;justify-content:center;
+    margin-top:-39px;margin-bottom:16px;
+    box-shadow:0 12px 28px -8px rgba(225,52,44,.55);
+    border:4px solid rgba(255,255,255,.8);
+  }
+  .login-avatar svg{width:34px;height:34px;}
+  .login-card h1{font-size:19px;margin:0 0 22px;color:var(--ink-900);text-align:center;}
+  .field{width:100%;margin-bottom:12px;}
+  .field-wrap{
+    display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,.85);
+    border-radius:999px;
+    padding:12px 16px;
+    border:1px solid rgba(255,255,255,.9);
+  }
+  .field-wrap:focus-within{box-shadow:0 0 0 2px rgba(225,52,44,.3);}
+  .field-wrap svg{width:16px;height:16px;color:var(--ink-400);flex-shrink:0;}
+  .field-wrap input{
+    border:none;outline:none;background:transparent;
+    font-size:14px;color:var(--ink-900);width:100%;
+  }
+  .field-wrap input::placeholder{color:var(--ink-400);}
+  #login-error{
+    display:none;width:100%;background:rgba(214,54,44,.12);border:1px solid rgba(214,54,44,.25);
+    color:var(--danger);font-size:12px;padding:9px 12px;border-radius:var(--radius-sm);margin-bottom:12px;text-align:center;
+  }
+  #login-error.show{display:block;}
+  .btn-primary{
+    width:100%;padding:13px;border:none;border-radius:999px;
+    background:var(--red-600);color:#fff;font-weight:700;font-size:14.5px;
+    cursor:pointer;transition:background .15s ease, transform .1s ease;margin-top:4px;
+  }
+  .btn-primary:hover{background:var(--red-700);}
+  .btn-primary:active{transform:scale(.98);}
+  .btn-primary:disabled{background:var(--ink-400);cursor:default;}
+  .login-row{
+    width:100%;display:flex;align-items:center;justify-content:space-between;
+    margin-top:14px;font-size:12px;
+  }
+  .remember{display:flex;align-items:center;gap:7px;color:var(--ink-600);cursor:pointer;user-select:none;}
+  .remember input{width:15px;height:15px;accent-color:var(--red-600);cursor:pointer;}
+  .link-btn{background:none;border:none;color:var(--ink-600);font-size:12px;cursor:pointer;text-decoration:underline;padding:0;}
+  .login-divider{width:100%;height:1px;background:rgba(30,36,48,.12);margin:18px 0 12px;}
+  .login-foot{font-size:11.5px;color:var(--ink-600);text-align:center;}
+
+  /* ---------- APP SHELL ---------- */
+  #app{display:none;min-height:100%;padding-bottom:88px;}
+  #app.show{display:block;}
+
+  header.topbar{
+    position:sticky;top:14px;z-index:50;
+    margin:14px 14px 0;
+    border-radius:999px;
+    padding:10px 14px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  .tb-left{display:flex;align-items:center;gap:10px;min-width:0;}
+  .tb-badge{
+    width:36px;height:36px;border-radius:50%;background:var(--red-600);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .tb-badge svg{width:18px;height:18px;}
+  .tb-name{color:var(--ink-900);font-size:13px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tb-role{color:var(--ink-600);font-size:10px;letter-spacing:.03em;text-transform:uppercase;}
+  .tb-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+
+  .conn-pill{
+    display:flex;align-items:center;gap:6px;
+    padding:5px 10px;border-radius:999px;
+    background:rgba(255,255,255,.6);
+    border:1px solid rgba(255,255,255,.8);
+    font-size:10.5px;font-weight:600;color:var(--ink-600);
+  }
+  .conn-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex-shrink:0;}
+  .conn-pill.offline .conn-dot{background:var(--danger);animation:pulse 1.4s ease-in-out infinite;}
+  .conn-pill.syncing .conn-dot{background:var(--warn);animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .icon-btn{
+    width:32px;height:32px;border-radius:50%;border:none;
+    background:rgba(255,255,255,.6);color:var(--ink-900);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .icon-btn svg{width:15px;height:15px;}
+  .icon-btn:active{background:rgba(255,255,255,.85);}
+
+  main{padding:16px;max-width:640px;margin:0 auto;}
+  .view{display:none;}
+  .view.active{display:block;}
+  .placeholder-card{
+    border-radius:var(--radius-lg);
+    padding:30px 20px;text-align:center;
+  }
+  .placeholder-card .ph-icon{
+    width:48px;height:48px;border-radius:50%;background:rgba(225,52,44,.1);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 14px;
+  }
+  .placeholder-card .ph-icon svg{width:22px;height:22px;color:var(--red-600);}
+  .placeholder-card h2{font-size:15px;margin:0 0 6px;}
+  .placeholder-card p{font-size:12.5px;color:var(--ink-600);margin:0;line-height:1.5;}
+  .step-tag{
+    display:inline-block;margin-top:12px;font-size:10.5px;font-weight:700;
+    letter-spacing:.04em;color:var(--red-600);background:rgba(225,52,44,.1);
+    padding:4px 10px;border-radius:999px;
+  }
+
+  /* ---------- BOTTOM NAV ---------- */
+  nav.bottom-nav{
+    position:fixed;left:14px;right:14px;bottom:14px;z-index:60;
+    border-radius:999px;
+    padding:8px 6px;
+    display:flex;justify-content:space-around;
+  }
+  .nav-item{
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:none;border:none;cursor:pointer;padding:6px 10px;border-radius:14px;
+    color:var(--ink-400);flex:1;max-width:88px;transition:color .15s ease;
+  }
+  .nav-item svg{width:19px;height:19px;}
+  .nav-item span{font-size:9.5px;font-weight:600;}
+  .nav-item.active{color:var(--red-600);}
+  .nav-item[hidden]{display:none;}
+
+  .toast{
+    position:fixed;left:50%;bottom:104px;transform:translateX(-50%);
+    background:var(--navy-900);color:#fff;font-size:12.5px;font-weight:500;
+    padding:10px 16px;border-radius:999px;z-index:200;
+    opacity:0;pointer-events:none;transition:opacity .25s ease, bottom .25s ease;
+    box-shadow:0 8px 24px -8px rgba(0,0,0,.4);white-space:nowrap;
+  }
+  .toast.show{opacity:1;bottom:112px;}
+
+  /* ---------- MASTER: segmented tabs ---------- */
+  .segmented{
+    display:flex;gap:4px;padding:4px;border-radius:999px;margin-bottom:12px;
+  }
+  .segmented button{
+    flex:1;border:none;background:none;padding:9px 4px;border-radius:999px;
+    font-size:11.5px;font-weight:700;color:var(--ink-600);cursor:pointer;white-space:nowrap;
+    transition:background .15s ease,color .15s ease;
+  }
+  .segmented button.active{background:var(--red-600);color:#fff;}
+
+  .m-toolbar{display:flex;gap:8px;margin-bottom:12px;}
+  .m-search{flex:1;}
+  .m-search .field-wrap{background:rgba(255,255,255,.7);}
+  .m-add-btn{
+    width:42px;height:42px;border-radius:50%;border:none;background:var(--red-600);
+    color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+    box-shadow:0 8px 20px -8px rgba(225,52,44,.6);
+  }
+  .m-add-btn svg{width:18px;height:18px;}
+
+  .m-list{display:flex;flex-direction:column;gap:8px;}
+  .m-row{
+    border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;
+  }
+  .m-row-main{flex:1;min-width:0;}
+  .m-row-title{font-size:13px;font-weight:700;color:var(--ink-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .m-row-sub{font-size:11px;color:var(--ink-600);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .m-row-tags{display:flex;gap:6px;flex-shrink:0;align-items:center;}
+  .badge{
+    font-size:9.5px;font-weight:700;letter-spacing:.02em;padding:3px 8px;border-radius:999px;
+  }
+  .badge.active{background:rgba(30,158,100,.13);color:var(--ok);}
+  .badge.archived{background:rgba(138,147,163,.15);color:var(--ink-400);}
+  .badge.rack{background:rgba(30,36,48,.06);color:var(--ink-600);}
+  .m-empty{text-align:center;padding:30px 10px;color:var(--ink-400);font-size:12.5px;}
+
+  /* ---------- MODAL ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;z-index:800;background:rgba(21,27,43,.45);
+    backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-sheet{
+    width:100%;max-width:480px;max-height:88vh;overflow-y:auto;
+    border-radius:26px 26px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom,0px));
+    background:var(--glass-bg-strong);backdrop-filter:blur(26px) saturate(160%);
+    -webkit-backdrop-filter:blur(26px) saturate(160%);
+    border:1px solid var(--glass-border);
+  }
+  @media (min-width:560px){
+    .modal-overlay{align-items:center;}
+    .modal-sheet{border-radius:24px;max-height:84vh;}
+  }
+  .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .modal-head h3{font-size:15px;margin:0;}
+  .modal-close{
+    width:30px;height:30px;border-radius:50%;border:none;background:rgba(30,36,48,.08);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-600);flex-shrink:0;
+  }
+  .modal-close svg{width:14px;height:14px;}
+  .m-field{margin-bottom:12px;}
+  .m-field label{display:block;font-size:11.5px;font-weight:700;color:var(--ink-600);margin-bottom:5px;}
+  .m-field select, .m-field textarea{
+    width:100%;padding:11px 14px;border-radius:12px;border:1px solid rgba(30,36,48,.12);
+    font-size:13.5px;background:rgba(255,255,255,.85);color:var(--ink-900);outline:none;font-family:inherit;
+  }
+  .m-field textarea{resize:vertical;min-height:56px;}
+  .m-field .field-wrap{background:rgba(255,255,255,.85);border-radius:12px;}
+  .m-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .m-actions{display:flex;gap:10px;margin-top:16px;}
+  .btn-ghost{
+    flex:1;padding:12px;border-radius:999px;border:1.5px solid rgba(30,36,48,.15);
+    background:transparent;color:var(--ink-700,var(--ink-900));font-weight:700;font-size:13px;cursor:pointer;
+  }
+  .btn-primary.flex1{flex:1;margin-top:0;}
+
+  /* ---------- DETAIL ITEM ---------- */
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0;}
+  .detail-kv{background:rgba(255,255,255,.5);border-radius:12px;padding:10px 12px;}
+  .detail-kv .k{font-size:10px;color:var(--ink-400);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px;}
+  .detail-kv .v{font-size:13px;font-weight:700;color:var(--ink-900);word-break:break-word;}
+  .detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;}
+  .btn-action{
+    padding:11px 8px;border-radius:14px;border:none;font-size:11.5px;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .btn-action svg{width:15px;height:15px;}
+  .btn-action.primary{background:var(--red-600);color:#fff;}
+  .btn-action.ghost{background:rgba(30,36,48,.06);color:var(--ink-700,var(--ink-900));}
+  .btn-action.warn{background:rgba(217,138,23,.13);color:var(--warn);}
+  .btn-action.ok{background:rgba(30,158,100,.13);color:var(--ok);}
+  .btn-action:disabled{opacity:.4;cursor:not-allowed;}
+</style>
+</head>
+<body>
+
+<div class="bg-scene"><span class="b1"></span><span class="b2"></span><span class="b3"></span><span class="b4"></span><span class="b5"></span></div>
+
+<!-- ============ BOOT SPLASH ============ -->
+<div id="boot-splash">
+  <div class="boot-badge glass">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="#E1342C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+  <div class="boot-title">RDI Indirect Inventory</div>
+  <div class="boot-ring"></div>
+  <div class="boot-sub" id="boot-status">Menyiapkan aplikasi…</div>
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-screen">
+  <div class="login-card glass">
+    <div class="login-avatar">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h1>Masuk ke Akun</h1>
+    <div id="login-error"></div>
+    <form id="login-form" style="width:100%;">
+      <div class="field">
+        <div class="field-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="none"/><path d="M4 6l8 6 8-6M4 6h16v12H4V6z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input type="email" id="login-email" autocomplete="username" required placeholder="Email">
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.6"/></svg>
+          <input type="password" id="login-password" autocomplete="current-password" required placeholder="Password">
+        </div>
+      </div>
+      <button type="submit" class="btn-primary" id="login-btn">Masuk</button>
+      <div class="login-row">
+        <label class="remember"><input type="checkbox" id="login-remember" checked><span>Ingat saya</span></label>
+        <button type="button" class="link-btn" id="btn-forgot">Lupa Password?</button>
+      </div>
+    </form>
+    <div class="login-divider"></div>
+    <div class="login-foot">Belum punya akun? Hubungi Admin</div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app">
+  <header class="topbar glass">
+    <div class="tb-left">
+      <div class="tb-badge">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <div class="tb-name" id="tb-username">—</div>
+        <div class="tb-role" id="tb-userrole">—</div>
+      </div>
+    </div>
+    <div class="tb-right">
+      <div class="conn-pill" id="conn-pill"><span class="conn-dot"></span><span id="conn-label">Online</span></div>
+      <button class="icon-btn" id="btn-logout" title="Keluar">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="view active" data-view="dashboard">
+      <div class="placeholder-card glass">
+        <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 13h4v8H3zM10 3h4v18h-4zM17 8h4v13h-4z" stroke="currentColor" stroke-width="1.6"/></svg></div>
+        <h2>Dashboard</h2>
+        <p>Ringkasan total item, stok, dan aktivitas akan tampil di sini.</p>
+        <span class="step-tag">STEP 10 — belum dibangun</span>
+      </div>
+    </section>
+
+    <section class="view" data-view="scan">
+      <div class="placeholder-card glass">
+        <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+        <h2>Scan QR</h2>
+        <p>Kamera scanner untuk lookup item akan tampil di sini.</p>
+        <span class="step-tag">STEP 7 — belum dibangun</span>
+      </div>
+    </section>
+
+    <section class="view" data-view="transaksi">
+      <div class="placeholder-card glass">
+        <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        <h2>Transaksi</h2>
+        <p>Form MASUK/KELUAR akan tampil di sini.</p>
+        <span class="step-tag">STEP 6 — belum dibangun</span>
+      </div>
+    </section>
+
+    <section class="view" data-view="history">
+      <div class="placeholder-card glass">
+        <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 3v5h5M3.05 13a9 9 0 1 0 2.13-6.36L3 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h2>History</h2>
+        <p>Riwayat transaksi dan Stock Card akan tampil di sini.</p>
+        <span class="step-tag">STEP 8 — belum dibangun</span>
+      </div>
+    </section>
+
+    <section class="view" data-view="master">
+      <div class="segmented glass" id="master-tabs">
+        <button class="active" data-tab="item">Item</button>
+        <button data-tab="category">Kategori</button>
+        <button data-tab="vendor">Vendor</button>
+        <button data-tab="rack">Rak</button>
+      </div>
+
+      <div class="m-toolbar">
+        <div class="m-search field-wrap glass" id="m-search-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <input type="text" id="m-search" placeholder="Cari kode, nama, spesifikasi, rak…">
+        </div>
+        <button class="m-add-btn" id="m-add-btn" title="Tambah">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div class="m-list" id="m-list">
+        <div class="m-empty">Memuat data…</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ MODAL: FORM ============ -->
+  <div class="modal-overlay" id="modal-form-overlay">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h3 id="modal-form-title">Tambah</h3>
+        <button class="modal-close" id="modal-form-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <form id="modal-form"></form>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: DETAIL ITEM ============ -->
+  <div class="modal-overlay" id="modal-detail-overlay">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h3 id="modal-detail-title">Detail Item</h3>
+        <button class="modal-close" id="modal-detail-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div id="modal-detail-body"></div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav glass">
+    <button class="nav-item active" data-nav="dashboard">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 13h4v8H3zM10 3h4v18h-4zM17 8h4v13h-4z" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-item" data-nav="scan">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Scan</span>
+    </button>
+    <button class="nav-item" data-nav="transaksi">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Transaksi</span>
+    </button>
+    <button class="nav-item" data-nav="history">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 3v5h5M3.05 13a9 9 0 1 0 2.13-6.36L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>History</span>
+    </button>
+    <button class="nav-item" data-nav="master" data-role="ADMIN" hidden>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+      <span>Master</span>
+    </button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+  setPersistence, browserLocalPersistence, browserSessionPersistence, sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, enableIndexedDbPersistence,
+  collection, query, orderBy, onSnapshot, setDoc, updateDoc,
+  runTransaction, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+// ================= FIREBASE CONFIG =================
+// Project: rdi-indirect-scanner
+const firebaseConfig = {
+  apiKey: "AIzaSyDC4HsfqZv6-_Bq9D8QlNba0EkAyUkMe9c",
+  authDomain: "rdi-indirect-scanner.firebaseapp.com",
+  projectId: "rdi-indirect-scanner",
+  storageBucket: "rdi-indirect-scanner.firebasestorage.app",
+  messagingSenderId: "732879631441",
+  appId: "1:732879631441:web:df166edf7842a502303470",
+  measurementId: "G-Y2K1YXRTZV"
+};
+// =====================================================
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+try { enableIndexedDbPersistence(db); } catch (e) { /* multi-tab / unsupported: ignore */ }
+
+const $ = (sel) => document.querySelector(sel);
+const bootSplash = $('#boot-splash');
+const bootStatus = $('#boot-status');
+const loginScreen = $('#login-screen');
+const appShell = $('#app');
+const loginForm = $('#login-form');
+const loginError = $('#login-error');
+const loginBtn = $('#login-btn');
+
+const BOOT_MIN_MS = 600;
+const BOOT_MAX_MS = 8000;
+const bootStart = Date.now();
+let bootResolved = false;
+
+function finishBoot(showAppOrLogin) {
+  if (bootResolved) return;
+  bootResolved = true;
+  const elapsed = Date.now() - bootStart;
+  const wait = Math.max(0, BOOT_MIN_MS - elapsed);
+  setTimeout(() => {
+    bootSplash.classList.add('hide');
+    showAppOrLogin();
+  }, wait);
+}
+
+setTimeout(() => { if (!bootResolved) { bootStatus.textContent = 'Koneksi lambat…'; finishBoot(showLogin); } }, BOOT_MAX_MS);
+
+function showLogin() {
+  appShell.classList.remove('show');
+  loginScreen.classList.add('show');
+}
+
+let currentRole = null;
+function showApp(role, name, email) {
+  currentRole = role;
+  loginScreen.classList.remove('show');
+  appShell.classList.add('show');
+  $('#tb-username').textContent = name || email || 'User';
+  $('#tb-userrole').textContent = role;
+  document.querySelectorAll('[data-role]').forEach(el => {
+    el.hidden = el.dataset.role !== role;
+  });
+  startMasterListeners();
+}
+
+// ---------- CONNECTION STATUS ----------
+const connPill = $('#conn-pill');
+const connLabel = $('#conn-label');
+function setConnState(state) {
+  connPill.classList.remove('offline', 'syncing');
+  if (state === 'offline') { connPill.classList.add('offline'); connLabel.textContent = 'Offline'; }
+  else if (state === 'syncing') { connPill.classList.add('syncing'); connLabel.textContent = 'Sinkronisasi…'; }
+  else { connLabel.textContent = 'Online'; }
+}
+window.addEventListener('online', () => setConnState('online'));
+window.addEventListener('offline', () => setConnState('offline'));
+setConnState(navigator.onLine ? 'online' : 'offline');
+
+// ---------- AUTH ----------
+onAuthStateChanged(auth, async (user) => {
+  bootStatus.textContent = 'Memuat profil…';
+  if (!user) { finishBoot(showLogin); return; }
+  try {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    if (!snap.exists()) {
+      loginError.textContent = 'Akun belum terdaftar di sistem. Hubungi Admin.';
+      loginError.classList.add('show');
+      await signOut(auth);
+      finishBoot(showLogin);
+      return;
+    }
+    const u = snap.data();
+    if (u.status && u.status !== 'ACTIVE') {
+      loginError.textContent = 'Akun nonaktif. Hubungi Admin.';
+      loginError.classList.add('show');
+      await signOut(auth);
+      finishBoot(showLogin);
+      return;
+    }
+    finishBoot(() => showApp(u.role, u.name, user.email));
+  } catch (err) {
+    console.error(err);
+    bootStatus.textContent = 'Gagal memuat data.';
+    finishBoot(showLogin);
+  }
+});
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loginError.classList.remove('show');
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'Memproses…';
+  const email = $('#login-email').value.trim();
+  const password = $('#login-password').value;
+  const remember = $('#login-remember').checked;
+  try {
+    await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    let msg = 'Login gagal. Periksa email/password.';
+    if (err.code === 'auth/too-many-requests') msg = 'Terlalu banyak percobaan. Coba lagi nanti.';
+    loginError.textContent = msg;
+    loginError.classList.add('show');
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Masuk';
+  }
+});
+
+$('#btn-forgot').addEventListener('click', async () => {
+  const email = $('#login-email').value.trim();
+  if (!email) {
+    loginError.textContent = 'Isi email terlebih dahulu untuk reset password.';
+    loginError.classList.add('show');
+    return;
+  }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    loginError.classList.remove('show');
+    window.__toast('Link reset password dikirim ke ' + email);
+  } catch (err) {
+    loginError.textContent = 'Gagal mengirim reset password.';
+    loginError.classList.add('show');
+  }
+});
+
+$('#btn-logout').addEventListener('click', async () => {
+  await signOut(auth);
+  showLogin();
+});
+
+// ---------- NAV / ROUTING ----------
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.nav;
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === target));
+  });
+});
+
+// ---------- TOAST HELPER ----------
+let toastTimer;
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+window.__toast = toast;
+
+// ================= MASTER DATA MODULE (STEP 4) =================
+const state = { items:{}, categories:{}, vendors:{}, racks:{} };
+let masterListenersStarted = false;
+let currentTab = 'item';
+let searchTerm = '';
+
+function startMasterListeners() {
+  if (masterListenersStarted) return;
+  masterListenersStarted = true;
+
+  onSnapshot(query(collection(db,'categories'), orderBy('categoryCode')), snap => {
+    state.categories = {}; snap.forEach(d => state.categories[d.id] = { id:d.id, ...d.data() });
+    refreshSelectOptions(); renderMasterList();
+  }, err => console.error('categories', err));
+
+  onSnapshot(query(collection(db,'vendors'), orderBy('vendorCode')), snap => {
+    state.vendors = {}; snap.forEach(d => state.vendors[d.id] = { id:d.id, ...d.data() });
+    refreshSelectOptions(); renderMasterList();
+  }, err => console.error('vendors', err));
+
+  onSnapshot(query(collection(db,'racks'), orderBy('rackCode')), snap => {
+    state.racks = {}; snap.forEach(d => state.racks[d.id] = { id:d.id, ...d.data() });
+    refreshSelectOptions(); renderMasterList();
+  }, err => console.error('racks', err));
+
+  onSnapshot(query(collection(db,'items'), orderBy('itemCode')), snap => {
+    state.items = {}; snap.forEach(d => state.items[d.id] = { id:d.id, ...d.data() });
+    renderMasterList();
+  }, err => console.error('items', err));
+}
+
+// ---- sequential ID generator (ADMIN client-side, via transaction) ----
+async function nextSeq(field, prefix, pad) {
+  const counterRef = doc(db, 'settings', 'counters');
+  const val = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(counterRef);
+    const cur = snap.exists() ? (snap.data()[field] || 0) : 0;
+    const next = cur + 1;
+    tx.set(counterRef, { [field]: next }, { merge: true });
+    return next;
+  });
+  return `${prefix}-${String(val).padStart(pad, '0')}`;
+}
+
+// ---- tabs ----
+$('#master-tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  currentTab = btn.dataset.tab;
+  document.querySelectorAll('#master-tabs button').forEach(b => b.classList.toggle('active', b === btn));
+  $('#m-search').value = '';
+  searchTerm = '';
+  $('#m-search').placeholder = currentTab === 'item'
+    ? 'Cari kode, nama, spesifikasi, rak…'
+    : 'Cari kode atau nama…';
+  renderMasterList();
+});
+$('#m-search').addEventListener('input', (e) => {
+  searchTerm = e.target.value.trim().toLowerCase();
+  renderMasterList();
+});
+$('#m-add-btn').addEventListener('click', () => openFormModal(currentTab, null));
+
+// ---- render list ----
+function renderMasterList() {
+  const listEl = $('#m-list');
+  let data = Object.values(state[currentTab === 'item' ? 'items' : currentTab + 's'] || {});
+
+  if (searchTerm) {
+    data = data.filter(d => {
+      if (currentTab === 'item') {
+        const rackName = d.defaultRack ? (state.racks[d.defaultRack]?.rackCode || '') : '';
+        return [d.itemCode, d.name, d.specification, rackName].filter(Boolean).some(v => v.toLowerCase().includes(searchTerm));
+      }
+      const code = d.itemCode || d.categoryCode || d.vendorCode || d.rackCode || '';
+      const name = d.name || d.categoryName || d.vendorName || d.rackName || '';
+      return (code + ' ' + name).toLowerCase().includes(searchTerm);
+    });
+  }
+
+  if (currentTab === 'item') {
+    data.sort((a,b) => (a.status === b.status ? 0 : a.status === 'ARCHIVED' ? 1 : -1) || (a.itemCode||'').localeCompare(b.itemCode||''));
+  }
+
+  if (!data.length) {
+    listEl.innerHTML = `<div class="m-empty">Belum ada data. Ketuk + untuk menambah.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = data.map(d => renderRow(currentTab, d)).join('');
+
+  listEl.querySelectorAll('.m-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const id = row.dataset.id;
+      if (currentTab === 'item') openDetailItem(id);
+      else openFormModal(currentTab, id);
+    });
+  });
+}
+
+function renderRow(tab, d) {
+  if (tab === 'item') {
+    const rack = d.defaultRack ? (state.racks[d.defaultRack]?.rackCode || d.defaultRack) : '—';
+    const badge = d.status === 'ARCHIVED' ? '<span class="badge archived">ARSIP</span>' : '<span class="badge active">AKTIF</span>';
+    return `<div class="m-row glass" data-id="${d.id}">
+      <div class="m-row-main">
+        <div class="m-row-title">${esc(d.name || '(tanpa nama)')}</div>
+        <div class="m-row-sub">${esc(d.itemCode||'')} · ${esc(d.unit||'')}</div>
+      </div>
+      <div class="m-row-tags"><span class="badge rack">${esc(rack)}</span>${badge}</div>
+    </div>`;
+  }
+  const code = d.categoryCode || d.vendorCode || d.rackCode || '';
+  const name = d.categoryName || d.vendorName || d.rackName || '';
+  const sub = tab === 'rack' ? (d.location || d.zone || '') : (d.contact || '');
+  const badge = d.status === 'INACTIVE' ? '<span class="badge archived">NONAKTIF</span>' : '<span class="badge active">AKTIF</span>';
+  return `<div class="m-row glass" data-id="${d.id}">
+    <div class="m-row-main">
+      <div class="m-row-title">${esc(name || '(tanpa nama)')}</div>
+      <div class="m-row-sub">${esc(code)}${sub ? ' · ' + esc(sub) : ''}</div>
+    </div>
+    <div class="m-row-tags">${badge}</div>
+  </div>`;
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function refreshSelectOptions() {
+  const catSel = $('#f-categoryId'), venSel = $('#f-vendorId'), rakSel = $('#f-defaultRack');
+  if (catSel) catSel.innerHTML = Object.values(state.categories).map(c => `<option value="${c.id}">${esc(c.categoryName)}</option>`).join('') || '<option value="">Belum ada kategori</option>';
+  if (venSel) venSel.innerHTML = Object.values(state.vendors).map(v => `<option value="${v.id}">${esc(v.vendorName)}</option>`).join('') || '<option value="">Belum ada vendor</option>';
+  if (rakSel) rakSel.innerHTML = Object.values(state.racks).map(r => `<option value="${r.id}">${esc(r.rackCode)} — ${esc(r.rackName||'')}</option>`).join('') || '<option value="">Belum ada rak</option>';
+}
+
+// ---- form modal ----
+const formOverlay = $('#modal-form-overlay');
+const formTitle = $('#modal-form-title');
+const formEl = $('#modal-form');
+$('#modal-form-close').addEventListener('click', () => formOverlay.classList.remove('show'));
+formOverlay.addEventListener('click', (e) => { if (e.target === formOverlay) formOverlay.classList.remove('show'); });
+
+function openFormModal(tab, id) {
+  const isEdit = !!id;
+  const titles = { item:'Item', category:'Kategori', vendor:'Vendor', rack:'Rak' };
+  formTitle.textContent = (isEdit ? 'Edit ' : 'Tambah ') + titles[tab];
+  formEl.dataset.tab = tab;
+  formEl.dataset.id = id || '';
+
+  if (tab === 'item') {
+    const d = isEdit ? state.items[id] : {};
+    formEl.innerHTML = `
+      <div class="m-field"><label>Nama Item</label><div class="field-wrap"><input type="text" id="f-name" required value="${esc(d.name||'')}" placeholder="Contoh Material"></div></div>
+      <div class="m-row-2">
+        <div class="m-field"><label>Kode Item</label><div class="field-wrap"><input type="text" id="f-itemCode" required value="${esc(d.itemCode||'')}" placeholder="MAT-0001"></div></div>
+        <div class="m-field"><label>Unit</label><div class="field-wrap"><input type="text" id="f-unit" required value="${esc(d.unit||'')}" placeholder="PCS"></div></div>
+      </div>
+      <div class="m-field"><label>Spesifikasi</label><textarea id="f-specification">${esc(d.specification||'')}</textarea></div>
+      <div class="m-row-2">
+        <div class="m-field"><label>Kategori</label><select id="f-categoryId"></select></div>
+        <div class="m-field"><label>Vendor</label><select id="f-vendorId"></select></div>
+      </div>
+      <div class="m-row-2">
+        <div class="m-field"><label>Rak Default</label><select id="f-defaultRack"></select></div>
+        <div class="m-field"><label>BC / Non-BC</label><select id="f-bcStatus"><option value="NON_BC">NON-BC</option><option value="BC">BC</option></select></div>
+      </div>
+      <div class="m-field"><label>Minimum Stock</label><div class="field-wrap"><input type="number" id="f-minimumStock" min="0" value="${d.minimumStock ?? 0}"></div></div>
+      <div class="m-actions">
+        <button type="button" class="btn-ghost" id="f-cancel">Batal</button>
+        <button type="submit" class="btn-primary flex1">Simpan</button>
+      </div>`;
+    refreshSelectOptions();
+    if (isEdit) { $('#f-categoryId').value = d.categoryId||''; $('#f-vendorId').value = d.vendorId||''; $('#f-defaultRack').value = d.defaultRack||''; $('#f-bcStatus').value = d.bcStatus||'NON_BC'; }
+  } else if (tab === 'category') {
+    const d = isEdit ? state.categories[id] : {};
+    formEl.innerHTML = `
+      <div class="m-field"><label>Kode Kategori</label><div class="field-wrap"><input type="text" id="f-categoryCode" required value="${esc(d.categoryCode||'')}" placeholder="CAT-001"></div></div>
+      <div class="m-field"><label>Nama Kategori</label><div class="field-wrap"><input type="text" id="f-categoryName" required value="${esc(d.categoryName||'')}"></div></div>
+      ${isEdit ? statusToggleHtml(d.status) : ''}
+      <div class="m-actions"><button type="button" class="btn-ghost" id="f-cancel">Batal</button><button type="submit" class="btn-primary flex1">Simpan</button></div>`;
+  } else if (tab === 'vendor') {
+    const d = isEdit ? state.vendors[id] : {};
+    formEl.innerHTML = `
+      <div class="m-field"><label>Kode Vendor</label><div class="field-wrap"><input type="text" id="f-vendorCode" required value="${esc(d.vendorCode||'')}" placeholder="VEN-001"></div></div>
+      <div class="m-field"><label>Nama Vendor</label><div class="field-wrap"><input type="text" id="f-vendorName" required value="${esc(d.vendorName||'')}"></div></div>
+      <div class="m-field"><label>Kontak</label><div class="field-wrap"><input type="text" id="f-contact" value="${esc(d.contact||'')}"></div></div>
+      ${isEdit ? statusToggleHtml(d.status) : ''}
+      <div class="m-actions"><button type="button" class="btn-ghost" id="f-cancel">Batal</button><button type="submit" class="btn-primary flex1">Simpan</button></div>`;
+  } else if (tab === 'rack') {
+    const d = isEdit ? state.racks[id] : {};
+    formEl.innerHTML = `
+      <div class="m-field"><label>Kode Rak</label><div class="field-wrap"><input type="text" id="f-rackCode" required value="${esc(d.rackCode||(isEdit?id:''))}" placeholder="RAK-A01" ${isEdit?'disabled':''}></div></div>
+      <div class="m-field"><label>Nama Rak</label><div class="field-wrap"><input type="text" id="f-rackName" value="${esc(d.rackName||'')}"></div></div>
+      <div class="m-row-2">
+        <div class="m-field"><label>Lokasi</label><div class="field-wrap"><input type="text" id="f-location" value="${esc(d.location||'')}"></div></div>
+        <div class="m-field"><label>Zona</label><div class="field-wrap"><input type="text" id="f-zone" value="${esc(d.zone||'')}"></div></div>
+      </div>
+      ${isEdit ? statusToggleHtml(d.status) : ''}
+      <div class="m-actions"><button type="button" class="btn-ghost" id="f-cancel">Batal</button><button type="submit" class="btn-primary flex1">Simpan</button></div>`;
+  }
+
+  $('#f-cancel').addEventListener('click', () => formOverlay.classList.remove('show'));
+  formOverlay.classList.add('show');
+}
+
+function statusToggleHtml(status) {
+  const active = status !== 'INACTIVE';
+  return `<div class="m-field"><label>Status</label><select id="f-status"><option value="ACTIVE" ${active?'selected':''}>ACTIVE</option><option value="INACTIVE" ${!active?'selected':''}>INACTIVE</option></select></div>`;
+}
+
+formEl.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const tab = formEl.dataset.tab;
+  const id = formEl.dataset.id;
+  const isEdit = !!id;
+  const submitBtn = formEl.querySelector('button[type=submit]');
+  submitBtn.disabled = true; submitBtn.textContent = 'Menyimpan…';
+  try {
+    if (tab === 'item') {
+      const payload = {
+        itemCode: $('#f-itemCode').value.trim(),
+        name: $('#f-name').value.trim(),
+        unit: $('#f-unit').value.trim(),
+        specification: $('#f-specification').value.trim(),
+        categoryId: $('#f-categoryId').value || null,
+        vendorId: $('#f-vendorId').value || null,
+        defaultRack: $('#f-defaultRack').value || null,
+        bcStatus: $('#f-bcStatus').value,
+        minimumStock: Number($('#f-minimumStock').value) || 0,
+        updatedAt: serverTimestamp(),
+        updatedBy: auth.currentUser.uid
+      };
+      if (isEdit) {
+        await updateDoc(doc(db,'items',id), payload);
+      } else {
+        const newId = await nextSeq('itemSeq','ITEM',6);
+        await setDoc(doc(db,'items',newId), { ...payload, status:'ACTIVE', createdAt: serverTimestamp(), createdBy: auth.currentUser.uid });
+      }
+    } else if (tab === 'category') {
+      const payload = { categoryCode: $('#f-categoryCode').value.trim(), categoryName: $('#f-categoryName').value.trim() };
+      if (isEdit) { payload.status = $('#f-status').value; await updateDoc(doc(db,'categories',id), payload); }
+      else { const newId = await nextSeq('categorySeq','CAT',3); await setDoc(doc(db,'categories',newId), { ...payload, status:'ACTIVE' }); }
+    } else if (tab === 'vendor') {
+      const payload = { vendorCode: $('#f-vendorCode').value.trim(), vendorName: $('#f-vendorName').value.trim(), contact: $('#f-contact').value.trim() };
+      if (isEdit) { payload.status = $('#f-status').value; await updateDoc(doc(db,'vendors',id), payload); }
+      else { const newId = await nextSeq('vendorSeq','VEN',3); await setDoc(doc(db,'vendors',newId), { ...payload, status:'ACTIVE' }); }
+    } else if (tab === 'rack') {
+      const rackCode = $('#f-rackCode').value.trim().toUpperCase();
+      const payload = { rackCode, rackName: $('#f-rackName').value.trim(), location: $('#f-location').value.trim(), zone: $('#f-zone').value.trim() };
+      if (isEdit) { payload.status = $('#f-status').value; await updateDoc(doc(db,'racks',id), payload); }
+      else { await setDoc(doc(db,'racks',rackCode), { ...payload, status:'ACTIVE' }); }
+    }
+    formOverlay.classList.remove('show');
+    toast('Data tersimpan');
+  } catch (err) {
+    console.error(err);
+    toast('Gagal menyimpan: ' + (err.message || 'error'));
+  } finally {
+    submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
+  }
+});
+
+// ---- detail item ----
+const detailOverlay = $('#modal-detail-overlay');
+$('#modal-detail-close').addEventListener('click', () => detailOverlay.classList.remove('show'));
+detailOverlay.addEventListener('click', (e) => { if (e.target === detailOverlay) detailOverlay.classList.remove('show'); });
+
+function openDetailItem(id) {
+  const d = state.items[id];
+  if (!d) return;
+  const cat = d.categoryId ? state.categories[d.categoryId]?.categoryName : '—';
+  const ven = d.vendorId ? state.vendors[d.vendorId]?.vendorName : '—';
+  const rak = d.defaultRack ? state.racks[d.defaultRack]?.rackCode : '—';
+  const isArchived = d.status === 'ARCHIVED';
+
+  $('#modal-detail-title').textContent = d.name || d.itemCode;
+  $('#modal-detail-body').innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-kv"><div class="k">Kode Item</div><div class="v">${esc(d.itemCode||'—')}</div></div>
+      <div class="detail-kv"><div class="k">Status</div><div class="v">${isArchived?'ARSIP':'AKTIF'}</div></div>
+      <div class="detail-kv"><div class="k">Unit</div><div class="v">${esc(d.unit||'—')}</div></div>
+      <div class="detail-kv"><div class="k">BC / Non-BC</div><div class="v">${esc(d.bcStatus||'—')}</div></div>
+      <div class="detail-kv"><div class="k">Kategori</div><div class="v">${esc(cat||'—')}</div></div>
+      <div class="detail-kv"><div class="k">Vendor</div><div class="v">${esc(ven||'—')}</div></div>
+      <div class="detail-kv"><div class="k">Rak Default</div><div class="v">${esc(rak||'—')}</div></div>
+      <div class="detail-kv"><div class="k">Minimum Stock</div><div class="v">${d.minimumStock ?? 0}</div></div>
+      <div class="detail-kv" style="grid-column:1/-1;"><div class="k">Spesifikasi</div><div class="v">${esc(d.specification||'—')}</div></div>
+      <div class="detail-kv"><div class="k">Stok Saat Ini</div><div class="v">— <span style="font-size:9px;color:var(--ink-400);font-weight:500;">(Step 5)</span></div></div>
+      <div class="detail-kv"><div class="k">Total Masuk/Keluar</div><div class="v">— <span style="font-size:9px;color:var(--ink-400);font-weight:500;">(Step 6)</span></div></div>
+    </div>
+    <div class="detail-actions">
+      <button class="btn-action ghost" id="da-edit"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Edit</button>
+      <button class="btn-action ghost" disabled title="Step 6 belum dibangun">Transaksi</button>
+      <button class="btn-action ghost" disabled title="Step 8 belum dibangun">Lihat History</button>
+      <button class="btn-action ghost" disabled title="Step 19 belum dibangun">Cetak Kartu</button>
+      <button class="btn-action ${isArchived?'ok':'warn'}" id="da-archive" style="grid-column:1/-1;">${isArchived?'Aktifkan Kembali':'Arsipkan Item'}</button>
+    </div>`;
+
+  $('#da-edit').addEventListener('click', () => { detailOverlay.classList.remove('show'); openFormModal('item', id); });
+  $('#da-archive').addEventListener('click', async () => {
+    const newStatus = isArchived ? 'ACTIVE' : 'ARCHIVED';
+    if (!confirm(isArchived ? 'Aktifkan kembali item ini?' : 'Arsipkan item ini? Item ARCHIVED tidak bisa dipakai transaksi baru.')) return;
+    try {
+      await updateDoc(doc(db,'items',id), { status:newStatus, updatedAt:serverTimestamp(), updatedBy: auth.currentUser.uid });
+      toast(isArchived ? 'Item diaktifkan kembali' : 'Item diarsipkan');
+      detailOverlay.classList.remove('show');
+    } catch (err) { toast('Gagal update status'); }
+  });
+
+  detailOverlay.classList.add('show');
+}
+</script>
+</body>
+</html>
