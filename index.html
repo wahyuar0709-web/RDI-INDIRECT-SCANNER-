@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v3.8</title>
+<title>RDI Indirect Inventory v3.9</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -419,7 +419,7 @@
     </form>
     <div class="login-divider"></div>
     <div class="login-foot">Belum punya akun? Hubungi Admin</div>
-    <div class="login-foot" style="margin-top:6px;opacity:.6;">v3.8 · Step 19</div>
+    <div class="login-foot" style="margin-top:6px;opacity:.6;">v3.9 · Step 19</div>
   </div>
 </div>
 
@@ -677,7 +677,7 @@ const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
 
-const APP_VERSION = 'v3.8'; // Step 19: Cetak Kartu Stok (A4/A5 + PDF filename)
+const APP_VERSION = 'v3.9'; // Step 19: fix - error diagnosis utk cetak kartu
 console.log('RDI Indirect Inventory', APP_VERSION);
 
 try { enableIndexedDbPersistence(db); } catch (e) { /* multi-tab / unsupported: ignore */ }
@@ -1294,8 +1294,22 @@ async function printStockCard(item, size) {
   try {
     ledger = await fetchItemLedger(item.id);
   } catch (err) {
-    console.error(err);
+    console.error('printStockCard error:', err);
+    let hint = '';
+    if (err.code === 'failed-precondition') {
+      hint = 'Firestore butuh index baru untuk query ini. Buka Console browser (F12 → tab Console), cari error yang mengandung link "https://console.firebase.google.com/...", lalu klik link itu untuk membuat index otomatis. Setelah index selesai dibuat (1-2 menit), coba cetak lagi.';
+    } else if (err.code === 'permission-denied') {
+      hint = 'Akses ditolak oleh Security Rules Firestore untuk collection transactions.';
+    } else if (err.code) {
+      hint = `Kode error: ${err.code}`;
+    } else if (err.message) {
+      hint = err.message;
+    }
+    // printArea disembunyikan di layar (hanya tampil saat print), jadi pesan
+    // error di sini TIDAK cukup — tampilkan juga via alert() supaya pasti terlihat.
+    printArea.innerHTML = `<p style="padding:20px;color:#c00;">Gagal memuat data untuk dicetak.<br>${esc(hint)}</p>`;
     toast('Gagal memuat data untuk dicetak');
+    alert('Gagal memuat data untuk dicetak.\n\n' + (hint || 'Error tidak diketahui, cek Console (F12) untuk detail.'));
     return;
   }
 
