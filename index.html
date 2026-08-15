@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory</title>
+<title>RDI Indirect Inventory v3.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -369,6 +369,7 @@
     </form>
     <div class="login-divider"></div>
     <div class="login-foot">Belum punya akun? Hubungi Admin</div>
+    <div class="login-foot" style="margin-top:6px;opacity:.6;">v3.3 · Step 6</div>
   </div>
 </div>
 
@@ -412,11 +413,31 @@
     </section>
 
     <section class="view" data-view="transaksi">
-      <div class="placeholder-card glass">
-        <div class="ph-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
-        <h2>Transaksi</h2>
-        <p>Form MASUK/KELUAR akan tampil di sini.</p>
-        <span class="step-tag">STEP 6 — belum dibangun</span>
+      <div class="glass" style="border-radius:var(--radius-lg);padding:18px;">
+        <h2 style="font-size:15px;margin:0 0 14px;">Transaksi Stok</h2>
+        <form id="trx-form">
+          <div class="segmented glass" id="trx-type-tabs" style="margin-bottom:14px;">
+            <button type="button" class="active" data-type="MASUK">MASUK</button>
+            <button type="button" data-type="KELUAR">KELUAR</button>
+          </div>
+          <div class="m-field">
+            <label>Item</label>
+            <select id="trx-itemId" required></select>
+          </div>
+          <div class="m-row-2">
+            <div class="m-field"><label>Qty</label><div class="field-wrap"><input type="number" id="trx-qty" min="1" step="1" required placeholder="0"></div></div>
+            <div class="m-field"><label>Rak</label><select id="trx-rackId"></select></div>
+          </div>
+          <div id="trx-masuk-fields">
+            <div class="m-row-2">
+              <div class="m-field"><label>Vendor</label><select id="trx-vendorId"></select></div>
+              <div class="m-field"><label>No SJ/PO</label><div class="field-wrap"><input type="text" id="trx-noSjPo" placeholder="SJ-0001"></div></div>
+            </div>
+          </div>
+          <div class="m-field"><label>Catatan</label><textarea id="trx-note" placeholder="Opsional"></textarea></div>
+          <div id="trx-stock-info" style="font-size:11.5px;color:var(--ink-600);margin:-4px 0 14px;"></div>
+          <button type="submit" class="btn-primary" id="trx-submit">Simpan Transaksi</button>
+        </form>
       </div>
     </section>
 
@@ -484,7 +505,7 @@
       <svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       <span>Scan</span>
     </button>
-    <button class="nav-item" data-nav="transaksi">
+    <button class="nav-item" data-nav="transaksi" data-role="ADMIN,WAREHOUSE" hidden>
       <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <span>Transaksi</span>
     </button>
@@ -530,6 +551,9 @@ const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
 
+const APP_VERSION = 'v3.3'; // Step 6: Transaksi MASUK/KELUAR + role-gating fix
+console.log('RDI Indirect Inventory', APP_VERSION);
+
 try { enableIndexedDbPersistence(db); } catch (e) { /* multi-tab / unsupported: ignore */ }
 
 const $ = (sel) => document.querySelector(sel);
@@ -572,7 +596,8 @@ function showApp(role, name, email) {
   $('#tb-username').textContent = name || email || 'User';
   $('#tb-userrole').textContent = role;
   document.querySelectorAll('[data-role]').forEach(el => {
-    el.hidden = el.dataset.role !== role;
+    const allowedRoles = el.dataset.role.split(',').map(r => r.trim());
+    el.hidden = !allowedRoles.includes(role);
   });
   startMasterListeners();
 }
@@ -669,6 +694,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     const target = btn.dataset.nav;
     document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b === btn));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === target));
+    if (target === 'transaksi') refreshTrxSelectOptions();
   });
 });
 
@@ -684,7 +710,7 @@ function toast(msg) {
 window.__toast = toast;
 
 // ================= MASTER DATA MODULE (STEP 4) =================
-const state = { items:{}, categories:{}, vendors:{}, racks:{} };
+const state = { items:{}, categories:{}, vendors:{}, racks:{}, stockBalances:{} };
 let masterListenersStarted = false;
 let currentTab = 'item';
 let searchTerm = '';
@@ -700,19 +726,158 @@ function startMasterListeners() {
 
   onSnapshot(query(collection(db,'vendors'), orderBy('vendorCode')), snap => {
     state.vendors = {}; snap.forEach(d => state.vendors[d.id] = { id:d.id, ...d.data() });
-    refreshSelectOptions(); renderMasterList();
+    refreshSelectOptions(); renderMasterList(); refreshTrxSelectOptions();
   }, err => console.error('vendors', err));
 
   onSnapshot(query(collection(db,'racks'), orderBy('rackCode')), snap => {
     state.racks = {}; snap.forEach(d => state.racks[d.id] = { id:d.id, ...d.data() });
-    refreshSelectOptions(); renderMasterList();
+    refreshSelectOptions(); renderMasterList(); refreshTrxSelectOptions();
   }, err => console.error('racks', err));
 
   onSnapshot(query(collection(db,'items'), orderBy('itemCode')), snap => {
     state.items = {}; snap.forEach(d => state.items[d.id] = { id:d.id, ...d.data() });
-    renderMasterList();
+    renderMasterList(); refreshTrxSelectOptions();
   }, err => console.error('items', err));
+
+  // ---- STEP 5: Stok Saat Ini (real-time dari stockBalances) ----
+  onSnapshot(collection(db,'stockBalances'), snap => {
+    state.stockBalances = {}; snap.forEach(d => state.stockBalances[d.id] = d.data());
+    renderMasterList(); updateTrxStockInfo();
+  }, err => console.error('stockBalances', err));
 }
+
+// ---- STEP 5: helper ambil stok saat ini (default 0 kalau belum ada data transaksi) ----
+function getCurrentStock(itemId) {
+  const bal = state.stockBalances[itemId];
+  return bal && typeof bal.qty === 'number' ? bal.qty : 0;
+}
+
+// ================= TRANSAKSI MODULE (STEP 6) =================
+// Client-side runTransaction (bukan Cloud Function) — keputusan: tetap di Firebase Spark plan (gratis).
+let trxType = 'MASUK';
+const trxForm = $('#trx-form');
+const trxItemSel = $('#trx-itemId');
+const trxRackSel = $('#trx-rackId');
+const trxVendorSel = $('#trx-vendorId');
+const trxMasukFields = $('#trx-masuk-fields');
+const trxStockInfo = $('#trx-stock-info');
+
+$('#trx-type-tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-type]');
+  if (!btn) return;
+  trxType = btn.dataset.type;
+  document.querySelectorAll('#trx-type-tabs button').forEach(b => b.classList.toggle('active', b === btn));
+  trxMasukFields.style.display = trxType === 'MASUK' ? '' : 'none';
+  updateTrxStockInfo();
+});
+
+function refreshTrxSelectOptions() {
+  if (!trxItemSel) return;
+  const prevItem = trxItemSel.value;
+  const activeItems = Object.values(state.items).filter(i => i.status !== 'ARCHIVED');
+  trxItemSel.innerHTML = activeItems.length
+    ? activeItems.map(i => `<option value="${i.id}">${esc(i.itemCode)} — ${esc(i.name)}</option>`).join('')
+    : '<option value="">Belum ada item aktif</option>';
+  if (prevItem && state.items[prevItem]) trxItemSel.value = prevItem;
+
+  const prevRack = trxRackSel.value;
+  trxRackSel.innerHTML = '<option value="">— Tidak ditentukan —</option>' +
+    Object.values(state.racks).map(r => `<option value="${r.id}">${esc(r.rackCode)}${r.rackName ? ' — '+esc(r.rackName) : ''}</option>`).join('');
+  if (prevRack) trxRackSel.value = prevRack;
+
+  const prevVendor = trxVendorSel.value;
+  trxVendorSel.innerHTML = '<option value="">— Tidak ada —</option>' +
+    Object.values(state.vendors).map(v => `<option value="${v.id}">${esc(v.vendorName)}</option>`).join('');
+  if (prevVendor) trxVendorSel.value = prevVendor;
+
+  updateTrxStockInfo();
+}
+
+trxItemSel.addEventListener('change', () => {
+  const item = state.items[trxItemSel.value];
+  if (item && item.defaultRack) trxRackSel.value = item.defaultRack;
+  updateTrxStockInfo();
+});
+
+function updateTrxStockInfo() {
+  if (!trxItemSel) return;
+  const item = state.items[trxItemSel.value];
+  if (!item) { trxStockInfo.textContent = ''; return; }
+  const stock = getCurrentStock(item.id);
+  trxStockInfo.textContent = `Stok saat ini: ${stock} ${item.unit || ''}`;
+}
+
+function openTransaksiForm(prefillItemId) {
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === 'transaksi'));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === 'transaksi'));
+  refreshTrxSelectOptions();
+  if (prefillItemId && state.items[prefillItemId]) {
+    trxItemSel.value = prefillItemId;
+    const item = state.items[prefillItemId];
+    if (item.defaultRack) trxRackSel.value = item.defaultRack;
+  }
+  updateTrxStockInfo();
+}
+
+trxForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const itemId = trxItemSel.value;
+  const qty = Number($('#trx-qty').value);
+  const rackId = trxRackSel.value || null;
+  const note = $('#trx-note').value.trim();
+  const vendorId = trxType === 'MASUK' ? (trxVendorSel.value || null) : null;
+  const noSjPo = trxType === 'MASUK' ? $('#trx-noSjPo').value.trim() : '';
+
+  if (!itemId) { toast('Pilih item terlebih dahulu'); return; }
+  if (!qty || qty <= 0 || !Number.isInteger(qty)) { toast('Qty harus angka bulat positif'); return; }
+  const item = state.items[itemId];
+  if (!item || item.status === 'ARCHIVED') { toast('Item tidak aktif'); return; }
+
+  const submitBtn = $('#trx-submit');
+  submitBtn.disabled = true; submitBtn.textContent = 'Menyimpan…';
+
+  try {
+    // ---- STEP 6: atomic write client-side via runTransaction (tanpa Cloud Function) ----
+    await runTransaction(db, async (tx) => {
+      const balRef = doc(db, 'stockBalances', itemId);
+      const balSnap = await tx.get(balRef);
+      const currentQty = balSnap.exists() ? (balSnap.data().qty || 0) : 0;
+      const newQty = trxType === 'MASUK' ? currentQty + qty : currentQty - qty;
+      if (newQty < 0) throw new Error('Stok tidak cukup. Stok saat ini: ' + currentQty);
+
+      let rackBalRef = null, currentRackQty = 0, newRackQty = 0;
+      if (rackId) {
+        rackBalRef = doc(db, 'stockByRacks', `${itemId}_${rackId}`);
+        const rackBalSnap = await tx.get(rackBalRef);
+        currentRackQty = rackBalSnap.exists() ? (rackBalSnap.data().qty || 0) : 0;
+        newRackQty = trxType === 'MASUK' ? currentRackQty + qty : currentRackQty - qty;
+        if (newRackQty < 0) throw new Error('Stok di rak ini tidak cukup. Stok rak saat ini: ' + currentRackQty);
+      }
+
+      tx.set(balRef, { qty: newQty, itemId, updatedAt: serverTimestamp() }, { merge: true });
+      if (rackBalRef) {
+        tx.set(rackBalRef, { qty: newRackQty, itemId, rackId, updatedAt: serverTimestamp() }, { merge: true });
+      }
+
+      const trxRef = doc(collection(db, 'transactions'));
+      tx.set(trxRef, {
+        itemId, type: trxType, qty, rackId: rackId || null,
+        vendorId: vendorId || null, noSjPo: noSjPo || null, note: note || null,
+        createdAt: serverTimestamp(), createdBy: auth.currentUser.uid, createdByName: $('#tb-username').textContent
+      });
+    });
+
+    toast(`Transaksi ${trxType} tersimpan`);
+    trxForm.reset();
+    trxMasukFields.style.display = trxType === 'MASUK' ? '' : 'none';
+    updateTrxStockInfo();
+  } catch (err) {
+    console.error(err);
+    toast('Gagal: ' + (err.message || 'error'));
+  } finally {
+    submitBtn.disabled = false; submitBtn.textContent = 'Simpan Transaksi';
+  }
+});
 
 // ---- sequential ID generator (ADMIN client-side, via transaction) ----
 async function nextSeq(field, prefix, pad) {
@@ -787,12 +952,16 @@ function renderRow(tab, d) {
   if (tab === 'item') {
     const rack = d.defaultRack ? (state.racks[d.defaultRack]?.rackCode || d.defaultRack) : '—';
     const badge = d.status === 'ARCHIVED' ? '<span class="badge archived">ARSIP</span>' : '<span class="badge active">AKTIF</span>';
+    // ---- STEP 5: badge Stok Saat Ini, merah kalau di bawah Minimum Stock ----
+    const currentStock = getCurrentStock(d.id);
+    const isLowStock = currentStock < (d.minimumStock ?? 0);
+    const stockBadge = `<span class="badge ${isLowStock ? 'archived' : 'active'}" style="${isLowStock ? 'background:rgba(214,54,44,.13);color:var(--danger);' : ''}">${currentStock} ${esc(d.unit||'')}</span>`;
     return `<div class="m-row glass" data-id="${d.id}">
       <div class="m-row-main">
         <div class="m-row-title">${esc(d.name || '(tanpa nama)')}</div>
         <div class="m-row-sub">${esc(d.itemCode||'')} · ${esc(d.unit||'')}</div>
       </div>
-      <div class="m-row-tags"><span class="badge rack">${esc(rack)}</span>${badge}</div>
+      <div class="m-row-tags">${stockBadge}<span class="badge rack">${esc(rack)}</span>${badge}</div>
     </div>`;
   }
   const code = d.categoryCode || d.vendorCode || d.rackCode || '';
@@ -958,6 +1127,10 @@ function openDetailItem(id) {
   const ven = d.vendorId ? state.vendors[d.vendorId]?.vendorName : '—';
   const rak = d.defaultRack ? state.racks[d.defaultRack]?.rackCode : '—';
   const isArchived = d.status === 'ARCHIVED';
+  const currentStock = getCurrentStock(id);
+  const minStock = d.minimumStock ?? 0;
+  const isLowStock = currentStock < minStock;
+  const stockColor = isLowStock ? 'var(--danger)' : 'var(--ink-900)';
 
   $('#modal-detail-title').textContent = d.name || d.itemCode;
   $('#modal-detail-body').innerHTML = `
@@ -969,20 +1142,21 @@ function openDetailItem(id) {
       <div class="detail-kv"><div class="k">Kategori</div><div class="v">${esc(cat||'—')}</div></div>
       <div class="detail-kv"><div class="k">Vendor</div><div class="v">${esc(ven||'—')}</div></div>
       <div class="detail-kv"><div class="k">Rak Default</div><div class="v">${esc(rak||'—')}</div></div>
-      <div class="detail-kv"><div class="k">Minimum Stock</div><div class="v">${d.minimumStock ?? 0}</div></div>
+      <div class="detail-kv"><div class="k">Minimum Stock</div><div class="v">${minStock}</div></div>
       <div class="detail-kv" style="grid-column:1/-1;"><div class="k">Spesifikasi</div><div class="v">${esc(d.specification||'—')}</div></div>
-      <div class="detail-kv"><div class="k">Stok Saat Ini</div><div class="v">— <span style="font-size:9px;color:var(--ink-400);font-weight:500;">(Step 5)</span></div></div>
-      <div class="detail-kv"><div class="k">Total Masuk/Keluar</div><div class="v">— <span style="font-size:9px;color:var(--ink-400);font-weight:500;">(Step 6)</span></div></div>
+      <div class="detail-kv"><div class="k">Stok Saat Ini</div><div class="v" style="color:${stockColor};font-weight:700;">${currentStock} ${esc(d.unit||'')}${isLowStock ? ' ⚠️' : ''}</div></div>
+      <div class="detail-kv"><div class="k">Total Masuk/Keluar</div><div class="v">— <span style="font-size:9px;color:var(--ink-400);font-weight:500;">(Step 8)</span></div></div>
     </div>
     <div class="detail-actions">
       <button class="btn-action ghost" id="da-edit"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Edit</button>
-      <button class="btn-action ghost" disabled title="Step 6 belum dibangun">Transaksi</button>
+      <button class="btn-action ghost" id="da-transaksi" ${currentRole === 'VIEWER' ? 'hidden' : ''}>Transaksi</button>
       <button class="btn-action ghost" disabled title="Step 8 belum dibangun">Lihat History</button>
       <button class="btn-action ghost" disabled title="Step 19 belum dibangun">Cetak Kartu</button>
       <button class="btn-action ${isArchived?'ok':'warn'}" id="da-archive" style="grid-column:1/-1;">${isArchived?'Aktifkan Kembali':'Arsipkan Item'}</button>
     </div>`;
 
   $('#da-edit').addEventListener('click', () => { detailOverlay.classList.remove('show'); openFormModal('item', id); });
+  $('#da-transaksi').addEventListener('click', () => { detailOverlay.classList.remove('show'); openTransaksiForm(id); });
   $('#da-archive').addEventListener('click', async () => {
     const newStatus = isArchived ? 'ACTIVE' : 'ARCHIVED';
     if (!confirm(isArchived ? 'Aktifkan kembali item ini?' : 'Arsipkan item ini? Item ARCHIVED tidak bisa dipakai transaksi baru.')) return;
