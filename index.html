@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v3.9</title>
+<title>RDI Indirect Inventory v4.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -12,8 +12,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root{
-    --red-600:#E1342C;
-    --red-700:#C21E17;
+    /* ===== STEP 20 — PHASE 1: DESIGN FOUNDATION =====
+       Rebrand primary color dari merah ke "deep/premium green" sesuai
+       design brief Modern Industrial SaaS. Nama variabel --red-600/700
+       DIPERTAHANKAN (tidak di-rename) supaya seluruh referensi lama yang
+       sudah dipakai di puluhan tempat tetap valid — hanya NILAI warnanya
+       yang diganti. Alias --color-primary* ditambahkan untuk code baru. */
+    --red-600:#146C43;      /* was #E1342C — kini primary green (deep, muted) */
+    --red-700:#0F5433;      /* was #C21E17 — primary hover/pressed */
+    --red-600-rgb:20,108,67;
+    --color-primary:var(--red-600);
+    --color-primary-hover:var(--red-700);
+    --color-info:#2563A8;
     --navy-900:#151B2B;
     --ink-900:#1E2430;
     --ink-600:#586071;
@@ -23,12 +33,24 @@
     --glass-border:rgba(255,255,255,.65);
     --glass-shadow:0 20px 50px -18px rgba(30,36,48,.28);
     --line:rgba(30,36,48,.08);
-    --ok:#1E9E64;
+    --ok:#1E9E64;           /* status SUCCESS — sengaja beda shade dari primary agar tetap fungsional/tidak rancu */
     --warn:#D98A17;
     --danger:#D6362C;
     --radius-lg:22px;
     --radius-md:14px;
     --radius-sm:10px;
+    --radius-xl:26px;
+    /* ---- spacing scale (section 6 brief) ---- */
+    --space-1:4px;
+    --space-2:8px;
+    --space-3:12px;
+    --space-4:16px;
+    --space-5:20px;
+    --space-6:24px;
+    --space-7:32px;
+    /* ---- shadow scale (section 32 brief) ---- */
+    --shadow-sm:0 2px 8px -4px rgba(30,36,48,.18);
+    --shadow-md:0 10px 26px -10px rgba(30,36,48,.22);
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
@@ -81,7 +103,7 @@
   .boot-sub{color:var(--ink-400);font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;}
   .boot-ring{
     width:26px;height:26px;border-radius:50%;
-    border:2.5px solid rgba(225,52,44,.2);
+    border:2.5px solid rgba(20,108,67,.2);
     border-top-color:var(--red-600);
     animation:spin .8s linear infinite;
   }
@@ -104,7 +126,7 @@
     background:var(--red-600);
     display:flex;align-items:center;justify-content:center;
     margin-top:-39px;margin-bottom:16px;
-    box-shadow:0 12px 28px -8px rgba(225,52,44,.55);
+    box-shadow:0 12px 28px -8px rgba(20,108,67,.55);
     border:4px solid rgba(255,255,255,.8);
   }
   .login-avatar svg{width:34px;height:34px;}
@@ -117,7 +139,7 @@
     padding:12px 16px;
     border:1px solid rgba(255,255,255,.9);
   }
-  .field-wrap:focus-within{box-shadow:0 0 0 2px rgba(225,52,44,.3);}
+  .field-wrap:focus-within{box-shadow:0 0 0 2px rgba(20,108,67,.3);}
   .field-wrap svg{width:16px;height:16px;color:var(--ink-400);flex-shrink:0;}
   .field-wrap input{
     border:none;outline:none;background:transparent;
@@ -196,7 +218,7 @@
     padding:30px 20px;text-align:center;
   }
   .placeholder-card .ph-icon{
-    width:48px;height:48px;border-radius:50%;background:rgba(225,52,44,.1);
+    width:48px;height:48px;border-radius:50%;background:rgba(20,108,67,.1);
     display:flex;align-items:center;justify-content:center;margin:0 auto 14px;
   }
   .placeholder-card .ph-icon svg{width:22px;height:22px;color:var(--red-600);}
@@ -204,7 +226,7 @@
   .placeholder-card p{font-size:12.5px;color:var(--ink-600);margin:0;line-height:1.5;}
   .step-tag{
     display:inline-block;margin-top:12px;font-size:10.5px;font-weight:700;
-    letter-spacing:.04em;color:var(--red-600);background:rgba(225,52,44,.1);
+    letter-spacing:.04em;color:var(--red-600);background:rgba(20,108,67,.1);
     padding:4px 10px;border-radius:999px;
   }
 
@@ -251,7 +273,7 @@
   .m-add-btn{
     width:42px;height:42px;border-radius:50%;border:none;background:var(--red-600);
     color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
-    box-shadow:0 8px 20px -8px rgba(225,52,44,.6);
+    box-shadow:0 8px 20px -8px rgba(20,108,67,.6);
   }
   .m-add-btn svg{width:18px;height:18px;}
 
@@ -264,11 +286,16 @@
   .m-row-sub{font-size:11px;color:var(--ink-600);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .m-row-tags{display:flex;gap:6px;flex-shrink:0;align-items:center;}
   .badge{
-    font-size:9.5px;font-weight:700;letter-spacing:.02em;padding:3px 8px;border-radius:999px;
+    font-size:9.5px;font-weight:700;letter-spacing:.02em;padding:3px 8px 3px 7px;border-radius:999px;
+    display:inline-flex;align-items:center;gap:5px;
+  }
+  .badge::before{
+    content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0;background:currentColor;
   }
   .badge.active{background:rgba(30,158,100,.13);color:var(--ok);}
   .badge.archived{background:rgba(138,147,163,.15);color:var(--ink-400);}
   .badge.rack{background:rgba(30,36,48,.06);color:var(--ink-600);}
+  .badge.rack::before{display:none;} /* rak bukan status, tidak butuh dot */
   .m-empty{text-align:center;padding:30px 10px;color:var(--ink-400);font-size:12.5px;}
 
   /* ---------- MODAL ---------- */
@@ -383,7 +410,7 @@
 <!-- ============ BOOT SPLASH ============ -->
 <div id="boot-splash">
   <div class="boot-badge glass">
-    <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="#E1342C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="#146C43" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </div>
   <div class="boot-title">RDI Indirect Inventory</div>
   <div class="boot-ring"></div>
@@ -419,7 +446,7 @@
     </form>
     <div class="login-divider"></div>
     <div class="login-foot">Belum punya akun? Hubungi Admin</div>
-    <div class="login-foot" style="margin-top:6px;opacity:.6;">v3.9 · Step 19</div>
+    <div class="login-foot" style="margin-top:6px;opacity:.6;">v4.0 · Step 20</div>
   </div>
 </div>
 
@@ -677,7 +704,7 @@ const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
 
-const APP_VERSION = 'v3.9'; // Step 19: fix - error diagnosis utk cetak kartu
+const APP_VERSION = 'v4.0'; // Step 20 Phase 1: Design Foundation (rebrand hijau, tokens)
 console.log('RDI Indirect Inventory', APP_VERSION);
 
 try { enableIndexedDbPersistence(db); } catch (e) { /* multi-tab / unsupported: ignore */ }
