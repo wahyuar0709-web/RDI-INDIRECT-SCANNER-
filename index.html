@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v4.7</title>
+<title>RDI Indirect Inventory v5.0</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -237,6 +237,15 @@
   }
   .icon-btn svg{width:15px;height:15px;}
   .icon-btn:active{background:rgba(255,255,255,.85);}
+  .icon-btn-sm{
+    width:26px;height:26px;border-radius:50%;border:none;flex-shrink:0;
+    background:rgba(30,36,48,.06);color:var(--ink-600);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .icon-btn-sm svg{width:13px;height:13px;}
+  .icon-btn-sm:active{background:rgba(30,36,48,.14);}
+  .badge.rack-stock{background:rgba(20,108,67,.1);color:var(--red-600);}
+  .badge.rack-stock.empty{background:rgba(138,147,163,.15);color:var(--ink-400);}
 
   main{padding:16px;max-width:640px;margin:0 auto;}
   .view{display:none;}
@@ -626,6 +635,14 @@
         <p id="dash-lowstock-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:12px 0;" hidden>Tidak ada item dengan stok di bawah minimum.</p>
       </div>
 
+      <div class="glass" style="border-radius:var(--radius-lg);padding:14px 18px;margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div>
+          <h2 style="font-size:14px;margin:0 0 2px;">📦 Cek Per Rak</h2>
+          <p style="font-size:11.5px;color:var(--ink-600);margin:0;">Lihat sebaran stok tiap rak</p>
+        </div>
+        <button type="button" class="btn-action ghost" id="btn-goto-rak" style="width:auto;padding:9px 16px;flex-shrink:0;">Buka →</button>
+      </div>
+
       <div class="glass" style="border-radius:var(--radius-lg);padding:18px;margin-top:14px;">
         <h2 style="font-size:14px;margin:0 0 12px;">Aktivitas Terbaru</h2>
         <div id="dash-recent-list"></div>
@@ -647,6 +664,13 @@
     <section class="view" data-view="transaksi">
       <div class="glass" style="border-radius:var(--radius-lg);padding:18px;">
         <h2 style="font-size:15px;margin:0 0 14px;">Transaksi Stok</h2>
+        <div class="glass" id="trx-draft-banner" hidden style="border-radius:10px;padding:10px 12px;margin-bottom:14px;border:1px solid rgba(20,108,67,.25);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:11.5px;color:var(--ink-700);">📝 Ada draft transaksi belum tersimpan (<span id="trx-draft-time"></span>).</span>
+          <span style="display:flex;gap:8px;flex-shrink:0;">
+            <button type="button" class="link-btn" id="trx-draft-restore" style="font-size:11.5px;">Lanjutkan</button>
+            <button type="button" class="link-btn" id="trx-draft-discard" style="font-size:11.5px;color:var(--ink-400);">Buang</button>
+          </span>
+        </div>
         <form id="trx-form">
           <div class="segmented glass" id="trx-type-tabs" style="margin-bottom:14px;">
             <button type="button" class="active" data-type="MASUK">MASUK</button>
@@ -660,6 +684,7 @@
             <div class="m-field"><label>Qty</label><div class="field-wrap"><input type="number" id="trx-qty" min="1" step="1" required placeholder="0"></div></div>
             <div class="m-field"><label>Rak</label><select id="trx-rackId"></select></div>
           </div>
+          <div id="trx-anomaly-warning" hidden style="font-size:11.5px;color:#a15c00;background:rgba(255,193,7,.16);padding:8px 10px;border-radius:8px;margin:-6px 0 12px;"></div>
           <div id="trx-masuk-fields">
             <div class="m-row-2">
               <div class="m-field"><label>Vendor</label><select id="trx-vendorId"></select></div>
@@ -722,6 +747,44 @@
         </div>
         <div id="alert-list"></div>
         <p id="alert-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;" hidden>Tidak ada item dengan stok di bawah minimum. Semua aman 👍</p>
+      </div>
+    </section>
+
+    <section class="view" data-view="rak">
+      <div class="glass" style="border-radius:var(--radius-lg);padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <h2 style="font-size:15px;margin:0;">📦 Cek Per Rak</h2>
+          <button type="button" class="icon-btn" id="btn-back-from-rak" title="Kembali">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="m-field">
+          <input type="text" id="rak-search" placeholder="Cari kode/nama rak…">
+        </div>
+        <div id="rak-list" style="margin-top:12px;"></div>
+        <p id="rak-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;" hidden>Belum ada data rak dengan stok.</p>
+      </div>
+    </section>
+
+    <section class="view" data-view="rakdetail">
+      <div class="glass" style="border-radius:var(--radius-lg);padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <h2 style="font-size:15px;margin:0;" id="rakdetail-title">Rak</h2>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="icon-btn" id="btn-print-rakdetail" title="Cetak Rekap Stok">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button type="button" class="icon-btn" id="btn-back-from-rakdetail" title="Kembali">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <p id="rakdetail-sub" style="font-size:11.5px;color:var(--ink-600);margin:0 0 14px;"></p>
+        <div class="m-field">
+          <input type="text" id="rakdetail-search" placeholder="Cari kode/nama item…">
+        </div>
+        <div id="rakdetail-list" style="margin-top:12px;"></div>
+        <p id="rakdetail-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;" hidden>Tidak ada item dengan stok di rak ini.</p>
       </div>
     </section>
 
@@ -928,7 +991,7 @@ const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
 
-const APP_VERSION = 'v4.7'; // + Tampilkan versi aplikasi di halaman Pengaturan
+const APP_VERSION = 'v5.0'; // + Cek Per Rak, Cetak Label/Rekap Rak, Draft Transaksi, Deteksi Anomali
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -1149,8 +1212,9 @@ if (btnFindCollision) btnFindCollision.addEventListener('click', renderCollision
 function goToView(target) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === target));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === target));
-  if (target === 'transaksi') refreshTrxSelectOptions();
+  if (target === 'transaksi') { refreshTrxSelectOptions(); checkTrxAnomaly(); checkTrxDraft(); }
   if (target === 'alert') renderAlertPage();
+  if (target === 'rak') renderRakOverview();
   if (target === 'scan') { startScanner(); } else { stopScanner(); }
 }
 document.querySelectorAll('.nav-item').forEach(btn => {
@@ -1158,6 +1222,9 @@ document.querySelectorAll('.nav-item').forEach(btn => {
 });
 $('#btn-goto-alert').addEventListener('click', () => goToView('alert'));
 $('#btn-back-from-alert').addEventListener('click', () => goToView('dashboard'));
+$('#btn-goto-rak').addEventListener('click', () => goToView('rak'));
+$('#btn-back-from-rak').addEventListener('click', () => goToView('dashboard'));
+$('#btn-back-from-rakdetail').addEventListener('click', () => goToView('rak'));
 
 // ---------- TOAST HELPER ----------
 let toastTimer;
@@ -1171,7 +1238,7 @@ function toast(msg) {
 window.__toast = toast;
 
 // ================= MASTER DATA MODULE (STEP 4) =================
-const state = { items:{}, categories:{}, vendors:{}, racks:{}, stockBalances:{} };
+const state = { items:{}, categories:{}, vendors:{}, racks:{}, stockBalances:{}, stockByRacks:{} };
 let masterListenersStarted = false;
 let currentTab = 'item';
 let searchTerm = '';
@@ -1208,6 +1275,12 @@ function startMasterListeners() {
 
   // ---- STEP 8: History transaksi global ----
   startHistoryListener();
+
+  // ---- FASE 1: Cek Per Rak (stok per rak real-time) ----
+  onSnapshot(collection(db,'stockByRacks'), snap => {
+    state.stockByRacks = {}; snap.forEach(d => state.stockByRacks[d.id] = { id:d.id, ...d.data() });
+    renderRakOverview(); renderRakDetailList();
+  }, err => console.error('stockByRacks', err));
 }
 
 // ---- STEP 5: helper ambil stok saat ini (default 0 kalau belum ada data transaksi) ----
@@ -1233,6 +1306,8 @@ $('#trx-type-tabs').addEventListener('click', (e) => {
   document.querySelectorAll('#trx-type-tabs button').forEach(b => b.classList.toggle('active', b === btn));
   trxMasukFields.style.display = trxType === 'MASUK' ? '' : 'none';
   updateTrxStockInfo();
+  checkTrxAnomaly();
+  saveTrxDraft();
 });
 
 function refreshTrxSelectOptions() {
@@ -1261,6 +1336,7 @@ trxItemSel.addEventListener('change', () => {
   const item = state.items[trxItemSel.value];
   if (item && item.defaultRack) trxRackSel.value = item.defaultRack;
   updateTrxStockInfo();
+  checkTrxAnomaly();
 });
 
 function updateTrxStockInfo() {
@@ -1269,6 +1345,101 @@ function updateTrxStockInfo() {
   if (!item) { trxStockInfo.textContent = ''; return; }
   const stock = getCurrentStock(item.id);
   trxStockInfo.textContent = `Stok saat ini: ${stock} ${item.unit || ''}`;
+}
+
+// ================= FASE 3: DRAFT TRANSAKSI =================
+// Simpan input form ke localStorage supaya tidak hilang kalau app ditutup/refresh
+// sebelum sempat disubmit (mis. koneksi terputus saat isi form).
+const TRX_DRAFT_KEY = 'rdi_trx_draft';
+let trxDraftBannerDismissed = false;
+
+function getTrxFormSnapshot() {
+  return {
+    trxType,
+    itemId: trxItemSel.value || '',
+    qty: $('#trx-qty').value || '',
+    rackId: trxRackSel.value || '',
+    vendorId: trxVendorSel.value || '',
+    noSjPo: $('#trx-noSjPo').value || '',
+    note: $('#trx-note').value || '',
+    savedAt: Date.now()
+  };
+}
+function isTrxSnapshotEmpty(d) {
+  return !d.itemId && !d.qty && !d.rackId && !d.vendorId && !d.noSjPo && !d.note;
+}
+function saveTrxDraft() {
+  const snap = getTrxFormSnapshot();
+  if (isTrxSnapshotEmpty(snap)) { localStorage.removeItem(TRX_DRAFT_KEY); return; }
+  try { localStorage.setItem(TRX_DRAFT_KEY, JSON.stringify(snap)); } catch (e) { /* storage penuh/diblokir, abaikan */ }
+}
+function clearTrxDraft() {
+  localStorage.removeItem(TRX_DRAFT_KEY);
+  $('#trx-draft-banner').hidden = true;
+  trxDraftBannerDismissed = true;
+}
+function checkTrxDraft() {
+  if (trxDraftBannerDismissed) return;
+  let raw;
+  try { raw = localStorage.getItem(TRX_DRAFT_KEY); } catch (e) { return; }
+  if (!raw) return;
+  let draft;
+  try { draft = JSON.parse(raw); } catch (e) { localStorage.removeItem(TRX_DRAFT_KEY); return; }
+  if (isTrxSnapshotEmpty(draft)) { localStorage.removeItem(TRX_DRAFT_KEY); return; }
+  const timeLabel = draft.savedAt ? new Date(draft.savedAt).toLocaleString('id-ID', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+  $('#trx-draft-time').textContent = timeLabel;
+  $('#trx-draft-banner').hidden = false;
+}
+function restoreTrxDraft() {
+  let draft;
+  try { draft = JSON.parse(localStorage.getItem(TRX_DRAFT_KEY) || '{}'); } catch (e) { draft = {}; }
+  if (draft.trxType) {
+    trxType = draft.trxType;
+    document.querySelectorAll('#trx-type-tabs button').forEach(b => b.classList.toggle('active', b.dataset.type === trxType));
+    trxMasukFields.style.display = trxType === 'MASUK' ? '' : 'none';
+  }
+  if (draft.itemId && state.items[draft.itemId]) trxItemSel.value = draft.itemId;
+  if (draft.qty) $('#trx-qty').value = draft.qty;
+  if (draft.rackId) trxRackSel.value = draft.rackId;
+  if (draft.vendorId) trxVendorSel.value = draft.vendorId;
+  if (draft.noSjPo) $('#trx-noSjPo').value = draft.noSjPo;
+  if (draft.note) $('#trx-note').value = draft.note;
+  updateTrxStockInfo();
+  checkTrxAnomaly();
+  $('#trx-draft-banner').hidden = true;
+  trxDraftBannerDismissed = true;
+  toast('Draft dipulihkan');
+}
+$('#trx-draft-restore').addEventListener('click', restoreTrxDraft);
+$('#trx-draft-discard').addEventListener('click', clearTrxDraft);
+trxForm.addEventListener('input', () => { saveTrxDraft(); checkTrxAnomaly(); });
+trxForm.addEventListener('change', saveTrxDraft);
+
+// ================= FASE 3: DETEKSI ANOMALI TRANSAKSI =================
+// Bandingkan qty yang diinput dengan rata-rata qty transaksi (tipe sama) untuk
+// item yang sama dari 150 transaksi terakhir (histTransactions). Peringatan
+// saja (tidak memblokir submit) — untuk menangkap salah ketik qty (mis. 1000
+// padahal maksud 100).
+function checkTrxAnomaly() {
+  const warnEl = $('#trx-anomaly-warning');
+  if (!warnEl) return;
+  const itemId = trxItemSel.value;
+  const qty = Number($('#trx-qty').value);
+  if (!itemId || !qty || qty <= 0) { warnEl.hidden = true; return; }
+
+  const sameItemTrx = histTransactions.filter(t => t.itemId === itemId && t.type === trxType);
+  if (sameItemTrx.length < 3) { warnEl.hidden = true; return; }
+
+  const avg = sameItemTrx.reduce((s, t) => s + (t.qty || 0), 0) / sameItemTrx.length;
+  const item = state.items[itemId];
+  const unit = item?.unit || '';
+
+  if (avg > 0 && qty > avg * 3 && (qty - avg) >= 5) {
+    warnEl.hidden = false;
+    warnEl.textContent = `⚠️ Qty (${qty}) jauh di atas rata-rata transaksi ${trxType} item ini (rata-rata ${Math.round(avg)} ${unit} dari ${sameItemTrx.length} transaksi terakhir). Cek kembali sebelum simpan.`;
+  } else {
+    warnEl.hidden = true;
+  }
 }
 
 function openTransaksiForm(prefillItemId) {
@@ -1281,6 +1452,8 @@ function openTransaksiForm(prefillItemId) {
     if (item.defaultRack) trxRackSel.value = item.defaultRack;
   }
   updateTrxStockInfo();
+  checkTrxAnomaly();
+  checkTrxDraft();
 }
 
 trxForm.addEventListener('submit', async (e) => {
@@ -1335,6 +1508,9 @@ trxForm.addEventListener('submit', async (e) => {
     trxForm.reset();
     trxMasukFields.style.display = trxType === 'MASUK' ? '' : 'none';
     updateTrxStockInfo();
+    $('#trx-anomaly-warning').hidden = true;
+    clearTrxDraft();
+    trxDraftBannerDismissed = false;
   } catch (err) {
     console.error(err);
     toast('Gagal: ' + (err.message || 'error'));
@@ -1612,6 +1788,8 @@ $('#modal-papersize-overlay').querySelectorAll('.paper-opt button').forEach(btn 
     pendingLabelBatch = null;
     if (type === 'label-batch') printLabelsBatch(batch, size);
     else if (type === 'label') printItemLabel(item, size);
+    else if (type === 'rack-label') printRackLabel(item, size);
+    else if (type === 'rack-stock') printRackStockList(item, size);
     else printStockCard(item, size);
   });
 });
@@ -1762,6 +1940,105 @@ $('#modal-stockcard-print').addEventListener('click', () => {
   const item = id ? state.items[id] : null;
   printStockCard(item);
 });
+
+// ---- CETAK LABEL RAK (FASE 2) ----
+// Label QR untuk ditempel fisik di lokasi rak — isi QR = rackCode.
+async function printRackLabel(rack, size) {
+  if (!rack) { toast('Rak tidak ditemukan'); return; }
+  if (!size) { openPaperSizePicker(rack, 'rack-label'); return; }
+  if (typeof QRCode === 'undefined') { toast('Gagal memuat library QR. Cek koneksi internet.'); return; }
+
+  const printArea = $('#print-area');
+  const copies = size === 'A5' ? 16 : 36;
+  const codeForFile = (rack.rackCode || rack.id || 'rak').replace(/[^a-zA-Z0-9_-]/g, '');
+  const dateForFile = new Date().toISOString().slice(0, 10);
+
+  const cardsHtml = Array.from({ length: copies }, (_, i) => `
+    <div class="lbl-card">
+      <div class="lbl-qr" id="lbl-qr-${i}"></div>
+      <div class="lbl-info">
+        <div class="lbl-co">PT RAYARD DELI INDONESIA</div>
+        <div class="lbl-code">${esc(rack.rackCode || '—')}</div>
+        <div class="lbl-name">${esc(rack.rackName || '')}</div>
+      </div>
+    </div>`).join('');
+
+  printArea.innerHTML = `<div class="lbl-grid">${cardsHtml}</div>`;
+  for (let i = 0; i < copies; i++) {
+    new QRCode($(`#lbl-qr-${i}`), { text: rack.rackCode || rack.id, width: 60, height: 60, correctLevel: QRCode.CorrectLevel.M });
+  }
+
+  setPrintPageSize(size);
+  document.title = `LabelRak_${codeForFile}_${dateForFile}`;
+  showPrintPreview();
+}
+
+// ---- CETAK REKAP STOK PER RAK (FASE 2) ----
+// Daftar semua item + qty yang ada di satu rak, untuk stock opname fisik.
+function printRackStockList(rack, size) {
+  if (!rack) { toast('Rak tidak ditemukan'); return; }
+  if (!size) { openPaperSizePicker(rack, 'rack-stock'); return; }
+
+  const printArea = $('#print-area');
+  const groups = getRackGroups();
+  const group = groups[rack.id] || { items: [], totalQty: 0, itemCount: 0 };
+  const rows = group.items
+    .map(it => ({ item: state.items[it.itemId], qty: it.qty }))
+    .filter(r => r.item)
+    .sort((a,b) => (a.item.itemCode||'').localeCompare(b.item.itemCode||''));
+
+  const nowDate = new Date();
+  const now = nowDate.toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  const dateForFile = nowDate.toISOString().slice(0, 10);
+  const codeForFile = (rack.rackCode || rack.id || 'rak').replace(/[^a-zA-Z0-9_-]/g, '');
+
+  const rowsHtml = rows.length
+    ? rows.map((r, i) => `<tr>
+        <td class="num">${i+1}</td>
+        <td>${esc(r.item.itemCode||'—')}</td>
+        <td>${esc(r.item.name||'—')}</td>
+        <td class="num">${r.qty}</td>
+        <td>${esc(r.item.unit||'')}</td>
+        <td></td>
+      </tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;">Tidak ada item dengan stok di rak ini.</td></tr>`;
+
+  printArea.innerHTML = `
+    <div class="pk-head">
+      <div class="pk-co">PT RAYARD DELI INDONESIA</div>
+      <div class="pk-sub">RDI Indirect Inventory</div>
+      <div class="pk-title">REKAP STOK PER RAK</div>
+    </div>
+    <table class="pk-info">
+      <tr><td class="k">Kode Rak</td><td>: ${esc(rack.rackCode||'—')}</td><td class="sep"></td><td class="k">Total Item</td><td>: ${group.itemCount}</td></tr>
+      <tr><td class="k">Nama Rak</td><td>: ${esc(rack.rackName||'—')}</td><td class="sep"></td><td class="k">Total Qty</td><td>: ${group.totalQty}</td></tr>
+    </table>
+    <table class="pk-table">
+      <thead>
+        <tr>
+          <th style="width:6%;">No</th>
+          <th style="width:18%;">Kode Item</th>
+          <th>Nama Item</th>
+          <th style="width:12%;">Qty Sistem</th>
+          <th style="width:10%;">Satuan</th>
+          <th style="width:16%;">Qty Fisik</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <table class="pk-foot">
+      <tr>
+        <td>Dihitung oleh,<br><br><br>( _________________ )</td>
+        <td>Diperiksa oleh,<br><br><br>( _________________ )</td>
+      </tr>
+    </table>
+    <div class="pk-printed">Dicetak: ${now} · ${esc(auth.currentUser?.email || '')} · Kertas ${esc(size)}</div>
+  `;
+
+  setPrintPageSize(size);
+  document.title = `RekapRak_${codeForFile}_${dateForFile}`;
+  showPrintPreview();
+}
 
 // ---- CETAK LABEL BARANG (setara "Cetak Label Barang" di app lama) ----
 // Grid label berulang (isi QR + kode + nama) supaya bisa langsung digunting
@@ -2094,7 +2371,9 @@ function renderMasterList() {
   listEl.innerHTML = data.map(d => renderRow(currentTab, d)).join('');
 
   listEl.querySelectorAll('.m-row').forEach(row => {
-    row.addEventListener('click', () => {
+    row.addEventListener('click', (e) => {
+      const printBtn = e.target.closest('[data-print-rack]');
+      if (printBtn) { e.stopPropagation(); openPaperSizePicker(state.racks[printBtn.dataset.printRack], 'rack-label'); return; }
       const id = row.dataset.id;
       if (currentTab === 'item') openDetailItem(id);
       else openFormModal(currentTab, id);
@@ -2122,18 +2401,125 @@ function renderRow(tab, d) {
   const name = d.categoryName || d.vendorName || d.rackName || '';
   const sub = tab === 'rack' ? (d.location || d.zone || '') : (d.contact || '');
   const badge = d.status === 'INACTIVE' ? '<span class="badge archived">NONAKTIF</span>' : '<span class="badge active">AKTIF</span>';
+  const printBtn = tab === 'rack' ? `<button type="button" class="icon-btn-sm" data-print-rack="${d.id}" title="Cetak Label Rak">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>` : '';
   return `<div class="m-row glass" data-id="${d.id}">
     <div class="m-row-main">
       <div class="m-row-title">${esc(name || '(tanpa nama)')}</div>
       <div class="m-row-sub">${esc(code)}${sub ? ' · ' + esc(sub) : ''}</div>
     </div>
-    <div class="m-row-tags">${badge}</div>
+    <div class="m-row-tags">${printBtn}${badge}</div>
   </div>`;
 }
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+// ================= FASE 1: CEK PER RAK =================
+let currentRakId = null;
+let rakSearchTerm = '';
+let rakDetailSearchTerm = '';
+
+// Kelompokkan stockByRacks per rackId -> {totalQty, itemCount, items:[{itemId,qty}]}
+function getRackGroups() {
+  const groups = {};
+  Object.values(state.stockByRacks).forEach(r => {
+    if (!r.rackId || !(r.qty > 0)) return;
+    if (!groups[r.rackId]) groups[r.rackId] = { totalQty: 0, itemCount: 0, items: [] };
+    groups[r.rackId].totalQty += r.qty;
+    groups[r.rackId].itemCount += 1;
+    groups[r.rackId].items.push({ itemId: r.itemId, qty: r.qty });
+  });
+  return groups;
+}
+
+function renderRakOverview() {
+  const listEl = $('#rak-list'), emptyEl = $('#rak-empty');
+  if (!listEl) return;
+  const groups = getRackGroups();
+  let rackIds = Object.keys(groups);
+
+  let rows = rackIds.map(id => ({ rack: state.racks[id] || { id, rackCode: id, rackName:'' }, ...groups[id] }));
+  if (rakSearchTerm) {
+    rows = rows.filter(r => ((r.rack.rackCode||'') + ' ' + (r.rack.rackName||'')).toLowerCase().includes(rakSearchTerm));
+  }
+  rows.sort((a,b) => (a.rack.rackCode||'').localeCompare(b.rack.rackCode||''));
+
+  if (!rows.length) {
+    listEl.innerHTML = '';
+    emptyEl.hidden = false;
+    return;
+  }
+  emptyEl.hidden = true;
+  listEl.innerHTML = rows.map(r => `<div class="m-row glass" data-id="${esc(r.rack.id)}">
+      <div class="m-row-main">
+        <div class="m-row-title">${esc(r.rack.rackCode||r.rack.id)}${r.rack.rackName ? ' — '+esc(r.rack.rackName) : ''}</div>
+        <div class="m-row-sub">${r.itemCount} item</div>
+      </div>
+      <div class="m-row-tags"><span class="badge rack-stock">${r.totalQty}</span></div>
+    </div>`).join('');
+
+  listEl.querySelectorAll('.m-row').forEach(row => {
+    row.addEventListener('click', () => openRakDetail(row.dataset.id));
+  });
+}
+
+function openRakDetail(rackId) {
+  currentRakId = rackId;
+  rakDetailSearchTerm = '';
+  const rdSearch = $('#rakdetail-search'); if (rdSearch) rdSearch.value = '';
+  const rack = state.racks[rackId] || { rackCode: rackId, rackName:'' };
+  $('#rakdetail-title').textContent = rack.rackCode || rackId;
+  $('#rakdetail-sub').textContent = rack.rackName || '';
+  goToView('rakdetail');
+  renderRakDetailList();
+}
+
+function renderRakDetailList() {
+  const listEl = $('#rakdetail-list'), emptyEl = $('#rakdetail-empty');
+  if (!listEl || !currentRakId) return;
+  const groups = getRackGroups();
+  const group = groups[currentRakId] || { items: [] };
+
+  let rows = group.items.map(it => ({ item: state.items[it.itemId], qty: it.qty })).filter(r => r.item);
+  if (rakDetailSearchTerm) {
+    rows = rows.filter(r => ((r.item.itemCode||'') + ' ' + (r.item.name||'')).toLowerCase().includes(rakDetailSearchTerm));
+  }
+  rows.sort((a,b) => (a.item.itemCode||'').localeCompare(b.item.itemCode||''));
+
+  if (!rows.length) {
+    listEl.innerHTML = '';
+    emptyEl.hidden = false;
+    return;
+  }
+  emptyEl.hidden = true;
+  listEl.innerHTML = rows.map(r => {
+    const isLow = r.qty < (r.item.minimumStock ?? 0);
+    return `<div class="m-row glass" data-id="${esc(r.item.id)}">
+      <div class="m-row-main">
+        <div class="m-row-title">${esc(r.item.name||'(tanpa nama)')}</div>
+        <div class="m-row-sub">${esc(r.item.itemCode||'')}</div>
+      </div>
+      <div class="m-row-tags"><span class="badge ${isLow?'archived':'active'}" style="${isLow?'background:rgba(214,54,44,.13);color:var(--danger);':''}">${r.qty} ${esc(r.item.unit||'')}</span></div>
+    </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.m-row').forEach(row => {
+    row.addEventListener('click', () => openDetailItem(row.dataset.id));
+  });
+}
+
+const rakSearchInput = $('#rak-search');
+if (rakSearchInput) rakSearchInput.addEventListener('input', (e) => { rakSearchTerm = e.target.value.trim().toLowerCase(); renderRakOverview(); });
+const rakDetailSearchInput = $('#rakdetail-search');
+if (rakDetailSearchInput) rakDetailSearchInput.addEventListener('input', (e) => { rakDetailSearchTerm = e.target.value.trim().toLowerCase(); renderRakDetailList(); });
+const btnPrintRakDetail = $('#btn-print-rakdetail');
+if (btnPrintRakDetail) btnPrintRakDetail.addEventListener('click', () => {
+  if (!currentRakId) return;
+  openPaperSizePicker(state.racks[currentRakId] || { id: currentRakId, rackCode: currentRakId }, 'rack-stock');
+});
 
 function refreshSelectOptions() {
   const catSel = $('#f-categoryId'), venSel = $('#f-vendorId'), rakSel = $('#f-defaultRack');
