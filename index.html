@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v4.5</title>
+<title>RDI Indirect Inventory v4.7</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -501,14 +501,18 @@
   .pk-foot td{width:50%;text-align:center;vertical-align:top;padding-top:52px;}
   .pk-printed{margin-top:16px;font-size:10px;color:#333;text-align:right;}
   /* ============ CETAK LABEL BARANG ============ */
-  .lbl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4mm;}
-  .lbl-card{border:1px dashed #999;border-radius:2mm;padding:3mm;display:flex;align-items:center;gap:3mm;page-break-inside:avoid;}
-  .lbl-qr{flex-shrink:0;width:20mm;height:20mm;display:flex;align-items:center;justify-content:center;}
+  /* Label 59×22mm, gap 0 — garis potong dibentuk dari border kanan/bawah tiap
+     kotak + border atas/kiri di container, jadi 1 garis tunggal (tidak dobel).
+     grid-template-columns pakai auto-fill: browser otomatis hitung berapa
+     kolom muat sesuai lebar kertas aktif (A4 → 3 kolom, A5 → 2 kolom). */
+  .lbl-grid{display:grid;grid-template-columns:repeat(auto-fill,59mm);gap:0;border-top:1px dashed #999;border-left:1px dashed #999;}
+  .lbl-card{width:59mm;height:22mm;box-sizing:border-box;border-right:1px dashed #999;border-bottom:1px dashed #999;padding:2mm;display:flex;align-items:center;gap:2mm;page-break-inside:avoid;overflow:hidden;}
+  .lbl-qr{flex-shrink:0;width:18mm;height:18mm;display:flex;align-items:center;justify-content:center;}
   .lbl-info{min-width:0;overflow:hidden;}
-  .lbl-code{font-family:monospace;font-size:11px;font-weight:700;letter-spacing:.02em;}
-  .lbl-name{font-size:10px;font-weight:600;margin-top:1mm;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
-  .lbl-unit{font-size:8.5px;color:#333;margin-top:1mm;}
-  .lbl-co{font-size:7.5px;color:#555;margin-top:1mm;}
+  .lbl-code{font-family:monospace;font-size:10px;font-weight:700;letter-spacing:.01em;}
+  .lbl-name{font-size:8.5px;font-weight:600;margin-top:0.6mm;line-height:1.2;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .lbl-unit{font-size:7.5px;color:#333;margin-top:0.6mm;}
+  .lbl-co{font-size:6.5px;color:#555;}
   /* ---- modal pilih item cetak label massal ---- */
   .lb-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line-subtle);}
   .lb-row input[type="checkbox"]{width:19px;height:19px;flex-shrink:0;accent-color:var(--red-600);}
@@ -727,6 +731,7 @@
         <div class="detail-grid" style="margin-bottom:18px;">
           <div class="detail-kv"><div class="k">Nama</div><div class="v" id="pgn-username">—</div></div>
           <div class="detail-kv"><div class="k">Role</div><div class="v" id="pgn-userrole">—</div></div>
+          <div class="detail-kv"><div class="k">Versi Aplikasi</div><div class="v" id="pgn-appversion">—</div></div>
         </div>
         <button type="button" class="btn-primary" id="btn-logout-2" style="background:var(--danger);">Keluar</button>
       </div>
@@ -923,8 +928,10 @@ const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
 
-const APP_VERSION = 'v4.5'; // + Filter kategori & Pratinjau cetak sebelum print
+const APP_VERSION = 'v4.7'; // + Tampilkan versi aplikasi di halaman Pengaturan
 console.log('RDI Indirect Inventory', APP_VERSION);
+const pgnVersionEl = document.getElementById('pgn-appversion');
+if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
 
 try { enableIndexedDbPersistence(db); } catch (e) { /* multi-tab / unsupported: ignore */ }
 
@@ -1765,7 +1772,7 @@ async function printItemLabel(item, size) {
   if (typeof QRCode === 'undefined') { toast('Gagal memuat library QR. Cek koneksi internet.'); return; }
 
   const printArea = $('#print-area');
-  const copies = size === 'A5' ? 8 : 16; // cukup untuk 1 lembar, sisanya user tinggal print ulang
+  const copies = size === 'A5' ? 16 : 36; // isi penuh 1 lembar (A5: 2×8, A4: 3×12)
   const codeForFile = (item.itemCode || item.id || 'item').replace(/[^a-zA-Z0-9_-]/g, '');
   const dateForFile = new Date().toISOString().slice(0, 10);
 
@@ -1782,7 +1789,7 @@ async function printItemLabel(item, size) {
 
   printArea.innerHTML = `<div class="lbl-grid">${cardsHtml}</div>`;
   for (let i = 0; i < copies; i++) {
-    new QRCode($(`#lbl-qr-${i}`), { text: item.itemCode || item.id, width: 68, height: 68, correctLevel: QRCode.CorrectLevel.M });
+    new QRCode($(`#lbl-qr-${i}`), { text: item.itemCode || item.id, width: 60, height: 60, correctLevel: QRCode.CorrectLevel.M });
   }
 
   setPrintPageSize(size);
@@ -1816,7 +1823,7 @@ async function printLabelsBatch(entries, size) {
 
   printArea.innerHTML = `<div class="lbl-grid">${cardsHtml}</div>`;
   labels.forEach((item, i) => {
-    new QRCode($(`#lbl-qr-${i}`), { text: item.itemCode || item.id, width: 68, height: 68, correctLevel: QRCode.CorrectLevel.M });
+    new QRCode($(`#lbl-qr-${i}`), { text: item.itemCode || item.id, width: 60, height: 60, correctLevel: QRCode.CorrectLevel.M });
   });
 
   setPrintPageSize(size);
