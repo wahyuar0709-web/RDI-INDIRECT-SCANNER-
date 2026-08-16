@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v4.1</title>
+<title>RDI Indirect Inventory v4.5</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -467,6 +467,7 @@
   .dash-card-label{font-size:10.5px;color:var(--ink-600);margin-top:3px;letter-spacing:.01em;}
   /* ============ STEP 19: CETAK KARTU STOK ============ */
   #print-area{display:none;}
+  .print-preview-overlay.show #print-area{display:block;}
   @media print{
     body *{visibility:hidden;}
     #print-area, #print-area *{visibility:visible;}
@@ -475,6 +476,14 @@
       padding:0;margin:0;color:#000;font-family:Arial,Helvetica,sans-serif;
     }
   }
+  .print-preview-overlay{position:fixed;inset:0;z-index:900;background:rgba(20,24,32,.7);display:none;flex-direction:column;}
+  .print-preview-overlay.show{display:flex;}
+  .print-preview-head{background:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.12);z-index:2;}
+  .print-preview-body{flex:1;overflow-y:auto;background:#6b7280;padding:18px 14px;display:flex;justify-content:center;}
+  .print-preview-page{background:#fff;padding:8mm;box-shadow:0 4px 20px rgba(0,0,0,.3);width:100%;max-width:210mm;min-height:100px;color:#000;font-family:Arial,Helvetica,sans-serif;}
+  .print-preview-page #print-area{display:block !important;}
+  .print-preview-foot{background:#fff;padding:12px 18px;padding-bottom:max(12px,env(safe-area-inset-bottom));display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;box-shadow:0 -2px 8px rgba(0,0,0,.1);z-index:2;}
+  @media print{ .print-preview-head, .print-preview-foot{display:none !important;} .print-preview-body{background:none !important;padding:0 !important;} .print-preview-page{box-shadow:none !important;padding:0 !important;max-width:none !important;} }
   .pk-head{text-align:center;margin-bottom:14px;border-bottom:2px solid #000;padding-bottom:8px;}
   .pk-head .pk-co{font-size:15px;font-weight:700;letter-spacing:.02em;}
   .pk-head .pk-sub{font-size:11px;margin-top:2px;}
@@ -491,6 +500,23 @@
   .pk-foot{margin-top:26px;width:100%;font-size:11px;}
   .pk-foot td{width:50%;text-align:center;vertical-align:top;padding-top:52px;}
   .pk-printed{margin-top:16px;font-size:10px;color:#333;text-align:right;}
+  /* ============ CETAK LABEL BARANG ============ */
+  .lbl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4mm;}
+  .lbl-card{border:1px dashed #999;border-radius:2mm;padding:3mm;display:flex;align-items:center;gap:3mm;page-break-inside:avoid;}
+  .lbl-qr{flex-shrink:0;width:20mm;height:20mm;display:flex;align-items:center;justify-content:center;}
+  .lbl-info{min-width:0;overflow:hidden;}
+  .lbl-code{font-family:monospace;font-size:11px;font-weight:700;letter-spacing:.02em;}
+  .lbl-name{font-size:10px;font-weight:600;margin-top:1mm;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .lbl-unit{font-size:8.5px;color:#333;margin-top:1mm;}
+  .lbl-co{font-size:7.5px;color:#555;margin-top:1mm;}
+  /* ---- modal pilih item cetak label massal ---- */
+  .lb-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line-subtle);}
+  .lb-row input[type="checkbox"]{width:19px;height:19px;flex-shrink:0;accent-color:var(--red-600);}
+  .lb-row-info{flex:1;min-width:0;cursor:pointer;}
+  .lb-row-name{font-size:13px;font-weight:700;color:var(--ink-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lb-row-sub{font-size:11px;color:var(--ink-600);margin-top:1px;}
+  .lb-row-qty{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+  .lb-row-qty input{width:42px;padding:5px 4px;text-align:center;border-radius:8px;border:1px solid var(--line);font-size:12px;font-family:var(--font-mono);}
   .paper-opt{display:flex;gap:10px;margin-top:4px;}
   .paper-opt button{
     flex:1;padding:16px 8px;border-radius:var(--radius-sm);border:1.5px solid rgba(0,0,0,.12);
@@ -588,7 +614,10 @@
       </div>
 
       <div class="glass" style="border-radius:var(--radius-lg);padding:18px;margin-top:14px;">
-        <h2 style="font-size:14px;margin:0 0 12px;">⚠️ Stok Rendah</h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h2 style="font-size:14px;margin:0;">⚠️ Stok Rendah</h2>
+          <button type="button" class="link-btn" id="btn-goto-alert" style="font-size:11.5px;">Lihat Semua →</button>
+        </div>
         <div id="dash-lowstock-list"></div>
         <p id="dash-lowstock-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:12px 0;" hidden>Tidak ada item dengan stok di bawah minimum.</p>
       </div>
@@ -679,6 +708,19 @@
       </div>
     </section>
 
+    <section class="view" data-view="alert">
+      <div class="glass" style="border-radius:var(--radius-lg);padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <h2 style="font-size:15px;margin:0;">⚠️ Alert Stok Rendah</h2>
+          <button type="button" class="icon-btn" id="btn-back-from-alert" title="Kembali">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div id="alert-list"></div>
+        <p id="alert-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;" hidden>Tidak ada item dengan stok di bawah minimum. Semua aman 👍</p>
+      </div>
+    </section>
+
     <section class="view" data-view="pengaturan">
       <div class="glass" style="border-radius:var(--radius-lg);padding:20px;">
         <h2 style="font-size:15px;margin:0 0 14px;">Pengaturan</h2>
@@ -687,6 +729,36 @@
           <div class="detail-kv"><div class="k">Role</div><div class="v" id="pgn-userrole">—</div></div>
         </div>
         <button type="button" class="btn-primary" id="btn-logout-2" style="background:var(--danger);">Keluar</button>
+      </div>
+
+      <div class="glass" style="border-radius:var(--radius-lg);padding:20px;margin-top:14px;" data-role="ADMIN" hidden>
+        <h2 style="font-size:15px;margin:0 0 4px;">Tools</h2>
+        <p style="font-size:11.5px;color:var(--ink-600);margin:0 0 14px;">Fungsi maintenance & pelaporan data.</p>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
+          <div style="min-width:0;">
+            <div style="font-size:13px;font-weight:700;">Cetak Label (Banyak Item)</div>
+            <div style="font-size:11px;color:var(--ink-600);">Pilih beberapa item sekaligus, cetak semua labelnya dalam satu proses.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-open-labelbatch" style="flex-shrink:0;">Pilih</button>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
+          <div style="min-width:0;">
+            <div style="font-size:13px;font-weight:700;">Export CSV</div>
+            <div style="font-size:11px;color:var(--ink-600);">Unduh seluruh Master Item (kode, nama, stok, dll) sebagai file CSV.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-export-csv" style="flex-shrink:0;">Unduh</button>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
+          <div style="min-width:0;">
+            <div style="font-size:13px;font-weight:700;">Cari Kode Bentrok</div>
+            <div style="font-size:11px;color:var(--ink-600);">Deteksi Kode Item/Kategori/Vendor yang dipakai lebih dari satu data (data lama sebelum validasi diaktifkan).</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-find-collision" style="flex-shrink:0;">Cari</button>
+        </div>
+        <div id="collision-results" style="margin-top:6px;"></div>
       </div>
     </section>
   </main>
@@ -740,7 +812,21 @@
   </div>
 
   <!-- ============ PRINT AREA: KARTU STOK (STEP 19) ============ -->
-  <div id="print-area"></div>
+  <div class="print-preview-overlay" id="print-preview-overlay">
+    <div class="print-preview-head">
+      <h3 style="font-size:14px;margin:0;font-weight:800;">Pratinjau Cetak</h3>
+      <button type="button" class="icon-btn" id="print-preview-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="print-preview-body">
+      <div class="print-preview-page">
+        <div id="print-area"></div>
+      </div>
+    </div>
+    <div class="print-preview-foot">
+      <button type="button" class="btn-ghost" id="print-preview-back">← Ubah Pilihan</button>
+      <button type="button" class="btn-primary" id="print-preview-confirm" style="width:auto;padding:11px 20px;">🖨️ Cetak Sekarang</button>
+    </div>
+  </div>
 
   <!-- ============ MODAL: PILIH UKURAN KERTAS (STEP 19) ============ -->
   <div class="modal-overlay" id="modal-papersize-overlay">
@@ -752,6 +838,31 @@
       <div class="paper-opt">
         <button type="button" data-size="A4">A4<small>21 × 29.7 cm</small></button>
         <button type="button" data-size="A5">A5<small>14.8 × 21 cm</small></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: PILIH ITEM UNTUK CETAK LABEL MASSAL ============ -->
+  <div class="modal-overlay" id="modal-labelbatch-overlay">
+    <div class="modal-sheet" style="max-height:85vh;display:flex;flex-direction:column;">
+      <div class="modal-head">
+        <h3>Cetak Label — Pilih Item</h3>
+        <button class="modal-close" id="modal-labelbatch-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div style="padding:14px 20px 0;flex-shrink:0;">
+        <input type="text" id="labelbatch-search" placeholder="Cari kode/nama item..." style="width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;">
+        <select id="labelbatch-catfilter" style="width:100%;margin-top:8px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;background:#fff;">
+          <option value="">Semua Kategori</option>
+        </select>
+        <div style="display:flex;gap:14px;margin:10px 0 4px;">
+          <button type="button" class="link-btn" id="labelbatch-selectall">Pilih Semua</button>
+          <button type="button" class="link-btn" id="labelbatch-clearall">Kosongkan</button>
+        </div>
+      </div>
+      <div id="labelbatch-list" style="flex:1;overflow-y:auto;padding:6px 20px 12px;"></div>
+      <div class="modal-foot" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-shrink:0;">
+        <span id="labelbatch-count" style="font-size:12px;color:var(--ink-600);">0 item dipilih</span>
+        <button type="button" class="btn-primary" id="labelbatch-proceed" style="width:auto;padding:10px 18px;">Lanjut →</button>
       </div>
     </div>
   </div>
@@ -812,7 +923,7 @@ const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
 
-const APP_VERSION = 'v4.1'; // UI Premium Refresh: Phase 1-10 (design system, depth, hierarchy)
+const APP_VERSION = 'v4.5'; // + Filter kategori & Pratinjau cetak sebelum print
 console.log('RDI Indirect Inventory', APP_VERSION);
 
 try { enableIndexedDbPersistence(db); } catch (e) { /* multi-tab / unsupported: ignore */ }
@@ -954,16 +1065,92 @@ async function doLogout() {
 $('#btn-logout').addEventListener('click', doLogout);
 $('#btn-logout-2').addEventListener('click', doLogout);
 
-// ---------- NAV / ROUTING ----------
-document.querySelectorAll('.nav-item').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const target = btn.dataset.nav;
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b === btn));
-    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === target));
-    if (target === 'transaksi') refreshTrxSelectOptions();
-    if (target === 'scan') { startScanner(); } else { stopScanner(); }
+// ---------- EXPORT CSV ----------
+function csvEscape(val) {
+  const s = String(val ?? '');
+  if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function exportItemsCSV() {
+  const rows = [['Kode Item','Nama','Spesifikasi','Unit','Kategori','Vendor','Rak Default','BC/Non-BC','Stok Saat Ini','Minimum Stock','Status']];
+  Object.values(state.items).forEach(i => {
+    const cat = i.categoryId ? (state.categories[i.categoryId]?.categoryName || '') : '';
+    const ven = i.vendorId ? (state.vendors[i.vendorId]?.vendorName || '') : '';
+    const rak = i.defaultRack ? (state.racks[i.defaultRack]?.rackCode || '') : '';
+    rows.push([
+      i.itemCode || '', i.name || '', i.specification || '', i.unit || '',
+      cat, ven, rak, i.bcStatus || '',
+      String(getCurrentStock(i.id)), String(i.minimumStock ?? 0), i.status || 'ACTIVE'
+    ]);
   });
+  const csvContent = rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `MasterItem_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('CSV berhasil diunduh');
+}
+const btnExportCsv = $('#btn-export-csv');
+if (btnExportCsv) btnExportCsv.addEventListener('click', exportItemsCSV);
+
+// ---------- CARI KODE BENTROK (setara "Cari ID Collision" di app lama) ----------
+// Firestore Document ID sendiri tidak mungkin bentrok (setDoc ke ID sama = overwrite),
+// tapi Kode Item/Kategori/Vendor adalah field bisnis terpisah yang sejak fitur validasi
+// duplikat ditambahkan sudah dicegah di awal — tool ini untuk cek data LAMA yang mungkin
+// sudah terlanjur bentrok sebelum validasi itu aktif.
+function findCodeCollisions() {
+  const results = [];
+  function checkGroup(label, dataObj, field) {
+    const map = {};
+    Object.values(dataObj).forEach(d => {
+      const code = (d[field] || '').trim();
+      if (!code) return;
+      (map[code] = map[code] || []).push(d);
+    });
+    Object.entries(map).forEach(([code, arr]) => {
+      if (arr.length > 1) results.push({ label, code, items: arr });
+    });
+  }
+  checkGroup('Item', state.items, 'itemCode');
+  checkGroup('Kategori', state.categories, 'categoryCode');
+  checkGroup('Vendor', state.vendors, 'vendorCode');
+  return results;
+}
+function renderCollisionResults() {
+  const el = $('#collision-results');
+  if (!el) return;
+  const results = findCodeCollisions();
+  if (!results.length) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--ok);text-align:center;padding:10px 0;">✓ Tidak ada kode bentrok ditemukan.</p>';
+    return;
+  }
+  el.innerHTML = results.map(r => `
+    <div class="glass" style="border-radius:10px;padding:10px 12px;margin-top:8px;border:1px solid rgba(214,54,44,.25);">
+      <div style="font-size:12px;font-weight:700;color:var(--danger);">${esc(r.label)} — Kode "${esc(r.code)}" dipakai ${r.items.length}× (harusnya 1)</div>
+      <div style="font-size:11px;color:var(--ink-600);margin-top:4px;">Document ID: ${r.items.map(it => esc(it.id)).join(', ')}</div>
+    </div>`).join('');
+}
+const btnFindCollision = $('#btn-find-collision');
+if (btnFindCollision) btnFindCollision.addEventListener('click', renderCollisionResults);
+
+// ---------- NAV / ROUTING ----------
+function goToView(target) {
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === target));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === target));
+  if (target === 'transaksi') refreshTrxSelectOptions();
+  if (target === 'alert') renderAlertPage();
+  if (target === 'scan') { startScanner(); } else { stopScanner(); }
+}
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => goToView(btn.dataset.nav));
 });
+$('#btn-goto-alert').addEventListener('click', () => goToView('alert'));
+$('#btn-back-from-alert').addEventListener('click', () => goToView('dashboard'));
 
 // ---------- TOAST HELPER ----------
 let toastTimer;
@@ -1003,13 +1190,13 @@ function startMasterListeners() {
 
   onSnapshot(query(collection(db,'items'), orderBy('itemCode')), snap => {
     state.items = {}; snap.forEach(d => state.items[d.id] = { id:d.id, ...d.data() });
-    renderMasterList(); refreshTrxSelectOptions(); renderHistoryList(); renderDashboard();
+    renderMasterList(); refreshTrxSelectOptions(); renderHistoryList(); renderDashboard(); renderAlertPage();
   }, err => console.error('items', err));
 
   // ---- STEP 5: Stok Saat Ini (real-time dari stockBalances) ----
   onSnapshot(collection(db,'stockBalances'), snap => {
     state.stockBalances = {}; snap.forEach(d => state.stockBalances[d.id] = d.data());
-    renderMasterList(); updateTrxStockInfo(); renderDashboard();
+    renderMasterList(); updateTrxStockInfo(); renderDashboard(); renderAlertPage();
   }, err => console.error('stockBalances', err));
 
   // ---- STEP 8: History transaksi global ----
@@ -1388,22 +1575,37 @@ $('#modal-stockcard-overlay').addEventListener('click', (e) => { if (e.target ==
 // title = KartuStok_{kodeItem}_{tanggal} sebelum print, lalu dikembalikan
 // ke title app semula setelah selesai (event afterprint + fallback timer).
 let pendingPrintItem = null;
+let pendingPrintType = 'kartu';
+let pendingLabelBatch = null;
 const APP_TITLE = document.title;
 
-function openPaperSizePicker(item) {
+function openPaperSizePicker(item, type) {
   if (!item) { toast('Item tidak ditemukan'); return; }
   pendingPrintItem = item;
+  pendingLabelBatch = null;
+  pendingPrintType = type || 'kartu';
   $('#modal-papersize-overlay').classList.add('show');
 }
-$('#modal-papersize-close').addEventListener('click', () => { $('#modal-papersize-overlay').classList.remove('show'); pendingPrintItem = null; });
-$('#modal-papersize-overlay').addEventListener('click', (e) => { if (e.target === $('#modal-papersize-overlay')) { $('#modal-papersize-overlay').classList.remove('show'); pendingPrintItem = null; } });
+function openPaperSizePickerBatch(entries) {
+  pendingPrintItem = null;
+  pendingLabelBatch = entries;
+  pendingPrintType = 'label-batch';
+  $('#modal-papersize-overlay').classList.add('show');
+}
+$('#modal-papersize-close').addEventListener('click', () => { $('#modal-papersize-overlay').classList.remove('show'); pendingPrintItem = null; pendingLabelBatch = null; });
+$('#modal-papersize-overlay').addEventListener('click', (e) => { if (e.target === $('#modal-papersize-overlay')) { $('#modal-papersize-overlay').classList.remove('show'); pendingPrintItem = null; pendingLabelBatch = null; } });
 $('#modal-papersize-overlay').querySelectorAll('.paper-opt button').forEach(btn => {
   btn.addEventListener('click', () => {
     const size = btn.dataset.size;
     const item = pendingPrintItem;
+    const batch = pendingLabelBatch;
+    const type = pendingPrintType;
     $('#modal-papersize-overlay').classList.remove('show');
     pendingPrintItem = null;
-    printStockCard(item, size);
+    pendingLabelBatch = null;
+    if (type === 'label-batch') printLabelsBatch(batch, size);
+    else if (type === 'label') printItemLabel(item, size);
+    else printStockCard(item, size);
   });
 });
 
@@ -1422,6 +1624,24 @@ function restorePrintTitle() {
   document.title = APP_TITLE;
   window.removeEventListener('afterprint', restorePrintTitle);
 }
+
+// ---- Modal Pratinjau Cetak ----
+// Semua fungsi print (kartu stok, label tunggal, label massal) memanggil ini
+// setelah #print-area terisi, supaya user bisa cek dulu sebelum benar-benar print.
+function showPrintPreview() {
+  $('#print-preview-overlay').classList.add('show');
+}
+function hidePrintPreview() {
+  $('#print-preview-overlay').classList.remove('show');
+  restorePrintTitle();
+}
+$('#print-preview-close').addEventListener('click', hidePrintPreview);
+$('#print-preview-back').addEventListener('click', hidePrintPreview);
+$('#print-preview-confirm').addEventListener('click', () => {
+  window.addEventListener('afterprint', restorePrintTitle);
+  window.print();
+  setTimeout(restorePrintTitle, 3000); // fallback jika afterprint tidak terpicu
+});
 
 async function printStockCard(item, size) {
   if (!item) { toast('Item tidak ditemukan'); return; }
@@ -1527,12 +1747,7 @@ async function printStockCard(item, size) {
 
   setPrintPageSize(size);
   document.title = `KartuStok_${codeForFile}_${dateForFile}`;
-  window.addEventListener('afterprint', restorePrintTitle);
-  setTimeout(() => {
-    window.print();
-    // fallback jika event afterprint tidak terpicu di browser tertentu
-    setTimeout(restorePrintTitle, 3000);
-  }, 80);
+  showPrintPreview();
 }
 
 $('#modal-stockcard-print').addEventListener('click', () => {
@@ -1541,9 +1756,226 @@ $('#modal-stockcard-print').addEventListener('click', () => {
   printStockCard(item);
 });
 
-// ================= DASHBOARD MODULE (STEP 10) =================
+// ---- CETAK LABEL BARANG (setara "Cetak Label Barang" di app lama) ----
+// Grid label berulang (isi QR + kode + nama) supaya bisa langsung digunting
+// dan ditempel ke banyak unit fisik barang yang sama.
+async function printItemLabel(item, size) {
+  if (!item) { toast('Item tidak ditemukan'); return; }
+  if (!size) { openPaperSizePicker(item, 'label'); return; }
+  if (typeof QRCode === 'undefined') { toast('Gagal memuat library QR. Cek koneksi internet.'); return; }
+
+  const printArea = $('#print-area');
+  const copies = size === 'A5' ? 8 : 16; // cukup untuk 1 lembar, sisanya user tinggal print ulang
+  const codeForFile = (item.itemCode || item.id || 'item').replace(/[^a-zA-Z0-9_-]/g, '');
+  const dateForFile = new Date().toISOString().slice(0, 10);
+
+  const cardsHtml = Array.from({ length: copies }, (_, i) => `
+    <div class="lbl-card">
+      <div class="lbl-qr" id="lbl-qr-${i}"></div>
+      <div class="lbl-info">
+        <div class="lbl-co">PT RAYARD DELI INDONESIA</div>
+        <div class="lbl-code">${esc(item.itemCode || '—')}</div>
+        <div class="lbl-name">${esc(item.name || '—')}</div>
+        <div class="lbl-unit">${esc(item.unit || '')}</div>
+      </div>
+    </div>`).join('');
+
+  printArea.innerHTML = `<div class="lbl-grid">${cardsHtml}</div>`;
+  for (let i = 0; i < copies; i++) {
+    new QRCode($(`#lbl-qr-${i}`), { text: item.itemCode || item.id, width: 68, height: 68, correctLevel: QRCode.CorrectLevel.M });
+  }
+
+  setPrintPageSize(size);
+  document.title = `LabelBarang_${codeForFile}_${dateForFile}`;
+  showPrintPreview();
+}
+
+// ---- CETAK LABEL BANYAK ITEM SEKALIGUS ----
+// entries: [{ item, qty }] — qty = berapa lembar label diulang untuk item itu.
+// Semua label dari semua item digabung jadi satu grid, dicetak dalam satu proses.
+async function printLabelsBatch(entries, size) {
+  if (!entries || !entries.length) { toast('Tidak ada item dipilih'); return; }
+  if (!size) { openPaperSizePickerBatch(entries); return; }
+  if (typeof QRCode === 'undefined') { toast('Gagal memuat library QR. Cek koneksi internet.'); return; }
+
+  const printArea = $('#print-area');
+  const labels = [];
+  entries.forEach(e => { for (let n = 0; n < e.qty; n++) labels.push(e.item); });
+  const dateForFile = new Date().toISOString().slice(0, 10);
+
+  const cardsHtml = labels.map((item, i) => `
+    <div class="lbl-card">
+      <div class="lbl-qr" id="lbl-qr-${i}"></div>
+      <div class="lbl-info">
+        <div class="lbl-co">PT RAYARD DELI INDONESIA</div>
+        <div class="lbl-code">${esc(item.itemCode || '—')}</div>
+        <div class="lbl-name">${esc(item.name || '—')}</div>
+        <div class="lbl-unit">${esc(item.unit || '')}</div>
+      </div>
+    </div>`).join('');
+
+  printArea.innerHTML = `<div class="lbl-grid">${cardsHtml}</div>`;
+  labels.forEach((item, i) => {
+    new QRCode($(`#lbl-qr-${i}`), { text: item.itemCode || item.id, width: 68, height: 68, correctLevel: QRCode.CorrectLevel.M });
+  });
+
+  setPrintPageSize(size);
+  document.title = `LabelBarang_Batch_${labels.length}item_${dateForFile}`;
+  showPrintPreview();
+}
+
+// ---- Modal pemilihan item untuk cetak label massal ----
+const labelBatchSelected = new Map(); // itemId -> qty
+
+function openLabelBatchModal() {
+  labelBatchSelected.clear();
+  $('#labelbatch-search').value = '';
+  const catSel = $('#labelbatch-catfilter');
+  catSel.innerHTML = '<option value="">Semua Kategori</option>' +
+    Object.values(state.categories)
+      .filter(c => c.status !== 'ARCHIVED')
+      .sort((a, b) => (a.categoryName || '').localeCompare(b.categoryName || ''))
+      .map(c => `<option value="${c.id}">${esc(c.categoryName || c.categoryCode)}</option>`).join('');
+  catSel.value = '';
+  renderLabelBatchList('', '');
+  $('#modal-labelbatch-overlay').classList.add('show');
+}
+function getFilteredLabelBatchItems(searchTerm, categoryId) {
+  const term = (searchTerm || '').trim().toLowerCase();
+  const catId = categoryId !== undefined ? categoryId : ($('#labelbatch-catfilter')?.value || '');
+  let items = Object.values(state.items).filter(i => i.status !== 'ARCHIVED');
+  if (catId) items = items.filter(i => i.categoryId === catId);
+  if (term) {
+    items = items.filter(i =>
+      (i.itemCode || '').toLowerCase().includes(term) ||
+      (i.name || '').toLowerCase().includes(term)
+    );
+  }
+  return items;
+}
+function renderLabelBatchList(searchTerm, categoryId) {
+  const listEl = $('#labelbatch-list');
+  const items = getFilteredLabelBatchItems(searchTerm, categoryId);
+  items.sort((a, b) => (a.itemCode || '').localeCompare(b.itemCode || ''));
+
+  if (!items.length) {
+    listEl.innerHTML = '<p style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;">Tidak ada item cocok.</p>';
+    updateLabelBatchCount();
+    return;
+  }
+
+  listEl.innerHTML = items.map(i => {
+    const checked = labelBatchSelected.has(i.id);
+    const qty = labelBatchSelected.get(i.id) || 1;
+    return `<div class="lb-row" data-id="${i.id}">
+      <input type="checkbox" class="lb-cb" ${checked ? 'checked' : ''}>
+      <div class="lb-row-info">
+        <div class="lb-row-name">${esc(i.name || i.itemCode)}</div>
+        <div class="lb-row-sub">${esc(i.itemCode || '')}</div>
+      </div>
+      <div class="lb-row-qty" style="${checked ? '' : 'visibility:hidden;'}">
+        <span style="font-size:11px;color:var(--ink-600);">×</span>
+        <input type="number" class="lb-qty" min="1" value="${qty}">
+      </div>
+    </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.lb-row').forEach(row => {
+    const id = row.dataset.id;
+    const cb = row.querySelector('.lb-cb');
+    const qtyWrap = row.querySelector('.lb-row-qty');
+    const qtyInput = row.querySelector('.lb-qty');
+    const info = row.querySelector('.lb-row-info');
+
+    function toggle(checked) {
+      cb.checked = checked;
+      qtyWrap.style.visibility = checked ? 'visible' : 'hidden';
+      if (checked) labelBatchSelected.set(id, parseInt(qtyInput.value, 10) || 1);
+      else labelBatchSelected.delete(id);
+      updateLabelBatchCount();
+    }
+    info.addEventListener('click', () => toggle(!cb.checked));
+    cb.addEventListener('click', (e) => { e.stopPropagation(); toggle(cb.checked); });
+    qtyInput.addEventListener('click', (e) => e.stopPropagation());
+    qtyInput.addEventListener('change', () => {
+      const v = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+      qtyInput.value = v;
+      if (labelBatchSelected.has(id)) labelBatchSelected.set(id, v);
+    });
+  });
+
+  updateLabelBatchCount();
+}
+function updateLabelBatchCount() {
+  const totalItems = labelBatchSelected.size;
+  const totalLabels = Array.from(labelBatchSelected.values()).reduce((a, b) => a + b, 0);
+  $('#labelbatch-count').textContent = totalItems
+    ? `${totalItems} item dipilih · ${totalLabels} label`
+    : '0 item dipilih';
+}
+
+const btnOpenLabelBatch = $('#btn-open-labelbatch');
+if (btnOpenLabelBatch) btnOpenLabelBatch.addEventListener('click', openLabelBatchModal);
+
+$('#modal-labelbatch-close').addEventListener('click', () => $('#modal-labelbatch-overlay').classList.remove('show'));
+$('#modal-labelbatch-overlay').addEventListener('click', (e) => { if (e.target === $('#modal-labelbatch-overlay')) $('#modal-labelbatch-overlay').classList.remove('show'); });
+$('#labelbatch-search').addEventListener('input', (e) => renderLabelBatchList(e.target.value));
+$('#labelbatch-catfilter').addEventListener('change', (e) => renderLabelBatchList($('#labelbatch-search').value, e.target.value));
+$('#labelbatch-selectall').addEventListener('click', () => {
+  getFilteredLabelBatchItems($('#labelbatch-search').value).forEach(i => {
+    if (!labelBatchSelected.has(i.id)) labelBatchSelected.set(i.id, 1);
+  });
+  renderLabelBatchList($('#labelbatch-search').value);
+});
+$('#labelbatch-clearall').addEventListener('click', () => {
+  labelBatchSelected.clear();
+  renderLabelBatchList($('#labelbatch-search').value);
+});
+$('#labelbatch-proceed').addEventListener('click', () => {
+  if (!labelBatchSelected.size) { toast('Pilih minimal 1 item dulu'); return; }
+  const entries = Array.from(labelBatchSelected.entries()).map(([id, qty]) => ({ item: state.items[id], qty }));
+  $('#modal-labelbatch-overlay').classList.remove('show');
+  openPaperSizePickerBatch(entries);
+});
+
+
 // Murni komputasi dari data yang sudah ada di state (items, stockBalances,
 // histTransactions) — tidak ada query Firestore tambahan.
+function getLowStockItems() {
+  const activeItems = Object.values(state.items).filter(i => i.status !== 'ARCHIVED');
+  return activeItems
+    .filter(i => getCurrentStock(i.id) < (i.minimumStock ?? 0))
+    .sort((a,b) => getCurrentStock(a.id) - getCurrentStock(b.id));
+}
+
+function renderLowStockRow(i) {
+  return `<div class="m-row glass" data-id="${i.id}">
+    <div class="m-row-main">
+      <div class="m-row-title">${esc(i.name || i.itemCode)}</div>
+      <div class="m-row-sub">${esc(i.itemCode||'')} · min ${i.minimumStock ?? 0} ${esc(i.unit||'')}</div>
+    </div>
+    <div class="m-row-tags"><span class="badge archived" style="background:rgba(214,54,44,.13);color:var(--danger);">${getCurrentStock(i.id)} ${esc(i.unit||'')}</span></div>
+  </div>`;
+}
+
+// ---- Halaman Alert Stok (daftar lengkap, tanpa limit 10 seperti di dashboard) ----
+function renderAlertPage() {
+  const listEl = $('#alert-list');
+  const emptyEl = $('#alert-empty');
+  if (!listEl) return;
+  const items = getLowStockItems();
+  if (!items.length) {
+    listEl.innerHTML = '';
+    emptyEl.hidden = false;
+    return;
+  }
+  emptyEl.hidden = true;
+  listEl.innerHTML = items.map(renderLowStockRow).join('');
+  listEl.querySelectorAll('.m-row[data-id]').forEach(row => {
+    row.addEventListener('click', () => openDetailItem(row.dataset.id));
+  });
+}
+
 function renderDashboard() {
   const totalItemEl = $('#dash-total-item');
   if (!totalItemEl) return;
@@ -1551,7 +1983,7 @@ function renderDashboard() {
   const activeItems = Object.values(state.items).filter(i => i.status !== 'ARCHIVED');
   totalItemEl.textContent = activeItems.length;
 
-  const lowStockItems = activeItems.filter(i => getCurrentStock(i.id) < (i.minimumStock ?? 0));
+  const lowStockItems = getLowStockItems();
   $('#dash-low-stock').textContent = lowStockItems.length;
 
   const todayStr = new Date().toDateString();
@@ -1561,7 +1993,7 @@ function renderDashboard() {
   $('#dash-trx-masuk').textContent = todaysTrx.filter(t => t.type === 'MASUK').length;
   $('#dash-trx-keluar').textContent = todaysTrx.filter(t => t.type === 'KELUAR').length;
 
-  // ---- daftar stok rendah ----
+  // ---- daftar stok rendah (ringkas, top 10) ----
   const lsListEl = $('#dash-lowstock-list');
   const lsEmptyEl = $('#dash-lowstock-empty');
   if (!lowStockItems.length) {
@@ -1569,16 +2001,7 @@ function renderDashboard() {
     lsEmptyEl.hidden = false;
   } else {
     lsEmptyEl.hidden = true;
-    lsListEl.innerHTML = lowStockItems
-      .sort((a,b) => getCurrentStock(a.id) - getCurrentStock(b.id))
-      .slice(0, 10)
-      .map(i => `<div class="m-row glass" data-id="${i.id}">
-        <div class="m-row-main">
-          <div class="m-row-title">${esc(i.name || i.itemCode)}</div>
-          <div class="m-row-sub">${esc(i.itemCode||'')} · min ${i.minimumStock ?? 0} ${esc(i.unit||'')}</div>
-        </div>
-        <div class="m-row-tags"><span class="badge archived" style="background:rgba(214,54,44,.13);color:var(--danger);">${getCurrentStock(i.id)} ${esc(i.unit||'')}</span></div>
-      </div>`).join('');
+    lsListEl.innerHTML = lowStockItems.slice(0, 10).map(renderLowStockRow).join('');
     lsListEl.querySelectorAll('.m-row[data-id]').forEach(row => {
       row.addEventListener('click', () => openDetailItem(row.dataset.id));
     });
@@ -1787,6 +2210,16 @@ function statusToggleHtml(status) {
   return `<div class="m-field"><label>Status</label><select id="f-status"><option value="ACTIVE" ${active?'selected':''}>ACTIVE</option><option value="INACTIVE" ${!active?'selected':''}>INACTIVE</option></select></div>`;
 }
 
+// ---- cek duplikasi kode (itemCode/categoryCode/vendorCode) sebelum simpan ----
+// Rak tidak perlu dicek: rackCode dipakai langsung sebagai Document ID di
+// Firestore, jadi otomatis unik (setDoc ke ID yang sama = overwrite, bukan duplikat).
+async function isCodeDuplicate(collectionName, field, value, excludeId) {
+  const snap = await getDocs(query(collection(db, collectionName), where(field, '==', value)));
+  let dup = false;
+  snap.forEach(d => { if (d.id !== excludeId) dup = true; });
+  return dup;
+}
+
 formEl.addEventListener('submit', async (e) => {
   e.preventDefault();
   const tab = formEl.dataset.tab;
@@ -1796,8 +2229,14 @@ formEl.addEventListener('submit', async (e) => {
   submitBtn.disabled = true; submitBtn.textContent = 'Menyimpan…';
   try {
     if (tab === 'item') {
+      const itemCodeVal = $('#f-itemCode').value.trim();
+      if (await isCodeDuplicate('items', 'itemCode', itemCodeVal, id)) {
+        toast('Kode Item "' + itemCodeVal + '" sudah dipakai item lain');
+        submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
+        return;
+      }
       const payload = {
-        itemCode: $('#f-itemCode').value.trim(),
+        itemCode: itemCodeVal,
         name: $('#f-name').value.trim(),
         unit: $('#f-unit').value.trim(),
         specification: $('#f-specification').value.trim(),
@@ -1816,11 +2255,23 @@ formEl.addEventListener('submit', async (e) => {
         await setDoc(doc(db,'items',newId), { ...payload, status:'ACTIVE', createdAt: serverTimestamp(), createdBy: auth.currentUser.uid });
       }
     } else if (tab === 'category') {
-      const payload = { categoryCode: $('#f-categoryCode').value.trim(), categoryName: $('#f-categoryName').value.trim() };
+      const categoryCodeVal = $('#f-categoryCode').value.trim();
+      if (await isCodeDuplicate('categories', 'categoryCode', categoryCodeVal, id)) {
+        toast('Kode Kategori "' + categoryCodeVal + '" sudah dipakai kategori lain');
+        submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
+        return;
+      }
+      const payload = { categoryCode: categoryCodeVal, categoryName: $('#f-categoryName').value.trim() };
       if (isEdit) { payload.status = $('#f-status').value; await updateDoc(doc(db,'categories',id), payload); }
       else { const newId = await nextSeq('categorySeq','CAT',3); await setDoc(doc(db,'categories',newId), { ...payload, status:'ACTIVE' }); }
     } else if (tab === 'vendor') {
-      const payload = { vendorCode: $('#f-vendorCode').value.trim(), vendorName: $('#f-vendorName').value.trim(), contact: $('#f-contact').value.trim() };
+      const vendorCodeVal = $('#f-vendorCode').value.trim();
+      if (await isCodeDuplicate('vendors', 'vendorCode', vendorCodeVal, id)) {
+        toast('Kode Vendor "' + vendorCodeVal + '" sudah dipakai vendor lain');
+        submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
+        return;
+      }
+      const payload = { vendorCode: vendorCodeVal, vendorName: $('#f-vendorName').value.trim(), contact: $('#f-contact').value.trim() };
       if (isEdit) { payload.status = $('#f-status').value; await updateDoc(doc(db,'vendors',id), payload); }
       else { const newId = await nextSeq('vendorSeq','VEN',3); await setDoc(doc(db,'vendors',newId), { ...payload, status:'ACTIVE' }); }
     } else if (tab === 'rack') {
@@ -1877,6 +2328,7 @@ function openDetailItem(id) {
       <button class="btn-action ghost" id="da-qr">Lihat QR</button>
       <button class="btn-action ghost" id="da-history">Lihat History</button>
       <button class="btn-action ghost" id="da-print">Cetak Kartu</button>
+      <button class="btn-action ghost" id="da-print-label">Cetak Label</button>
       <button class="btn-action ${isArchived?'ok':'warn'}" id="da-archive" style="grid-column:1/-1;">${isArchived?'Aktifkan Kembali':'Arsipkan Item'}</button>
     </div>`;
 
@@ -1885,6 +2337,7 @@ function openDetailItem(id) {
   $('#da-qr').addEventListener('click', () => { showItemQR(d); });
   $('#da-history').addEventListener('click', () => { detailOverlay.classList.remove('show'); openStockCard(d); });
   $('#da-print').addEventListener('click', () => { printStockCard(d); });
+  $('#da-print-label').addEventListener('click', () => { printItemLabel(d); });
   $('#da-archive').addEventListener('click', async () => {
     const newStatus = isArchived ? 'ACTIVE' : 'ARCHIVED';
     if (!confirm(isArchived ? 'Aktifkan kembali item ini?' : 'Arsipkan item ini? Item ARCHIVED tidak bisa dipakai transaksi baru.')) return;
