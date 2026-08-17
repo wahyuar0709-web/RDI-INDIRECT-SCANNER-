@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v6.9</title>
+<title>RDI Indirect Inventory v6.11</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -452,6 +452,30 @@
   .m-field textarea{resize:vertical;min-height:56px;}
   .m-field .field-wrap{background:rgba(255,255,255,.85);border-radius:12px;}
   .m-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  /* PHASE UX-1 — resulting stock preview boxes (Transaction Form) */
+  .trx-stock-box{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:rgba(255,255,255,.85);border-radius:12px;padding:10px 14px;margin-bottom:12px;
+    border:1px solid rgba(30,36,48,.10);
+  }
+  .trx-stock-box-label{font-size:10.5px;font-weight:700;color:var(--ink-600);letter-spacing:.03em;}
+  .trx-stock-box-value{font-size:15px;font-weight:800;color:var(--ink-900);}
+  .trx-stock-box.result{border-color:rgba(20,108,67,.22);}
+  .trx-stock-box.result.insufficient{border-color:rgba(214,54,44,.3);}
+  .trx-stock-box.result.insufficient .trx-stock-box-value{color:var(--danger);}
+  .trx-warn-box{
+    font-size:12px;line-height:1.6;color:#fff;background:var(--danger);
+    padding:10px 12px;border-radius:10px;margin:-2px 0 12px;font-weight:600;white-space:pre-line;
+  }
+  .trx-success-panel{
+    background:rgba(30,158,100,.08);border:1.5px solid rgba(30,158,100,.35);
+    border-radius:12px;padding:12px 14px;margin-top:2px;margin-bottom:14px;text-align:center;
+  }
+  .trx-success-title{font-size:12px;font-weight:800;color:var(--ok);letter-spacing:.02em;margin-bottom:6px;}
+  .trx-success-item{font-size:13px;font-weight:700;color:var(--ink-900);}
+  .trx-success-qty{font-size:12px;color:var(--ink-600);margin:2px 0 8px;}
+  .trx-success-final-label{font-size:10px;color:var(--ink-400);text-transform:uppercase;letter-spacing:.04em;}
+  .trx-success-final-value{font-size:16px;font-weight:800;color:var(--ok);}
   .m-actions{display:flex;gap:10px;margin-top:16px;}
   .btn-ghost{
     flex:1;padding:12px;border-radius:999px;border:1.5px solid rgba(30,36,48,.15);
@@ -880,10 +904,19 @@
             <label>Item</label>
             <select id="trx-itemId" required></select>
           </div>
+          <div class="trx-stock-box" id="trx-current-stock-box">
+            <span class="trx-stock-box-label">STOK SAAT INI</span>
+            <span class="trx-stock-box-value" id="trx-current-stock-value">—</span>
+          </div>
           <div class="m-row-2">
-            <div class="m-field"><label>Qty</label><div class="field-wrap"><input type="number" id="trx-qty" min="1" step="1" required placeholder="0"></div></div>
+            <div class="m-field"><label>Qty</label><div class="field-wrap"><input type="number" id="trx-qty" min="1" step="1" inputmode="numeric" pattern="[0-9]*" required placeholder="0"></div></div>
             <div class="m-field"><label id="trx-rackId-label">Rak</label><select id="trx-rackId"></select></div>
           </div>
+          <div class="trx-stock-box result" id="trx-result-stock-box">
+            <span class="trx-stock-box-label">STOK SETELAH TRANSAKSI</span>
+            <span class="trx-stock-box-value" id="trx-result-stock-value">—</span>
+          </div>
+          <div id="trx-insufficient-warning" hidden class="trx-warn-box"></div>
           <div id="trx-anomaly-warning" hidden style="font-size:11.5px;color:#a15c00;background:rgba(255,193,7,.16);padding:8px 10px;border-radius:8px;margin:-6px 0 12px;"></div>
           <div id="trx-masuk-fields">
             <div class="m-row-2">
@@ -892,8 +925,15 @@
             </div>
           </div>
           <div class="m-field"><label>Catatan</label><textarea id="trx-note" placeholder="Opsional"></textarea></div>
-          <div id="trx-stock-info" style="font-size:11.5px;color:var(--ink-600);margin:-4px 0 14px;"></div>
+          <div id="trx-error-panel" hidden class="trx-warn-box"></div>
           <button type="submit" class="btn-primary" id="trx-submit">Simpan Transaksi</button>
+          <div id="trx-success-panel" class="trx-success-panel" hidden>
+            <div class="trx-success-title" id="trx-success-title">✓ TRANSAKSI BERHASIL</div>
+            <div class="trx-success-item" id="trx-success-item"></div>
+            <div class="trx-success-qty" id="trx-success-qty"></div>
+            <div class="trx-success-final-label">Stok sekarang</div>
+            <div class="trx-success-final-value" id="trx-success-final"></div>
+          </div>
         </form>
       </div>
     </section>
@@ -1498,7 +1538,7 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.9'; // Premium redesign Modal Detail Item: hero stok+progress bar, status pill, avatar kode item, action tile grid ikon
+const APP_VERSION = 'v6.11'; // PHASE UX-1.2 — Error & Feedback audit pada Transaction Form: insufficient-stock (stok tersedia/diminta/kekurangan/tindakan), IDEMPOTENCY_CONFLICT disederhanakan (tanpa istilah teknis), NETWORK/TIMEOUT (tidak pernah tampilkan SUCCESS jika belum terkonfirmasi), permission-denied (pesan operasional), unknown-error fallback, double-submit guard tambahan. Tidak mengubah runTransaction/requestId/idempotency/stock mutation/Rules/migration/auth/QR.
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -2718,7 +2758,10 @@ const trxItemSel = $('#trx-itemId');
 const trxRackSel = $('#trx-rackId');
 const trxVendorSel = $('#trx-vendorId');
 const trxMasukFields = $('#trx-masuk-fields');
-const trxStockInfo = $('#trx-stock-info');
+// PHASE UX-1: trx-stock-info (plain text) digantikan trx-current-stock-value /
+// trx-result-stock-value (lihat updateTrxStockInfo()). Nama fungsi TETAP sama
+// (dipakai di banyak tempat existing) — hanya isinya yang diperluas.
+let trxIsSubmitting = false;
 
 $('#trx-type-tabs').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-type]');
@@ -2730,6 +2773,8 @@ $('#trx-type-tabs').addEventListener('click', (e) => {
   updateTrxStockInfo();
   checkTrxAnomaly();
   saveTrxDraft();
+  hideTrxSuccessPanel();
+  hideTrxErrorPanel();
 });
 
 function refreshTrxSelectOptions() {
@@ -2770,14 +2815,74 @@ trxItemSel.addEventListener('change', () => {
   if (item && item.defaultRack) trxRackSel.value = item.defaultRack;
   updateTrxStockInfo();
   checkTrxAnomaly();
+  hideTrxSuccessPanel();
+  hideTrxErrorPanel();
 });
 
+// PHASE UX-1 — diperluas: sebelumnya hanya menampilkan "Stok saat ini" sebagai
+// teks polos. Sekarang juga menghitung & menampilkan preview STOK SETELAH
+// TRANSAKSI (P0-1) dan peringatan STOK TIDAK CUKUP + disable submit (P0-2).
+// Fungsi existing dipakai ulang di semua trigger yang sudah ada (ganti tab
+// MASUK/KELUAR, ganti item, restore draft, buka form dari QR/list) — tidak ada
+// function baru untuk kalkulasi ini, hanya body function ini yang diperluas.
 function updateTrxStockInfo() {
   if (!trxItemSel) return;
+  const submitBtn = $('#trx-submit');
+  const curVal = $('#trx-current-stock-value');
+  const resVal = $('#trx-result-stock-value');
+  const resBox = $('#trx-result-stock-box');
+  const warnBox = $('#trx-insufficient-warning');
   const item = state.items[trxItemSel.value];
-  if (!item) { trxStockInfo.textContent = ''; return; }
+
+  if (!item) {
+    if (curVal) curVal.textContent = '—';
+    if (resVal) resVal.textContent = '—';
+    if (resBox) resBox.classList.remove('insufficient');
+    if (warnBox) warnBox.hidden = true;
+    if (submitBtn && !trxIsSubmitting) submitBtn.disabled = true;
+    return;
+  }
+
   const stock = getCurrentStock(item.id);
-  trxStockInfo.textContent = `Stok saat ini: ${stock} ${item.unit || ''}`;
+  const unit = item.unit || '';
+  if (curVal) curVal.textContent = unit ? `${stock} ${unit}` : `${stock}`;
+
+  const qtyRaw = $('#trx-qty').value;
+  const qty = Number(qtyRaw);
+  // P0-1: qty kosong/tidak valid → jangan tampilkan angka yang menyesatkan.
+  const qtyValid = qtyRaw !== '' && qty > 0 && Number.isInteger(qty);
+  let insufficient = false;
+
+  if (!qtyValid) {
+    if (resVal) resVal.textContent = '—';
+  } else {
+    const result = trxType === 'MASUK' ? stock + qty : stock - qty;
+    if (trxType === 'KELUAR' && result < 0) {
+      insufficient = true;
+      if (resVal) resVal.textContent = '—';
+    } else if (resVal) {
+      resVal.textContent = unit ? `${result} ${unit}` : `${result}`;
+    }
+  }
+  if (resBox) resBox.classList.toggle('insufficient', insufficient);
+
+  // P0-2: peringatan stok tidak cukup (KELUAR saja, saat qty valid).
+  if (warnBox) {
+    if (insufficient) {
+      const kurang = qty - stock;
+      warnBox.hidden = false;
+      // UX-1.2: tambahkan baris tindakan (apa yang harus dilakukan operator).
+      warnBox.textContent = `⚠ STOK TIDAK CUKUP\nStok tersedia: ${stock}${unit ? ' ' + unit : ''}\nDiminta: ${qty}${unit ? ' ' + unit : ''}\nKekurangan: ${kurang}${unit ? ' ' + unit : ''}\nKurangi qty sebelum menyimpan transaksi.`;
+    } else {
+      warnBox.hidden = true;
+    }
+  }
+
+  // Disable submit selama kondisi invalid — tidak menggantikan validasi
+  // server/backend yang tetap berjalan seperti biasa di dalam runTransaction.
+  if (submitBtn && !trxIsSubmitting) {
+    submitBtn.disabled = (item.status === 'ARCHIVED') || !qtyValid || insufficient;
+  }
 }
 
 // ================= FASE 3: DRAFT TRANSAKSI =================
@@ -2842,11 +2947,13 @@ function restoreTrxDraft() {
   checkTrxAnomaly();
   $('#trx-draft-banner').hidden = true;
   trxDraftBannerDismissed = true;
+  hideTrxSuccessPanel();
+  hideTrxErrorPanel();
   toast('Draft dipulihkan');
 }
 $('#trx-draft-restore').addEventListener('click', restoreTrxDraft);
 $('#trx-draft-discard').addEventListener('click', clearTrxDraft);
-trxForm.addEventListener('input', () => { saveTrxDraft(); checkTrxAnomaly(); });
+trxForm.addEventListener('input', () => { saveTrxDraft(); checkTrxAnomaly(); updateTrxStockInfo(); hideTrxSuccessPanel(); hideTrxErrorPanel(); });
 trxForm.addEventListener('change', saveTrxDraft);
 
 // ================= FASE 3: DETEKSI ANOMALI TRANSAKSI =================
@@ -2876,6 +2983,35 @@ function checkTrxAnomaly() {
   }
 }
 
+// PHASE UX-1 — SUCCESS FEEDBACK (P1) & ERROR FEEDBACK (P1) panel helpers.
+// Panel terpisah dari toast() (toast tetap dipakai apa adanya untuk pesan
+// singkat lain seperti "duplicate/no-op") karena pesan sukses & error di sini
+// perlu multi-baris + data aktual (nama item, qty, stok akhir).
+function showTrxSuccessPanel(type, item, qty, finalQty) {
+  const panel = $('#trx-success-panel');
+  if (!panel) return;
+  const unit = item?.unit || '';
+  $('#trx-success-title').textContent = type === 'MASUK' ? '✓ TRANSAKSI MASUK BERHASIL' : '✓ TRANSAKSI KELUAR BERHASIL';
+  $('#trx-success-item').textContent = item ? `${item.itemCode} — ${item.name}` : '';
+  $('#trx-success-qty').textContent = unit ? `${qty} ${unit}` : `${qty}`;
+  $('#trx-success-final').textContent = unit ? `${finalQty} ${unit}` : `${finalQty}`;
+  panel.hidden = false;
+}
+function hideTrxSuccessPanel() {
+  const panel = $('#trx-success-panel');
+  if (panel) panel.hidden = true;
+}
+function showTrxErrorPanel(msg) {
+  const panel = $('#trx-error-panel');
+  if (!panel) return;
+  panel.textContent = msg;
+  panel.hidden = false;
+}
+function hideTrxErrorPanel() {
+  const panel = $('#trx-error-panel');
+  if (panel) panel.hidden = true;
+}
+
 function openTransaksiForm(prefillItemId) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === 'transaksi'));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === 'transaksi'));
@@ -2890,10 +3026,14 @@ function openTransaksiForm(prefillItemId) {
   updateTrxStockInfo();
   checkTrxAnomaly();
   checkTrxDraft();
+  hideTrxSuccessPanel();
+  hideTrxErrorPanel();
 }
 
 trxForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  // UX-1.2: guard tambahan cegah double submit (selain disabled state tombol).
+  if (trxIsSubmitting) return;
   const itemId = trxItemSel.value;
   const qty = Number($('#trx-qty').value);
   const rackId = trxRackSel.value || null;
@@ -2910,6 +3050,9 @@ trxForm.addEventListener('submit', async (e) => {
 
   const submitBtn = $('#trx-submit');
   submitBtn.disabled = true; submitBtn.textContent = 'Menyimpan…';
+  trxIsSubmitting = true;
+  hideTrxSuccessPanel();
+  hideTrxErrorPanel();
 
   if (!trxRequestId) _newTrxRequestId();
   const requestId = trxRequestId;
@@ -2964,12 +3107,20 @@ trxForm.addEventListener('submit', async (e) => {
         vendorId: vendorId || null, noSjPo: noSjPo || null, note: note || null,
         createdAt: serverTimestamp(), createdBy: auth.currentUser.uid, createdByName: currentUserName
       });
-      return { duplicate: false };
+      // PHASE UX-1: newQty (sudah dihitung di atas, tidak ada logic baru)
+      // diteruskan ke luar transaction supaya panel sukses menampilkan angka
+      // stok akhir yang benar-benar hasil transaksi ini (RUNTIME-VERIFIED),
+      // bukan tebakan client.
+      return { duplicate: false, newQty };
     });
 
-    toast(result.duplicate
-      ? `Transaksi ${trxType} sudah tersimpan sebelumnya — percobaan ulang diabaikan`
-      : `Transaksi ${trxType} tersimpan`);
+    if (result.duplicate) {
+      toast(`Transaksi ${trxType} sudah tersimpan sebelumnya — percobaan ulang diabaikan`);
+    } else {
+      // P1-03: SUCCESS FEEDBACK — item, qty, dan stok akhir aktual.
+      showTrxSuccessPanel(trxType, item, qty, result.newQty);
+      toast(`Transaksi ${trxType} tersimpan`);
+    }
     trxForm.reset();
     trxMasukFields.style.display = trxType === 'MASUK' ? '' : 'none';
     updateTrxStockInfo();
@@ -2979,17 +3130,51 @@ trxForm.addEventListener('submit', async (e) => {
     _newTrxRequestId(); // siapkan requestId baru untuk transaksi berikutnya
   } catch (err) {
     console.error(err);
+    // PHASE UX-1.2 — ERROR & FEEDBACK audit: terjemahkan error teknis ke bahasa
+    // operator (stok tersedia/diminta/kekurangan/tindakan, permission-denied,
+    // idempotency & network disederhanakan). Error teknis asli tetap dicetak
+    // ke console (baris di atas) untuk debugging — tidak dihapus.
+    const unit = item?.unit || '';
+    let userMsg;
     if (err.message && err.message.startsWith('IDEMPOTENCY_CONFLICT')) {
-      toast('ID permintaan konflik dengan data berbeda — coba lagi dengan ID baru');
-      _newTrxRequestId(); // ID ini sudah "rusak" (dipakai payload lain) — jangan dipakai retry lagi
+      // UX-1.2: pesan operator disederhanakan, tanpa detail teknis "ID permintaan".
+      userMsg = 'Transaksi belum disimpan.\nSilakan coba kembali.';
+      // Retry berikutnya WAJIB pakai requestId baru (logic idempotency existing,
+      // tidak diubah) — requestId lama sudah "rusak" karena dipakai payload lain.
+      _newTrxRequestId();
+    } else if (err.message && err.message.startsWith('Stok tidak cukup')) {
+      const m = err.message.match(/Stok saat ini: (-?\d+)/);
+      const avail = m ? Number(m[1]) : null;
+      const kurang = avail !== null ? (qty - avail) : null;
+      userMsg = `Stok tidak cukup.\nStok tersedia: ${avail !== null ? avail : '?'}${unit ? ' ' + unit : ''}.\nDiminta: ${qty}${unit ? ' ' + unit : ''}.` +
+        (kurang !== null ? `\nKekurangan: ${kurang}${unit ? ' ' + unit : ''}.` : '') +
+        `\nStok mungkin berubah sejak terakhir dicek — kurangi qty atau muat ulang halaman.`;
+    } else if (err.message && err.message.startsWith('Stok di rak ini tidak cukup')) {
+      const m = err.message.match(/Stok rak saat ini: (-?\d+)/);
+      const avail = m ? Number(m[1]) : null;
+      const kurang = avail !== null ? (qty - avail) : null;
+      userMsg = `Stok di rak ini tidak cukup.\nStok tersedia: ${avail !== null ? avail : '?'}${unit ? ' ' + unit : ''}.\nDiminta: ${qty}${unit ? ' ' + unit : ''}.` +
+        (kurang !== null ? `\nKekurangan: ${kurang}${unit ? ' ' + unit : ''}.` : '') +
+        `\nKurangi qty, pilih rak lain, atau muat ulang halaman.`;
+    } else if (err.code === 'permission-denied') {
+      // UX-1.2: Firestore permission/denied — pesan operasional, bukan pesan Rules mentah.
+      userMsg = 'Anda tidak memiliki izin melakukan transaksi ini.';
+    } else if (!navigator.onLine || err.code === 'unavailable' || err.code === 'deadline-exceeded' || (err.message && /network/i.test(err.message))) {
+      // UX-1.2: SUCCESS tidak pernah ditampilkan di jalur ini — promise runTransaction
+      // hanya resolve (bukan throw) setelah commit benar-benar terkonfirmasi server,
+      // jadi begitu masuk catch, transaksi memang belum terkonfirmasi.
+      userMsg = 'Koneksi bermasalah.\nTransaksi belum dapat dikonfirmasi.';
+      // requestId TIDAK diganti — kalau user retry dan transaksi SEBENARNYA sudah
+      // sukses di server (response saja yang timeout di client), retry akan
+      // terdeteksi sebagai duplicate no-op aman (logic existingTrx di atas, tidak diubah).
     } else {
-      toast('Gagal: ' + (err.message || 'error'));
-      // requestId TIDAK diganti untuk error lain — supaya kalau user submit ulang
-      // (retry) atas transaksi yang SEBENARNYA sudah sukses di server tapi
-      // response-nya timeout di client, itu terdeteksi sebagai duplicate di atas.
+      userMsg = 'Transaksi gagal disimpan.\nSilakan coba lagi.';
     }
+    showTrxErrorPanel(userMsg);
   } finally {
     submitBtn.disabled = false; submitBtn.textContent = 'Simpan Transaksi';
+    trxIsSubmitting = false;
+    updateTrxStockInfo();
   }
 });
 
