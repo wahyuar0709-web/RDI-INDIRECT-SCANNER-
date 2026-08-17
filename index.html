@@ -260,7 +260,11 @@
 
   main{padding:16px;max-width:640px;margin:0 auto;}
   .view{display:none;}
-  .view.active{display:block;}
+  .view.active{display:block;animation:viewEnter .18s ease-out;}
+  @keyframes viewEnter{
+    from{opacity:0;transform:translateY(8px);}
+    to{opacity:1;transform:translateY(0);}
+  }
   .placeholder-card{
     border-radius:var(--radius-lg);
     padding:30px 20px;text-align:center;
@@ -295,6 +299,11 @@
   .nav-item.active{color:var(--red-600);background:rgba(20,108,67,.1);}
   .nav-item:active{transform:scale(.94);}
   .nav-item[hidden]{display:none;}
+  .nav-indicator{
+    position:absolute;bottom:6px;height:3px;border-radius:999px;
+    background:var(--red-600);opacity:0;pointer-events:none;
+    transition:transform .25s cubic-bezier(.4,0,.2,1), width .25s ease, opacity .15s ease;
+  }
   /* PHASE: center Scan FAB, BCA-style — pops above the bar, no text label */
   .nav-item-fab{
     background:none;padding:0;margin-top:-30px;max-width:none;flex:0 0 auto;
@@ -1066,6 +1075,7 @@
   </div>
 
   <nav class="bottom-nav glass">
+    <span class="nav-indicator" id="navIndicator"></span>
     <button class="nav-item active" data-nav="dashboard">
       <svg viewBox="0 0 24 24" fill="none"><path d="M3 13h4v8H3zM10 3h4v18h-4zM17 8h4v13h-4z" stroke="currentColor" stroke-width="1.8"/></svg>
       <span>Dashboard</span>
@@ -2334,9 +2344,27 @@ const btnMigRefresh = $('#btn-mig-refresh');
 if (btnMigRefresh) btnMigRefresh.addEventListener('click', migRenderBatchList);
 
 // ---------- NAV / ROUTING ----------
+function updateNavIndicator(target) {
+  const ind = document.getElementById('navIndicator');
+  if (!ind) return;
+  const btn = document.querySelector(`.nav-item[data-nav="${target}"]`);
+  const nav = document.querySelector('nav.bottom-nav');
+  if (!btn || !nav || btn.classList.contains('nav-item-fab') || btn.hidden) {
+    ind.style.opacity = '0';
+    return;
+  }
+  const navRect = nav.getBoundingClientRect();
+  const btnRect = btn.getBoundingClientRect();
+  const width = Math.min(btnRect.width - 16, 28);
+  const left = (btnRect.left - navRect.left) + (btnRect.width - width) / 2;
+  ind.style.width = width + 'px';
+  ind.style.transform = `translateX(${left}px)`;
+  ind.style.opacity = '1';
+}
 function goToView(target) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === target));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === target));
+  updateNavIndicator(target);
   if (target === 'transaksi') { refreshTrxSelectOptions(); checkTrxAnomaly(); checkTrxDraft(); }
   if (target === 'alert') renderAlertPage();
   if (target === 'rak') renderRakOverview();
@@ -2344,6 +2372,14 @@ function goToView(target) {
 }
 document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => goToView(btn.dataset.nav));
+});
+window.addEventListener('resize', () => {
+  const activeBtn = document.querySelector('.nav-item.active');
+  if (activeBtn) updateNavIndicator(activeBtn.dataset.nav);
+});
+window.addEventListener('load', () => {
+  const activeBtn = document.querySelector('.nav-item.active');
+  if (activeBtn) updateNavIndicator(activeBtn.dataset.nav);
 });
 $('#btn-goto-alert').addEventListener('click', () => goToView('alert'));
 $('#btn-back-from-alert').addEventListener('click', () => goToView('dashboard'));
