@@ -1322,16 +1322,32 @@ window.addEventListener('offline', () => setConnState('offline'));
 setConnState(navigator.onLine ? 'online' : 'offline');
 
 // ---------- AUTH ----------
+// Fix (audit login 17 Agustus 2026): finishBoot() hanya boleh dipakai untuk
+// transisi PERTAMA kali dari boot-splash (guard bootResolved memang didesain
+// sekali jalan). Sebelumnya onAuthStateChanged SELALU memanggil finishBoot()
+// di setiap perubahan auth state, termasuk saat login sukses SETELAH boot
+// awal selesai (bootResolved sudah true) — akibatnya showApp() tidak pernah
+// terpanggil pada transisi kedua dst: Auth berhasil login, tapi UI diam saja
+// tanpa error (persis gejala "tombol Masuk seperti tidak berfungsi" padahal
+// password sudah benar). Sekarang: transisi setelah boot awal dipanggil
+// langsung (showLogin()/showApp()), bukan lewat finishBoot().
+function goLogin() {
+  if (bootResolved) showLogin(); else finishBoot(showLogin);
+}
+function goApp(role, name, email) {
+  if (bootResolved) showApp(role, name, email); else finishBoot(() => showApp(role, name, email));
+}
+
 onAuthStateChanged(auth, async (user) => {
   bootStatus.textContent = 'Memuat profil…';
-  if (!user) { finishBoot(showLogin); return; }
+  if (!user) { goLogin(); return; }
   try {
     const snap = await getDoc(doc(db, 'users', user.uid));
     if (!snap.exists()) {
       loginError.textContent = 'Akun belum terdaftar di sistem. Hubungi Admin.';
       loginError.classList.add('show');
       await signOut(auth);
-      finishBoot(showLogin);
+      goLogin();
       return;
     }
     const u = snap.data();
@@ -1339,14 +1355,14 @@ onAuthStateChanged(auth, async (user) => {
       loginError.textContent = 'Akun nonaktif. Hubungi Admin.';
       loginError.classList.add('show');
       await signOut(auth);
-      finishBoot(showLogin);
+      goLogin();
       return;
     }
-    finishBoot(() => showApp(u.role, u.name, user.email));
+    goApp(u.role, u.name, user.email);
   } catch (err) {
     console.error(err);
     bootStatus.textContent = 'Gagal memuat data.';
-    finishBoot(showLogin);
+    goLogin();
   }
 });
 
