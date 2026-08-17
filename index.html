@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v6.8</title>
+<title>RDI Indirect Inventory v6.9</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -459,12 +459,62 @@
   }
   .btn-primary.flex1{flex:1;margin-top:0;}
 
-  /* ---------- DETAIL ITEM ---------- */
+  /* ---------- DETAIL ITEM (PREMIUM PASS) ---------- */
+  .detail-subhead{display:flex;align-items:center;gap:12px;margin:-4px 0 16px;}
+  .detail-avatar{
+    width:46px;height:46px;border-radius:14px;flex-shrink:0;background:var(--primary-gradient);
+    color:#fff;font-family:'Sora',system-ui,sans-serif;font-weight:800;font-size:13px;letter-spacing:.01em;
+    display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-btn);
+  }
+  .detail-subhead-info{min-width:0;flex:1;}
+  .detail-item-code{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--ink-600);letter-spacing:.02em;}
+  .status-pill{
+    display:inline-flex;align-items:center;gap:5px;margin-top:4px;padding:3px 10px 3px 9px;
+    border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.03em;
+  }
+  .status-pill::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;}
+  .status-pill.active{background:rgba(30,158,100,.13);color:var(--ok);}
+  .status-pill.archived{background:rgba(138,147,163,.15);color:var(--ink-400);}
+
+  .stock-hero{
+    border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:14px;color:#fff;
+    background:var(--primary-gradient);box-shadow:var(--shadow-btn);position:relative;overflow:hidden;
+  }
+  .stock-hero.low{background:linear-gradient(155deg,#e04338 0%,var(--danger) 60%,#a82119 100%);box-shadow:0 10px 22px -8px rgba(214,54,44,.45);}
+  .stock-hero-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;}
+  .stock-hero-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.85;}
+  .stock-hero-value{font-family:var(--font-mono);font-size:30px;font-weight:800;margin-top:2px;letter-spacing:-.02em;line-height:1;}
+  .stock-hero-value .unit{font-size:13px;font-weight:600;margin-left:4px;opacity:.85;}
+  .stock-hero-flag{font-size:10.5px;font-weight:800;background:rgba(255,255,255,.2);padding:4px 9px;border-radius:999px;white-space:nowrap;}
+  .stock-bar-track{height:6px;border-radius:999px;background:rgba(255,255,255,.25);margin-top:12px;overflow:hidden;}
+  .stock-bar-fill{height:100%;border-radius:999px;background:#fff;transition:width .3s ease;}
+  .stock-hero-foot{margin-top:7px;font-size:10.5px;font-weight:700;opacity:.85;}
+
   .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0;}
-  .detail-kv{background:rgba(255,255,255,.5);border-radius:12px;padding:10px 12px;}
-  .detail-kv .k{font-size:10px;color:var(--ink-400);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px;}
-  .detail-kv .v{font-size:13px;font-weight:700;color:var(--ink-900);word-break:break-word;}
-  .detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;}
+  .detail-kv{
+    background:rgba(255,255,255,.6);border:1px solid var(--line-subtle);border-radius:var(--radius-md);
+    padding:11px 13px;transition:background .15s ease,box-shadow .15s ease;
+  }
+  .detail-kv:hover{background:rgba(255,255,255,.85);box-shadow:var(--shadow-sm);}
+  .detail-kv .k{font-size:9.5px;color:var(--ink-400);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;font-weight:700;}
+  .detail-kv .v{font-size:13.5px;font-weight:700;color:var(--ink-900);word-break:break-word;}
+
+  .detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;}
+  .btn-action.gradient{background:var(--primary-gradient);color:#fff;box-shadow:var(--shadow-btn);}
+  .action-tile-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;}
+  .action-tile{
+    display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 2px 10px;
+    border:none;border-radius:14px;background:rgba(30,36,48,.05);cursor:pointer;
+    font-size:9.5px;font-weight:700;color:var(--ink-700,var(--ink-900));
+    transition:background .15s ease,transform .1s ease;
+  }
+  .action-tile:hover{background:rgba(30,36,48,.09);}
+  .action-tile:active{transform:scale(.95);}
+  .action-tile .tile-icon{
+    width:32px;height:32px;border-radius:10px;background:rgba(var(--red-600-rgb),.1);color:var(--red-600);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .action-tile .tile-icon svg{width:15px;height:15px;}
 
   /* ---- STEP 7: Scan QR (PREMIUM PASS: viewfinder framing) ---- */
   .scan-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;}
@@ -561,6 +611,121 @@
   .paper-opt button:active{transform:scale(.97);}
   .paper-opt button small{display:block;font-weight:400;font-size:10.5px;color:var(--ink-400);margin-top:3px;}
   .paper-opt button.active{border-color:var(--brand,#1a3a7a);background:rgba(26,58,122,.08);color:var(--brand,#1a3a7a);}
+
+  /* ================== PENGATURAN — PREMIUM REDESIGN ================== */
+  .stg-hero{
+    position:relative;border-radius:var(--radius-lg);overflow:hidden;
+    background:var(--primary-gradient);
+    padding:22px 20px 20px;color:#fff;
+    box-shadow:var(--shadow-elevated);
+  }
+  .stg-hero::before{
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(120% 90% at 100% 0%,rgba(255,255,255,.20),transparent 55%);
+    pointer-events:none;
+  }
+  .stg-hero-top{display:flex;align-items:center;gap:14px;position:relative;}
+  .stg-avatar{
+    width:54px;height:54px;border-radius:16px;flex-shrink:0;
+    background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.35);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Sora',system-ui,sans-serif;font-weight:700;font-size:19px;
+    letter-spacing:.02em;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .stg-hero-name{font-family:'Sora',system-ui,sans-serif;font-size:16.5px;font-weight:700;line-height:1.25;}
+  .stg-hero-role{
+    display:inline-flex;align-items:center;gap:5px;margin-top:5px;
+    font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);
+    padding:3px 9px 3px 8px;border-radius:99px;
+  }
+  .stg-hero-role svg{width:10px;height:10px;}
+  .stg-hero-meta{
+    position:relative;display:flex;align-items:center;justify-content:space-between;
+    margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.22);
+  }
+  .stg-hero-meta-item .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;opacity:.75;font-weight:700;}
+  .stg-hero-meta-item .v{font-size:12.5px;font-weight:700;margin-top:2px;font-family:var(--font-mono);}
+  .stg-logout{
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    width:100%;margin-top:16px;padding:11px;border-radius:var(--radius-md);
+    background:rgba(255,255,255,.14);color:#fff;font-weight:700;font-size:13px;
+    cursor:pointer;transition:background .15s;position:relative;
+    border:1px solid rgba(255,255,255,.28);
+  }
+  .stg-logout svg{width:15px;height:15px;}
+  .stg-logout:active{background:rgba(255,255,255,.24);transform:scale(.985);}
+
+  .stg-card{border-radius:var(--radius-lg);padding:18px 18px 6px;}
+  .stg-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px;padding:0 2px;}
+  .stg-card-head h2{font-size:14.5px;margin:0;display:flex;align-items:center;gap:8px;}
+  .stg-card-head h2 svg{width:17px;height:17px;color:var(--color-primary);flex-shrink:0;}
+  .stg-card-sub{font-size:11.5px;color:var(--ink-600);margin:2px 2px 8px;line-height:1.5;}
+  .stg-chip{
+    flex-shrink:0;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:4px 8px;border-radius:99px;background:rgba(var(--red-600-rgb),.1);color:var(--color-primary);
+    white-space:nowrap;
+  }
+  .stg-group-label{
+    font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-400);
+    margin:14px 2px 2px;
+  }
+  .stg-group-label:first-of-type{margin-top:8px;}
+
+  .stg-row{
+    display:flex;align-items:center;gap:12px;padding:12px 2px;
+    border-top:1px solid var(--line-subtle);
+  }
+  .stg-row-icon{
+    width:36px;height:36px;border-radius:11px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(var(--red-600-rgb),.09);color:var(--color-primary);
+  }
+  .stg-row-icon svg{width:17px;height:17px;}
+  .stg-row-icon.warn{background:rgba(217,138,23,.13);color:var(--warn);}
+  .stg-row-icon.info{background:rgba(37,99,168,.11);color:var(--color-info);}
+  .stg-row-icon.ok{background:rgba(30,158,100,.13);color:var(--ok);}
+  .stg-row-info{min-width:0;flex:1;}
+  .stg-row-info .t{font-size:13px;font-weight:700;color:var(--ink-900);}
+  .stg-row-info .d{font-size:11px;color:var(--ink-600);margin-top:1px;line-height:1.45;}
+  .stg-row .btn-action{flex-shrink:0;}
+  .stg-results{margin:0 2px 10px;}
+
+  .stg-mig-step{position:relative;padding:14px 2px 16px 34px;border-top:1px solid var(--line-subtle);}
+  .stg-mig-step:first-of-type{border-top:none;padding-top:6px;}
+  .stg-mig-num{
+    position:absolute;left:2px;top:15px;width:22px;height:22px;border-radius:8px;
+    background:var(--primary-gradient);color:#fff;font-family:'Sora',system-ui,sans-serif;
+    font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;
+    box-shadow:var(--shadow-sm);
+  }
+  .stg-mig-step:first-of-type .stg-mig-num{top:-5px;}
+  .stg-mig-step::before{
+    content:'';position:absolute;left:12px;top:38px;bottom:-2px;width:1px;
+    background:var(--line);
+  }
+  .stg-mig-step:last-of-type::before{display:none;}
+  .stg-mig-title{font-size:12.5px;font-weight:700;margin-bottom:8px;color:var(--ink-900);}
+  .stg-field-label{font-size:10.5px;color:var(--ink-600);font-weight:600;display:block;margin-bottom:5px;}
+  .stg-input{
+    width:100%;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--line);
+    font-size:12.5px;font-family:inherit;background:#fff;margin-bottom:10px;
+  }
+  .stg-input:focus{outline:none;border-color:var(--color-primary);box-shadow:0 0 0 3px rgba(var(--red-600-rgb),.12);}
+  .stg-schema-box{
+    background:rgba(30,36,48,.035);border:1px solid var(--line-subtle);border-radius:var(--radius-sm);
+    padding:9px 11px;margin-bottom:10px;
+  }
+  .stg-filebtn{
+    display:flex;align-items:center;gap:10px;width:100%;padding:12px;
+    border:1.5px dashed var(--line);border-radius:var(--radius-sm);background:rgba(30,36,48,.02);
+    cursor:pointer;position:relative;
+  }
+  .stg-filebtn svg{width:18px;height:18px;color:var(--color-primary);flex-shrink:0;}
+  .stg-filebtn span{font-size:11.5px;color:var(--ink-600);}
+  .stg-filebtn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -824,114 +989,180 @@
     </section>
 
     <section class="view" data-view="pengaturan">
-      <div class="glass" style="border-radius:var(--radius-lg);padding:20px;">
-        <h2 style="font-size:15px;margin:0 0 14px;">Pengaturan</h2>
-        <div class="detail-grid" style="margin-bottom:18px;">
-          <div class="detail-kv"><div class="k">Nama</div><div class="v" id="pgn-username">—</div></div>
-          <div class="detail-kv"><div class="k">Role</div><div class="v" id="pgn-userrole">—</div></div>
-          <div class="detail-kv"><div class="k">Versi Aplikasi</div><div class="v" id="pgn-appversion">—</div></div>
+
+      <!-- ============ PROFIL (HERO) ============ -->
+      <div class="stg-hero">
+        <div class="stg-hero-top">
+          <div class="stg-avatar" id="pgn-avatar">–</div>
+          <div style="min-width:0;">
+            <div class="stg-hero-name" id="pgn-username">—</div>
+            <div class="stg-hero-role">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+              <span id="pgn-userrole">—</span>
+            </div>
+          </div>
         </div>
-        <button type="button" class="btn-primary" id="btn-logout-2" style="background:var(--danger);">Keluar</button>
+        <div class="stg-hero-meta">
+          <div class="stg-hero-meta-item">
+            <div class="k">Versi Aplikasi</div>
+            <div class="v" id="pgn-appversion">—</div>
+          </div>
+          <div class="stg-hero-meta-item" style="text-align:right;">
+            <div class="k">Status</div>
+            <div class="v">Aktif</div>
+          </div>
+        </div>
+        <button type="button" class="stg-logout" id="btn-logout-2">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Keluar
+        </button>
       </div>
 
-      <div class="glass" style="border-radius:var(--radius-lg);padding:20px;margin-top:14px;" data-role="ADMIN" hidden>
-        <h2 style="font-size:15px;margin:0 0 4px;">Tools</h2>
-        <p style="font-size:11.5px;color:var(--ink-600);margin:0 0 14px;">Fungsi maintenance & pelaporan data.</p>
+      <!-- ============ TOOLS ============ -->
+      <div class="glass stg-card" style="margin-top:14px;" data-role="ADMIN" hidden>
+        <div class="stg-card-head">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Tools
+          </h2>
+          <span class="stg-chip">Admin</span>
+        </div>
+        <p class="stg-card-sub">Fungsi maintenance &amp; pelaporan data.</p>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
-          <div style="min-width:0;">
-            <div style="font-size:13px;font-weight:700;">Cetak Label (Banyak Item)</div>
-            <div style="font-size:11px;color:var(--ink-600);">Pilih beberapa item sekaligus, cetak semua labelnya dalam satu proses.</div>
+        <div class="stg-group-label">Cetak &amp; Ekspor</div>
+
+        <div class="stg-row">
+          <div class="stg-row-icon">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
-          <button type="button" class="btn-action ghost" id="btn-open-labelbatch" style="flex-shrink:0;">Pilih</button>
+          <div class="stg-row-info">
+            <div class="t">Cetak Label (Banyak Item)</div>
+            <div class="d">Pilih beberapa item sekaligus, cetak semua labelnya dalam satu proses.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-open-labelbatch">Pilih</button>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
-          <div style="min-width:0;">
-            <div style="font-size:13px;font-weight:700;">Cetak Kartu Stok (Banyak Item)</div>
-            <div style="font-size:11px;color:var(--ink-600);">Pilih beberapa item sekaligus, cetak semua kartu stoknya dalam satu proses.</div>
+        <div class="stg-row">
+          <div class="stg-row-icon">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M3 10h18M7 15h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           </div>
-          <button type="button" class="btn-action ghost" id="btn-open-kartubatch" style="flex-shrink:0;">Pilih</button>
+          <div class="stg-row-info">
+            <div class="t">Cetak Kartu Stok (Banyak Item)</div>
+            <div class="d">Pilih beberapa item sekaligus, cetak semua kartu stoknya dalam satu proses.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-open-kartubatch">Pilih</button>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
-          <div style="min-width:0;">
-            <div style="font-size:13px;font-weight:700;">Export CSV</div>
-            <div style="font-size:11px;color:var(--ink-600);">Unduh seluruh Master Item (kode, nama, stok, dll) sebagai file CSV.</div>
+        <div class="stg-row">
+          <div class="stg-row-icon">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
-          <button type="button" class="btn-action ghost" id="btn-export-csv" style="flex-shrink:0;">Unduh</button>
+          <div class="stg-row-info">
+            <div class="t">Export CSV</div>
+            <div class="d">Unduh seluruh Master Item (kode, nama, stok, dll) sebagai file CSV.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-export-csv">Unduh</button>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
-          <div style="min-width:0;">
-            <div style="font-size:13px;font-weight:700;">Cari Kode Bentrok</div>
-            <div style="font-size:11px;color:var(--ink-600);">Deteksi Kode Item/Kategori/Vendor yang dipakai lebih dari satu data (data lama sebelum validasi diaktifkan).</div>
-          </div>
-          <button type="button" class="btn-action ghost" id="btn-find-collision" style="flex-shrink:0;">Cari</button>
-        </div>
-        <div id="collision-results" style="margin-top:6px;"></div>
+        <div class="stg-group-label">Integritas Data</div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
-          <div style="min-width:0;">
-            <div style="font-size:13px;font-weight:700;">Cek Konsistensi Stok</div>
-            <div style="font-size:11px;color:var(--ink-600);">Bandingkan ledger transaksi vs stockBalances vs total stockByRacks per item. Read-only, tidak mengubah data.</div>
+        <div class="stg-row">
+          <div class="stg-row-icon warn">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           </div>
-          <button type="button" class="btn-action ghost" id="btn-reconcile" style="flex-shrink:0;">Cek</button>
+          <div class="stg-row-info">
+            <div class="t">Cari Kode Bentrok</div>
+            <div class="d">Deteksi Kode Item/Kategori/Vendor yang dipakai lebih dari satu data (data lama sebelum validasi diaktifkan).</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-find-collision">Cari</button>
         </div>
-        <div id="reconcile-results" style="margin-top:6px;"></div>
+        <div id="collision-results" class="stg-results"></div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
-          <div style="min-width:0;">
-            <div style="font-size:13px;font-weight:700;">Perbaikan Stok Terkendali (Recovery)</div>
-            <div style="font-size:11px;color:var(--ink-600);">Phase 5: perbaiki item LEDGER MISMATCH dari ledger transaksi asli. Wajib alasan, tercatat permanen di audit log (stockCorrections), tidak silent repair.</div>
+        <div class="stg-row">
+          <div class="stg-row-icon ok">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
-          <button type="button" class="btn-action ghost" id="btn-recovery-preview" style="flex-shrink:0;">Preview</button>
+          <div class="stg-row-info">
+            <div class="t">Cek Konsistensi Stok</div>
+            <div class="d">Bandingkan ledger transaksi vs stockBalances vs total stockByRacks per item. Read-only, tidak mengubah data.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-reconcile">Cek</button>
         </div>
-        <div id="recovery-results" style="margin-top:6px;"></div>
+        <div id="reconcile-results" class="stg-results"></div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
-          <div style="min-width:0;">
-            <div style="font-size:13px;font-weight:700;">Migrasi Lock Kode Unik</div>
-            <div style="font-size:11px;color:var(--ink-600);">Sekali jalan: buat lock kode untuk item/kategori/vendor lama supaya ikut terlindungi validasi atomic. Aman dijalankan berkali-kali.</div>
+        <div class="stg-row">
+          <div class="stg-row-icon warn">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
-          <button type="button" class="btn-action ghost" id="btn-migrate-locks" style="flex-shrink:0;">Jalankan</button>
+          <div class="stg-row-info">
+            <div class="t">Perbaikan Stok Terkendali (Recovery)</div>
+            <div class="d">Phase 5: perbaiki item LEDGER MISMATCH dari ledger transaksi asli. Wajib alasan, tercatat permanen di audit log (stockCorrections), tidak silent repair.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-recovery-preview">Preview</button>
         </div>
-        <div id="migrate-locks-results" style="margin-top:6px;"></div>
+        <div id="recovery-results" class="stg-results"></div>
+
+        <div class="stg-row" style="border-bottom:1px solid var(--line-subtle);">
+          <div class="stg-row-icon info">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </div>
+          <div class="stg-row-info">
+            <div class="t">Migrasi Lock Kode Unik</div>
+            <div class="d">Sekali jalan: buat lock kode untuk item/kategori/vendor lama supaya ikut terlindungi validasi atomic. Aman dijalankan berkali-kali.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-migrate-locks">Jalankan</button>
+        </div>
+        <div id="migrate-locks-results" class="stg-results"></div>
       </div>
 
       <!-- ============ ROADMAP PHASE 6: MIGRASI DATA HISTORIS ============ -->
-      <div class="glass" style="border-radius:var(--radius-lg);padding:20px;margin-top:14px;" data-role="ADMIN" hidden>
-        <h2 style="font-size:15px;margin:0 0 4px;">Migrasi Data Historis (Phase 6)</h2>
-        <p style="font-size:11.5px;color:var(--ink-600);margin:0 0 14px;">
-          Memasukkan transaksi dari sistem lama secara terkontrol: Upload → Staging → Validasi → Mapping Master →
-          Preview → Konfirmasi Admin → Import Terkendali → Rekonsiliasi. ADMIN ONLY di setiap langkah. Tidak ada
-          jalur upload → langsung import otomatis, dan tidak ada silent-correction pada data historis.
+      <div class="glass stg-card" style="margin-top:14px;padding-bottom:18px;" data-role="ADMIN" hidden>
+        <div class="stg-card-head">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M3 3v5h5M3.05 13a9 9 0 1 0 2.13-6.36L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Migrasi Data Historis
+          </h2>
+          <span class="stg-chip">Phase 6</span>
+        </div>
+        <p class="stg-card-sub">
+          Transaksi dari sistem lama masuk secara terkontrol: Upload → Staging → Validasi → Mapping Master →
+          Preview → Konfirmasi Admin → Import Terkendali → Rekonsiliasi. ADMIN ONLY di setiap langkah — tidak ada
+          jalur upload langsung-import otomatis, dan tidak ada silent-correction pada data historis.
         </p>
 
-        <div style="border-top:1px solid rgba(30,36,48,.08);padding:12px 0;">
-          <div style="font-size:12.5px;font-weight:700;margin-bottom:6px;">1. Upload File Staging</div>
-          <label style="font-size:11px;color:var(--ink-600);">Nama Sistem Sumber (mis. "Excel Gudang Lama")</label>
-          <input type="text" id="mig-source-system" placeholder="Excel Gudang Lama 2023" style="width:100%;margin:4px 0 8px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-family:inherit;">
-          <label style="font-size:11px;color:var(--ink-600);">
-            File CSV — kolom (header wajib, urutan bebas):
-            <code style="font-size:10px;overflow-wrap:anywhere;word-break:break-word;">sourceTransactionId,date,transactionType,itemCode,qty,uom,rackCode,createdBy</code>.
-            transactionType: <code style="font-size:10px;">MASUK</code> / <code style="font-size:10px;">KELUAR</code> / <code style="font-size:10px;">OPENING_BALANCE</code>.
+        <div class="stg-mig-step">
+          <div class="stg-mig-num">1</div>
+          <div class="stg-mig-title">Upload File Staging</div>
+          <label class="stg-field-label">Nama Sistem Sumber</label>
+          <input type="text" id="mig-source-system" placeholder='mis. "Excel Gudang Lama 2023"' class="stg-input">
+          <label class="stg-field-label">Format kolom CSV (header wajib, urutan bebas)</label>
+          <div class="stg-schema-box">
+            <code style="font-size:10px;overflow-wrap:anywhere;word-break:break-word;">sourceTransactionId,date,transactionType,itemCode,qty,uom,rackCode,createdBy</code>
+            <div style="margin-top:6px;font-size:10.5px;color:var(--ink-600);">
+              transactionType: <code style="font-size:10px;">MASUK</code> / <code style="font-size:10px;">KELUAR</code> / <code style="font-size:10px;">OPENING_BALANCE</code>
+            </div>
+          </div>
+          <label class="stg-filebtn">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="mig-file-label">Pilih file CSV untuk diunggah…</span>
+            <input type="file" id="mig-file-input" accept=".csv,text/csv">
           </label>
-          <input type="file" id="mig-file-input" accept=".csv,text/csv" style="width:100%;margin:6px 0 8px;font-size:12px;">
-          <button type="button" class="btn-action ghost" id="btn-mig-upload" style="width:100%;" disabled>Buat Batch &amp; Validasi</button>
+          <button type="button" class="btn-action ghost" id="btn-mig-upload" style="width:100%;margin-top:10px;" disabled>Buat Batch &amp; Validasi</button>
           <div id="mig-upload-progress" style="margin-top:6px;"></div>
         </div>
 
-        <div id="mig-preview-wrap" style="border-top:1px solid rgba(30,36,48,.08);padding:12px 0;display:none;">
-          <div style="font-size:12.5px;font-weight:700;margin-bottom:6px;">2. Preview &amp; Konfirmasi Import</div>
+        <div id="mig-preview-wrap" class="stg-mig-step" style="display:none;">
+          <div class="stg-mig-num">2</div>
+          <div class="stg-mig-title">Preview &amp; Konfirmasi Import</div>
           <div id="mig-preview-body"></div>
         </div>
 
-        <div style="border-top:1px solid rgba(30,36,48,.08);padding:12px 0;">
+        <div class="stg-mig-step">
+          <div class="stg-mig-num">3</div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
             <div style="min-width:0;">
-              <div style="font-size:13px;font-weight:700;">3. Riwayat Batch Migrasi (Audit Trail)</div>
-              <div style="font-size:11px;color:var(--ink-600);">Who / when / file apa / dari mana / berapa baris / hasil apa — Phase 6.14.</div>
+              <div class="stg-mig-title" style="margin-bottom:2px;">Riwayat Batch Migrasi (Audit Trail)</div>
+              <div style="font-size:11px;color:var(--ink-600);">Who / when / file apa / dari mana / berapa baris / hasil apa.</div>
             </div>
             <button type="button" class="btn-action ghost" id="btn-mig-refresh" style="flex-shrink:0;">Muat Ulang</button>
           </div>
@@ -1176,6 +1407,12 @@ const db = getFirestore(fbApp);
 //     ke-exercise). Diperbaiki + enum status & terminal-state guard diperluas untuk
 //     seluruh state machine baru + field reconciliationDetail + migrationRows
 //     effectiveType/historicalKind.
+// v6.9 — Premium Redesign Modal Detail Item (17 Agustus 2026):
+//   Tampilan Detail Item dirombak dari grid kv polos jadi lebih profesional:
+//   subheader avatar+kode item+status pill, hero card stok dengan progress bar
+//   ke minimum stock, tombol aksi utama (Edit/Transaksi) dipisah dari action
+//   tile grid berikon (QR/History/Cetak Kartu/Cetak Label), Arsipkan Item
+//   full-width di bawah. Murni CSS+markup, tidak ada perubahan logika data.
 // v6.8 — Audit Jalur Cetak/Export (17 Agustus 2026):
 //   1. Popup blocker Kartu Stok (single & batch): window.open() sebelumnya dipanggil
 //      SETELAH await fetchItemLedger (Firestore) → jeda async memutus rantai user-gesture,
@@ -1261,7 +1498,7 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.8'; // Audit jalur cetak/export: fix popup blocker kartu stok (window.open sebelum await), batch partial-fail (allSettled), error hint mobile-friendly, cek offline utk mode Unduh PDF, CSV formula-injection guard
+const APP_VERSION = 'v6.9'; // Premium redesign Modal Detail Item: hero stok+progress bar, status pill, avatar kode item, action tile grid ikon
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -1307,9 +1544,15 @@ function showApp(role, name, email) {
   currentUserName = name || email || 'User';
   loginScreen.classList.remove('show');
   appShell.classList.add('show');
-  const pgnName = $('#pgn-username'), pgnRole = $('#pgn-userrole');
+  const pgnName = $('#pgn-username'), pgnRole = $('#pgn-userrole'), pgnAvatar = $('#pgn-avatar');
   if (pgnName) pgnName.textContent = name || email || 'User';
   if (pgnRole) pgnRole.textContent = role;
+  if (pgnAvatar) {
+    const src = (name || email || 'U').trim();
+    const parts = src.split(/\s+/).filter(Boolean);
+    const initials = parts.length > 1 ? (parts[0][0] + parts[1][0]) : src.slice(0, 2);
+    pgnAvatar.textContent = initials.toUpperCase();
+  }
   document.querySelectorAll('[data-role]').forEach(el => {
     const allowedRoles = el.dataset.role.split(',').map(r => r.trim());
     el.hidden = !allowedRoles.includes(role);
@@ -1850,7 +2093,10 @@ function migSummarize(rows) {
 
 const migFileInput = $('#mig-file-input');
 if (migFileInput) migFileInput.addEventListener('change', () => {
-  $('#btn-mig-upload').disabled = !migFileInput.files[0];
+  const f = migFileInput.files[0];
+  $('#btn-mig-upload').disabled = !f;
+  const lbl = $('#mig-file-label');
+  if (lbl) lbl.textContent = f ? f.name : 'Pilih file CSV untuk diunggah…';
 });
 
 // ---- Phase 6.2/6.3/6.9: buat migrationBatch + migrationRows (STAGING), validasi
@@ -4434,29 +4680,55 @@ function openDetailItem(id) {
   const isLowStock = currentStock < minStock;
   const stockColor = isLowStock ? 'var(--danger)' : 'var(--ink-900)';
 
+  const avatarTxt = (d.itemCode||'??').split('-')[0].slice(0,4) || '—';
+  const stockPct = minStock > 0 ? Math.max(4, Math.min(100, Math.round((currentStock/minStock)*100))) : 100;
+
   $('#modal-detail-title').textContent = d.name || d.itemCode;
   $('#modal-detail-body').innerHTML = `
+    <div class="detail-subhead">
+      <div class="detail-avatar">${esc(avatarTxt)}</div>
+      <div class="detail-subhead-info">
+        <div class="detail-item-code">${esc(d.itemCode||'—')}</div>
+        <span class="status-pill ${isArchived?'archived':'active'}">${isArchived?'ARSIP':'AKTIF'}</span>
+      </div>
+    </div>
+
+    <div class="stock-hero ${isLowStock?'low':''}">
+      <div class="stock-hero-row">
+        <div>
+          <div class="stock-hero-label">Stok Saat Ini</div>
+          <div class="stock-hero-value">${currentStock}<span class="unit">${esc(d.unit||'')}</span></div>
+        </div>
+        <div class="stock-hero-flag">${isLowStock?'⚠ Di bawah minimum':'✓ Stok aman'}</div>
+      </div>
+      <div class="stock-bar-track"><div class="stock-bar-fill" style="width:${stockPct}%;"></div></div>
+      <div class="stock-hero-foot">Minimum stock: ${minStock} ${esc(d.unit||'')}</div>
+    </div>
+
     <div class="detail-grid">
-      <div class="detail-kv"><div class="k">Kode Item</div><div class="v">${esc(d.itemCode||'—')}</div></div>
-      <div class="detail-kv"><div class="k">Status</div><div class="v">${isArchived?'ARSIP':'AKTIF'}</div></div>
       <div class="detail-kv"><div class="k">Unit</div><div class="v">${esc(d.unit||'—')}</div></div>
       <div class="detail-kv"><div class="k">BC / Non-BC</div><div class="v">${esc(d.bcStatus||'—')}</div></div>
       <div class="detail-kv"><div class="k">Kategori</div><div class="v">${esc(cat||'—')}</div></div>
       <div class="detail-kv"><div class="k">Vendor</div><div class="v">${esc(ven||'—')}</div></div>
       <div class="detail-kv"><div class="k">Rak Default</div><div class="v">${esc(rak||'—')}</div></div>
-      <div class="detail-kv"><div class="k">Minimum Stock</div><div class="v">${minStock}</div></div>
-      <div class="detail-kv" style="grid-column:1/-1;"><div class="k">Spesifikasi</div><div class="v">${esc(d.specification||'—')}</div></div>
-      <div class="detail-kv"><div class="k">Stok Saat Ini</div><div class="v" style="color:${stockColor};font-weight:700;">${currentStock} ${esc(d.unit||'')}${isLowStock ? ' ⚠️' : ''}</div></div>
       <div class="detail-kv"><div class="k">Total Masuk/Keluar</div><div class="v" id="dd-total-mk">Memuat…</div></div>
+      <div class="detail-kv" style="grid-column:1/-1;"><div class="k">Spesifikasi</div><div class="v">${esc(d.specification||'—')}</div></div>
     </div>
+
     <div class="detail-actions">
       <button class="btn-action ghost" id="da-edit" ${currentRole === 'ADMIN' ? '' : 'hidden'}><svg viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Edit</button>
-      <button class="btn-action ghost" id="da-transaksi" ${currentRole === 'VIEWER' ? 'hidden' : ''}>Transaksi</button>
-      <button class="btn-action ghost" id="da-qr">Lihat QR</button>
-      <button class="btn-action ghost" id="da-history">Lihat History</button>
-      <button class="btn-action ghost" id="da-print">Cetak Kartu</button>
-      <button class="btn-action ghost" id="da-print-label">Cetak Label</button>
-      <button class="btn-action ${isArchived?'ok':'warn'}" id="da-archive" style="grid-column:1/-1;" ${currentRole === 'ADMIN' ? '' : 'hidden'}>${isArchived?'Aktifkan Kembali':'Arsipkan Item'}</button>
+      <button class="btn-action gradient" id="da-transaksi" ${currentRole === 'VIEWER' ? 'hidden' : ''}><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Transaksi</button>
+    </div>
+
+    <div class="action-tile-grid">
+      <button class="action-tile" id="da-qr"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor"/></svg></span>Lihat QR</button>
+      <button class="action-tile" id="da-history"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v5l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>History</button>
+      <button class="action-tile" id="da-print"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Cetak Kartu</button>
+      <button class="action-tile" id="da-print-label"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M20.6 12.5 12.5 20.6a2 2 0 0 1-2.8 0L3 13.9V3h10.9l6.7 6.7a2 2 0 0 1 0 2.8Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1.3" fill="currentColor"/></svg></span>Cetak Label</button>
+    </div>
+
+    <div class="detail-actions" style="grid-template-columns:1fr;margin-top:8px;">
+      <button class="btn-action ${isArchived?'ok':'warn'}" id="da-archive" ${currentRole === 'ADMIN' ? '' : 'hidden'} style="padding:13px 8px;">${isArchived?'Aktifkan Kembali':'Arsipkan Item'}</button>
     </div>`;
 
   // Edit & Arsip cuma dibind kalau tombolnya memang dirender (P1-06: cocokkan
