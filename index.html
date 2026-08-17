@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v5.0</title>
+<title>RDI Indirect Inventory v6.8</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -1166,6 +1166,47 @@ const db = getFirestore(fbApp);
 //     ke-exercise). Diperbaiki + enum status & terminal-state guard diperluas untuk
 //     seluruh state machine baru + field reconciliationDetail + migrationRows
 //     effectiveType/historicalKind.
+// v6.8 — Audit Jalur Cetak/Export (17 Agustus 2026):
+//   1. Popup blocker Kartu Stok (single & batch): window.open() sebelumnya dipanggil
+//      SETELAH await fetchItemLedger (Firestore) → jeda async memutus rantai user-gesture,
+//      diblokir diam-diam di banyak browser mobile (terutama Safari iOS). Fix: tab dibuka
+//      duluan (synchronous, halaman "Memuat…" sementara) sebelum await, konten ditimpa
+//      setelah data siap (_openPrintTabLoading/_writeIntoPrintTab).
+//   2. Batch cetak Kartu Stok: Promise.all → 1 item gagal = seluruh batch gagal. Fix:
+//      Promise.allSettled, item gagal di-skip & dilaporkan by name, sisanya tetap tercetak.
+//   3. Pesan error _kartuLedgerErrorHint sebelumnya nyuruh buka F12 Console (tidak relevan,
+//      semua user di HP tanpa devtools) — detail teknis sekarang langsung di alert().
+//   4. Mode "Unduh PDF" (kartu/label) memuat html2pdf.js dari CDN saat itu juga — beda
+//      dari QR yang sudah offline-safe (Phase 8) — jadi TETAP butuh internet. Sebelumnya
+//      gagal diam-diam kalau offline; sekarang dicek navigator.onLine dulu & user
+//      diarahkan pakai mode Cetak biasa (_warnIfPdfOffline).
+//   5. exportItemsCSV: tambah guard CSV/formula-injection (cell diawali =,+,-,@ diberi
+//      prefix apostrof) supaya tidak bisa dieksekusi sebagai formula saat CSV dibuka di
+//      Excel/Sheets.
+// v6.7 — Roadmap v6 §13/§16, KPI >150/hari known limitation RESOLVED (17 Agustus 2026):
+//   Root cause: KPI "Masuk/Keluar Hari Ini" (Transaksi & Qty) dihitung dari
+//   histTransactions — 150 transaksi TERBARU LINTAS SEMUA ITEM (feed tab History) —
+//   difilter tanggal hari ini di client. Kalau transaksi hari berjalan (lintas semua
+//   item) > 150, transaksi pagi/siang bisa terdorong keluar window oleh transaksi
+//   lebih baru → KPI under-count walau transaksinya valid & tersimpan benar.
+//   Fix: listener baru startTodaysKpiListener() — query where(createdAt >= awal hari
+//   ini) + orderBy(createdAt) TANPA limit, jadi KPI selalu lengkap untuk hari
+//   berjalan berapa pun jumlah transaksinya. Auto-restart saat tanggal berganti
+//   (dicek di renderDashboard + interval jaga-jaga 5 menit). Tidak perlu composite
+//   index tambahan (range filter & orderBy sama-sama field createdAt → single-field
+//   index, sudah otomatis ada). histTransactions (limit 150) tetap dipakai apa
+//   adanya untuk tab History & "Aktivitas Terbaru" (memang didesain sebagai feed
+//   terbaru, bukan agregat KPI, jadi limit 150 di situ tidak salah).
+// v6.6 — Roadmap v6 §14, Cross-Module Regression Audit (17 Agustus 2026):
+//   3 dependency eksplisit (Phase 6→7, Phase 6→8, Phase 6→9) DOCUMENT VERIFIED,
+//   tidak ada regresi. 1 bug ditemukan di luar jalur itu saat audit konsistensi
+//   filter status menyeluruh: openLabelBatchModal() & openKartuBatchModal()
+//   (Phase 8) memfilter dropdown Kategori dengan `!== 'ARCHIVED'` — padahal
+//   Kategori pakai enum ACTIVE/INACTIVE, bukan ACTIVE/ARCHIVED (itu punya Item/
+//   Rak). Filter jadi no-op total: kategori INACTIVE tidak pernah ter-exclude
+//   dari pemilihan cetak label/kartu massal. Varian bug terminologi yang sama
+//   seperti bug Rak di v6.1. Fixed di kedua fungsi. Sekalian: <title> halaman
+//   masih hardcode "v5.0" stale sejak lama — diselaraskan ke v6.6.
 // v6.5 — Roadmap v6, Phase 6-E Provenance Deep Audit (17 Agustus 2026):
 //   1. transactions hasil migrasi sekarang menyimpan rowNumber eksplisit (dulu hanya
 //      ada di migrationRows) — trace "transaction → source" (Roadmap §9 trace minimum)
@@ -1210,7 +1251,7 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.5'; // Phase 6-E Provenance Deep Audit: rowNumber trace di transaction, L6 orphan detection, Rules finality migrationRows
+const APP_VERSION = 'v6.8'; // Audit jalur cetak/export: fix popup blocker kartu stok (window.open sebelum await), batch partial-fail (allSettled), error hint mobile-friendly, cek offline utk mode Unduh PDF, CSV formula-injection guard
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -1356,8 +1397,12 @@ $('#btn-logout').addEventListener('click', doLogout);
 $('#btn-logout-2').addEventListener('click', doLogout);
 
 // ---------- EXPORT CSV ----------
+// Fix (audit cetak/export): cell yang diawali =, +, -, @ bisa dieksekusi sebagai formula
+// kalau file CSV ini dibuka di Excel/Sheets (CSV/formula injection — mis. nama item usil
+// "=CMD|'/c calc'!A1"). Diberi prefix apostrof supaya dipaksa dibaca sebagai teks.
 function csvEscape(val) {
-  const s = String(val ?? '');
+  let s = String(val ?? '');
+  if (/^[=+\-@]/.test(s)) s = "'" + s;
   if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
   return s;
 }
@@ -2340,6 +2385,10 @@ function startMasterListeners() {
   // ---- STEP 8: History transaksi global ----
   startHistoryListener();
 
+  // ---- Roadmap §13/§16 fix (v6.7): listener KPI Hari Ini terpisah dari
+  // histTransactions (limit 150 lintas semua item) ----
+  startTodaysKpiListener();
+
   // ---- FASE 1: Cek Per Rak (stok per rak real-time) ----
   onSnapshot(collection(db,'stockByRacks'), snap => {
     state.stockByRacks = {}; snap.forEach(d => state.stockByRacks[d.id] = { id:d.id, ...d.data() });
@@ -2778,6 +2827,41 @@ function startHistoryListener() {
   }, err => console.error('transactions history', err));
 }
 
+// ---- Roadmap §13/§16 fix (v6.7) — KPI "Hari Ini" known limitation ----
+// Root cause: KPI Masuk/Keluar Hari Ini sebelumnya dihitung dari histTransactions,
+// yaitu 150 transaksi TERBARU LINTAS SEMUA ITEM (feed untuk tab History), lalu
+// difilter tanggal hari ini di client. Kalau transaksi hari berjalan > 150 (lintas
+// semua item), transaksi pagi/siang hari itu bisa terdorong keluar window 150 oleh
+// transaksi yang lebih baru — KPI under-count padahal transaksinya benar-benar ada.
+// Fix: listener KHUSUS dengan where(createdAt >= awal hari ini), TANPA limit, jadi
+// selalu lengkap untuk hari berjalan berapa pun jumlah transaksinya. Listener
+// direstart otomatis begitu tanggal berganti (dicek tiap kali snapshot histTransactions
+// datang, lewat renderDashboard, dan lewat interval jaga-jaga).
+let todaysTransactions = [];
+let todaysKpiUnsub = null;
+let todaysKpiDateStr = null;
+
+function startTodaysKpiListener() {
+  const now = new Date();
+  const todayStr = now.toDateString();
+  if (todaysKpiDateStr === todayStr && todaysKpiUnsub) return; // sudah listen utk hari ini
+  if (todaysKpiUnsub) { todaysKpiUnsub(); todaysKpiUnsub = null; }
+  todaysKpiDateStr = todayStr;
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  todaysKpiUnsub = onSnapshot(
+    query(collection(db,'transactions'), where('createdAt','>=', startOfDay), orderBy('createdAt','desc')),
+    snap => {
+      todaysTransactions = [];
+      snap.forEach(d => todaysTransactions.push({ id:d.id, ...d.data() }));
+      renderDashboard();
+    },
+    err => console.error('todays kpi listener', err)
+  );
+}
+// Jaga-jaga pergantian hari kalau tab dibiarkan terbuka lintas tengah malam
+// (tanpa interaksi lain yang memicu restart) — cek tiap 5 menit.
+setInterval(() => { if (todaysKpiUnsub) startTodaysKpiListener(); }, 5 * 60 * 1000);
+
 function fmtDateTime(ts) {
   if (!ts || typeof ts.toDate !== 'function') return '—';
   return ts.toDate().toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
@@ -3179,10 +3263,48 @@ function _buildKartuPrintHTML(items,pSize,mode){
 
 function _kartuLedgerErrorHint(err) {
   console.error('printStockCard error:', err);
-  if (err.code === 'failed-precondition') return 'Firestore butuh index baru untuk query ini. Buka Console browser (F12 → tab Console), cari error yang mengandung link "https://console.firebase.google.com/...", lalu klik link itu untuk membuat index otomatis. Setelah index selesai dibuat (1-2 menit), coba cetak lagi.';
-  if (err.code === 'permission-denied') return 'Akses ditolak oleh Security Rules Firestore untuk collection transactions.';
-  if (err.code) return `Kode error: ${err.code}`;
-  return err.message || 'Error tidak diketahui, cek Console (F12) untuk detail.';
+  // Fix (audit cetak/export): sebelumnya pesan ini nyuruh buka F12 Console untuk lihat
+  // detail/link index — tidak relevan karena semua user pakai HP, tidak ada devtools.
+  // Sekarang detail teknis ditaruh langsung di pesan supaya kebaca di alert() mobile.
+  if (err.code === 'failed-precondition') return 'Firestore butuh index baru untuk query ini (kolom itemId + createdAt pada transactions). Minta admin buat index lewat Firebase Console, atau kirim pesan error lengkap ini ke admin:\n\n' + (err.message || err.code);
+  if (err.code === 'permission-denied') return 'Akses ditolak oleh Security Rules Firestore untuk collection transactions. Coba login ulang; jika masih gagal, hubungi admin.';
+  if (err.code) return `Kode error: ${err.code}\n${err.message || ''}`;
+  return err.message || 'Error tidak diketahui saat memuat data cetak. Coba lagi atau hubungi admin.';
+}
+
+// Fix (audit cetak/export): mode "Unduh PDF" memuat html2pdf.js dari CDN saat tab print
+// dibuka — beda dengan QR (sudah lokal/offline sejak Phase 8), jadi mode PDF TETAP butuh
+// internet. Sebelumnya ini gagal diam-diam kalau offline (tab kebuka kosong/blank).
+// Sekarang dicek duluan supaya user dikasih tahu jelas & disarankan pakai mode Cetak biasa.
+function _warnIfPdfOffline(mode) {
+  if (mode === 'download' && navigator.onLine === false) {
+    alert('Unduh PDF butuh koneksi internet (untuk memuat library pembuat PDF).\n\nSedang offline. Gunakan tombol "Cetak" biasa (lalu pilih "Simpan sebagai PDF" di dialog print) — itu tidak butuh internet.');
+    return true;
+  }
+  return false;
+}
+
+// Fix (audit cetak/export): sebelumnya window.open() dipanggil SETELAH await fetch data
+// Firestore (fetchItemLedger). Jeda async antara klik user & window.open() itu sering
+// bikin browser mobile (terutama Safari iOS) menganggap ini bukan lagi "user gesture" →
+// tab baru diblokir diam-diam oleh popup blocker. Sekarang window.open() dipanggil DULUAN
+// (synchronous, langsung di handler klik) dengan halaman "Memuat..." sementara, baru
+// setelah data siap kontennya ditimpa lewat document.open()+write()+close() lagi.
+function _openPrintTabLoading() {
+  const w = window.open('', '_blank');
+  if (w) {
+    w.document.write('<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Menyiapkan cetak…</title>' +
+      '<style>body{font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f3f4f6;color:#374151;}</style>' +
+      '</head><body><p>Menyiapkan data cetak…</p></body></html>');
+  }
+  return w;
+}
+function _writeIntoPrintTab(w, html) {
+  if (!w || w.closed) return false;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  return true;
 }
 
 async function _mapItemForKartu(item) {
@@ -3218,6 +3340,11 @@ async function _mapItemForKartu(item) {
 async function printStockCard(item, size, mode) {
   if (!item) { toast('Item tidak ditemukan'); return; }
   if (!size) { openPaperSizePicker(item, 'kartu'); return; }
+  if (_warnIfPdfOffline(mode)) return;
+
+  // Buka tab SEBELUM await, selagi masih dalam rantai user-gesture klik (fix popup blocker).
+  const w = _openPrintTabLoading();
+  if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
 
   let mappedItem;
   try {
@@ -3225,35 +3352,52 @@ async function printStockCard(item, size, mode) {
   } catch (err) {
     const hint = _kartuLedgerErrorHint(err);
     toast('Gagal memuat data untuk dicetak');
+    if (!w.closed) w.close();
     alert('Gagal memuat data untuk dicetak.\n\n' + hint);
     return;
   }
 
-  const w = window.open('', '_blank');
-  if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
-  w.document.write(_buildKartuPrintHTML([mappedItem], size, mode));
-  w.document.close();
+  if (!_writeIntoPrintTab(w, _buildKartuPrintHTML([mappedItem], size, mode))) {
+    alert('Tab cetak sudah ditutup sebelum data selesai dimuat. Coba cetak ulang.');
+  }
 }
 
 // items: array item — cetak banyak kartu stok sekaligus dalam satu proses (2/4 per halaman).
+// Fix (audit cetak/export): sebelumnya Promise.all → 1 item gagal fetch ledger = SELURUH
+// batch gagal, tidak ada satupun tercetak. Sekarang pakai allSettled: item yang gagal
+// di-skip, sisanya tetap dicetak, dan user diberi tahu item mana saja yang gagal.
 async function printStockCardBatch(items, size, mode) {
   if (!items || !items.length) { toast('Tidak ada item dipilih'); return; }
   if (!size) { openBatchPrintPicker(items, 'kartu-batch'); return; }
+  if (_warnIfPdfOffline(mode)) return;
 
-  let mappedItems;
-  try {
-    mappedItems = await Promise.all(items.map(_mapItemForKartu));
-  } catch (err) {
-    const hint = _kartuLedgerErrorHint(err);
-    toast('Gagal memuat data untuk dicetak');
-    alert('Gagal memuat data untuk dicetak.\n\n' + hint);
+  const w = _openPrintTabLoading();
+  if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
+
+  const results = await Promise.allSettled(items.map(_mapItemForKartu));
+  const mappedItems = [];
+  const failed = [];
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') mappedItems.push(r.value);
+    else failed.push({ item: items[i], err: r.reason });
+  });
+
+  if (!mappedItems.length) {
+    if (!w.closed) w.close();
+    const hint = _kartuLedgerErrorHint(failed[0]?.err || new Error('Semua item gagal dimuat'));
+    alert('Gagal memuat data untuk dicetak (semua item gagal).\n\n' + hint);
     return;
   }
 
-  const w = window.open('', '_blank');
-  if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
-  w.document.write(_buildKartuPrintHTML(mappedItems, size, mode));
-  w.document.close();
+  if (!_writeIntoPrintTab(w, _buildKartuPrintHTML(mappedItems, size, mode))) {
+    alert('Tab cetak sudah ditutup sebelum data selesai dimuat. Coba cetak ulang.');
+    return;
+  }
+
+  if (failed.length) {
+    const codes = failed.map(f => f.item.itemCode || f.item.id || '?').join(', ');
+    toast(`${mappedItems.length} kartu dicetak, ${failed.length} gagal (${codes})`);
+  }
 }
 
 $('#modal-stockcard-print').addEventListener('click', () => {
@@ -3421,6 +3565,7 @@ function _buildLabelPrintHTML(items,mode){
 async function printItemLabel(item, mode) {
   if (!item) { toast('Item tidak ditemukan'); return; }
   if (!mode) { openPaperSizePicker(item, 'label'); return; }
+  if (_warnIfPdfOffline(mode)) return;
   const w = window.open('', '_blank');
   if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
   w.document.write(_buildLabelPrintHTML([_labelMapItem(item)], mode));
@@ -3433,6 +3578,7 @@ async function printItemLabel(item, mode) {
 async function printLabelsBatch(entries, mode) {
   if (!entries || !entries.length) { toast('Tidak ada item dipilih'); return; }
   if (!mode) { openBatchPrintPicker(entries, 'label-batch'); return; }
+  if (_warnIfPdfOffline(mode)) return;
   const w = window.open('', '_blank');
   if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
   const labels = [];
@@ -3450,7 +3596,10 @@ function openLabelBatchModal() {
   const catSel = $('#labelbatch-catfilter');
   catSel.innerHTML = '<option value="">Semua Kategori</option>' +
     Object.values(state.categories)
-      .filter(c => c.status !== 'ARCHIVED')
+      // Fix v6.6: Kategori pakai enum ACTIVE/INACTIVE (bukan ACTIVE/ARCHIVED seperti
+      // Item/Rak), jadi filter harus cek '!== INACTIVE' — sebelumnya cek '!== ARCHIVED'
+      // yang no-op karena Kategori tidak pernah bernilai ARCHIVED.
+      .filter(c => c.status !== 'INACTIVE')
       .sort((a, b) => (a.categoryName || '').localeCompare(b.categoryName || ''))
       .map(c => `<option value="${c.id}">${esc(c.categoryName || c.categoryCode)}</option>`).join('');
   catSel.value = '';
@@ -3564,7 +3713,9 @@ function openKartuBatchModal() {
   const catSel = $('#kartubatch-catfilter');
   catSel.innerHTML = '<option value="">Semua Kategori</option>' +
     Object.values(state.categories)
-      .filter(c => c.status !== 'ARCHIVED')
+      // Fix v6.6: sama seperti openLabelBatchModal — Kategori pakai enum
+      // ACTIVE/INACTIVE, bukan ACTIVE/ARCHIVED.
+      .filter(c => c.status !== 'INACTIVE')
       .sort((a, b) => (a.categoryName || '').localeCompare(b.categoryName || ''))
       .map(c => `<option value="${c.id}">${esc(c.categoryName || c.categoryCode)}</option>`).join('');
   catSel.value = '';
@@ -3697,8 +3848,15 @@ function renderDashboard() {
   const lowStockItems = getLowStockItems();
   $('#dash-low-stock').textContent = lowStockItems.length;
 
+  // Roadmap §13/§16 fix (v6.7): sumber KPI harian sekarang todaysTransactions
+  // (listener where createdAt >= awal hari, TANPA limit) — bukan lagi
+  // histTransactions (limit 150 lintas semua item) yang bisa under-count kalau
+  // transaksi hari berjalan > 150. Filter toDateString() dipertahankan sebagai
+  // guard tambahan (bukan sumber utama) untuk jaga-jaga late-arriving doc dari
+  // sesi listener sebelum tengah malam.
+  if (todaysKpiDateStr !== new Date().toDateString()) startTodaysKpiListener();
   const todayStr = new Date().toDateString();
-  const todaysTrx = histTransactions.filter(t =>
+  const todaysTrx = todaysTransactions.filter(t =>
     t.createdAt && typeof t.createdAt.toDate === 'function' && t.createdAt.toDate().toDateString() === todayStr
   );
   // Roadmap Phase 9 — KPI Clarification: Transaction Count (jumlah transaksi)
