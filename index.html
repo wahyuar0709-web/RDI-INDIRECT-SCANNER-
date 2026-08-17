@@ -70,6 +70,16 @@
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
+  /* Bug fix (17 Agustus 2026) — root cause: elemen dengan teks tak-bisa-wrap
+     (mis. <code> berisi daftar kolom CSV tanpa spasi) bisa memaksa body lebih
+     lebar dari layar. Kalau itu terjadi, browser membesarkan initial containing
+     block, dan modal position:fixed (Cetak Label/Kartu Stok, dll) jadi ikut
+     bergeser & terlihat "menyempit" dengan celah abu-abu di kanan — persis gejala
+     yang dilaporkan. overflow-x:hidden di sini adalah guard terakhir supaya bug
+     serupa di masa depan tidak pernah lagi bikin seluruh app melebar/bergeser;
+     penyebab spesifiknya (code CSV tanpa word-break) tetap diperbaiki di sumbernya.
+  */
+  html,body{overflow-x:hidden;max-width:100vw;}
   body{
     margin:0;
     font-family:'Inter',system-ui,sans-serif;
@@ -79,6 +89,7 @@
   }
   h1,h2,h3,.font-display{font-family:'Sora',system-ui,sans-serif;letter-spacing:-.01em;}
   button{font-family:inherit;}
+  code{overflow-wrap:anywhere;} /* guard tambahan: <code> baru di masa depan otomatis wrap, tidak perlu diingat per-tempat */
 
   /* ---------- BLURRED GRADIENT BACKGROUND (dipakai di semua layar) ---------- */
   .bg-scene{
@@ -894,7 +905,7 @@
           <input type="text" id="mig-source-system" placeholder="Excel Gudang Lama 2023" style="width:100%;margin:4px 0 8px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-family:inherit;">
           <label style="font-size:11px;color:var(--ink-600);">
             File CSV — kolom (header wajib, urutan bebas):
-            <code style="font-size:10px;">sourceTransactionId,date,transactionType,itemCode,qty,uom,rackCode,createdBy</code>.
+            <code style="font-size:10px;overflow-wrap:anywhere;word-break:break-word;">sourceTransactionId,date,transactionType,itemCode,qty,uom,rackCode,createdBy</code>.
             transactionType: <code style="font-size:10px;">MASUK</code> / <code style="font-size:10px;">KELUAR</code> / <code style="font-size:10px;">OPENING_BALANCE</code>.
           </label>
           <input type="file" id="mig-file-input" accept=".csv,text/csv" style="width:100%;margin:6px 0 8px;font-size:12px;">
@@ -1127,8 +1138,79 @@ const db = getFirestore(fbApp);
 //   Phase 9 (KPI Clarification): kartu dashboard "Masuk/Keluar Hari Ini" yang
 //     ambigu dipecah jadi 4 kartu — Transaksi Masuk/Keluar Hari Ini (Transaction
 //     Count) terpisah dari Qty Masuk/Keluar Hari Ini (Quantity Movement).
+// v6.2 — Roadmap v5 §9-18, Phase 6-A/6-B/6-C (17 Agustus 2026):
+//   Phase 6-A (Deep Migration Reconciliation): migRunReconciliation (count-matching
+//     saja) diganti migRunDeepReconciliation — 5 level: L1 Completeness, L2
+//     Transaction Integrity (field row EXPECTED vs transaction ACTUAL), L3 Stock
+//     Mutation Integrity (derived, atomic write per baris), L4 Final Balance
+//     Integrity, L5 Rack Integrity (RAK_BELUM_LENGKAP = WARNING, bukan FAILED).
+//     Hasil PASS/WARNING/FAILED disimpan sebagai reconciliationDetail (breakdown
+//     per level, tertelusur migrationId/rowNumber/sourceTransactionId/transactionId).
+//   Phase 6-B (Opening Balance Semantics): FIX — historicalKind='OPENING_BALANCE'
+//     dulu ikut kehitung di KPI dashboard "Transaksi/Qty Masuk Hari Ini" padahal
+//     bukan aktivitas gudang riil hari itu (hanya saldo awal migrasi). Sekarang
+//     dikecualikan eksplisit dari KPI. Riwayat transaksi & Stock Card tetap
+//     menampilkannya (readable, sesuai roadmap) tapi diberi label "SALDO AWAL"
+//     yang jelas, bukan disamarkan sebagai MASUK biasa.
+//   Phase 6-C (Migration State/Abort Boundary): status batch migrasi sekarang
+//     benar-benar state machine: VALIDATED/VALIDATION_FAILED → READY_TO_IMPORT →
+//     IMPORTING → PARTIAL/IMPORT_FAILED/RECONCILING → COMPLETED/RECONCILIATION_FAILED
+//     (atau CANCELLED). Tidak pernah "COMPLETED" tanpa deep reconciliation PASS/WARNING
+//     (Completion Gate §18). Tombol "Jalankan Ulang Rekonsiliasi" ditambahkan untuk
+//     batch yang macet di RECONCILING (mis. index Firestore belum siap).
+//   firestore.rules — FIX bug P0 yang ditemukan saat audit: Rules lama mewajibkan
+//     create migrationBatches berstatus 'UPLOADED', padahal app.js SELALU membuat
+//     batch dengan status VALIDATED/VALIDATION_FAILED langsung (validasi sinkron di
+//     client). Akibatnya SETIAP upload migrasi akan ditolak Rules di Firestore
+//     sungguhan (baru kelihatan di External Verification track, belum pernah
+//     ke-exercise). Diperbaiki + enum status & terminal-state guard diperluas untuk
+//     seluruh state machine baru + field reconciliationDetail + migrationRows
+//     effectiveType/historicalKind.
+// v6.5 — Roadmap v6, Phase 6-E Provenance Deep Audit (17 Agustus 2026):
+//   1. transactions hasil migrasi sekarang menyimpan rowNumber eksplisit (dulu hanya
+//      ada di migrationRows) — trace "transaction → source" (Roadmap §9 trace minimum)
+//      langsung tanpa query balik via sourceTransactionId. firestore.rules: field baru
+//      + validasi tipe pada migrationTrxFieldsValid().
+//   2. migRunDeepReconciliation(): L2 sekarang mencocokkan row↔transaction lewat
+//      rowNumber sebagai kunci utama (fallback sourceTransactionId untuk transaksi
+//      legacy pra-6-E) — lebih presisi daripada asumsi sourceTransactionId unik per batch.
+//   3. L6 Provenance Orphan Detection (baru): deteksi transaksi bertanda migrationId batch
+//      ini yang tidak match row IMPORTED manapun — celah "orphan detection" di Roadmap §9.
+//   4. firestore.rules migrationRows: (a) transactionId sekarang divalidasi wajib ada
+//      (string non-kosong) untuk importStatus IMPORTED/DUPLICATE, wajib null untuk status
+//      lain — dulu tidak divalidasi sama sekali (bisa diisi tipe apa pun). (b) update
+//      row sekarang HANYA diizinkan selama status PENDING (dulu hanya mengunci status
+//      IMPORTED — DUPLICATE/FAILED/BLOCKED yang secara app.js juga final ternyata masih
+//      bisa ditulis ulang lewat Rules; sekarang seluruh status akhir immutable, konsisten
+//      dengan ledger transaksi).
+// v6.4 — Roadmap v6, Phase 6-D Idempotency Deep Audit (17 Agustus 2026):
+//   1. migTxDocId(): canonical identity sekarang dihitung dari hash string RAW
+//      (bukan cuma slug) — slug lossy sebelumnya bisa bikin dua sourceTransactionId
+//      RAW berbeda collapse jadi Document ID sama (false identity collision).
+//      CATATAN BREAKING: skema Document ID berubah dari v6.3 — jangan Resume batch
+//      lama pakai versi ini, biarkan batch pra-6-D final apa adanya.
+//   2. migRunImport(): payload equality check (duplicate vs MIGRATION_CONFLICT)
+//      sebelumnya cuma bandingkan itemId/qty/rackId/type — historicalKind, uom,
+//      sourceDate, sourceCreatedByRaw TIDAK dibandingkan (celah: baris beda historicalKind/
+//      uom/tanggal/pencatat bisa lolos dianggap "duplicate"). Sekarang lengkap sesuai
+//      daftar field material Roadmap §8.
+//   3. uom dari CSV migrasi sebelumnya dibaca+divalidasi tapi TIDAK PERNAH disimpan
+//      (data hilang diam-diam). Sekarang dipersist eksplisit di transactions
+//      (uom/sourceDate/sourceCreatedByRaw), juga dipakai di L2 reconciliation.
+//   4. firestore.rules: hasOnly + validasi tipe field baru pada jalur create migrasi.
+// v6.3 — UI bug fix (17 Agustus 2026, laporan user + screenshot):
+//   Root cause: <code> berisi daftar kolom CSV ("sourceTransactionId,date,...")
+//   adalah satu string panjang TANPA SPASI di halaman Pengaturan → Migrasi Data
+//   Historis. Browser tidak bisa mem-wrap string itu, jadi memaksa <body> lebih
+//   lebar dari layar. Efek sampingnya menjalar ke seluruh app: modal position:fixed
+//   (Cetak Label — Pilih Item, Cetak Kartu Stok — Pilih Item, dll) ikut bergeser/
+//   menyempit dengan celah abu-abu di kanan, karena initial containing block-nya
+//   ikut membesar. Fix: overflow-wrap pada <code> tsb + guard global
+//   (html,body{overflow-x:hidden;max-width:100vw} + code{overflow-wrap:anywhere})
+//   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
+//   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.1'; // Roadmap Phase 7-9: Master Data Governance + QR Reliability (lokal, no 3rd-party) + KPI Clarification (count vs qty)
+const APP_VERSION = 'v6.5'; // Phase 6-E Provenance Deep Audit: rowNumber trace di transaction, L6 orphan detection, Rules finality migrationRows
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -1573,10 +1655,31 @@ function migParseCSV(text) {
 }
 
 function migSlug(s) { return String(s == null ? '' : s).trim().replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 120); }
-// Phase 6.8 — Migration Idempotency: canonical identity = sourceSystem + sourceTransactionId,
-// dipakai LANGSUNG sebagai Document ID transaksi (pola sama seperti requestId di STEP 6).
+// Phase 6-D — Idempotency Deep Audit, temuan #1 (canonical identity): migSlug() lossy —
+// dua sourceTransactionId RAW berbeda bisa collapse ke slug sama (mis. "AB!CD" dan "AB@CD"
+// sama-sama jadi "AB_CD"). Kalau slug dipakai TELANJANG sebagai Document ID, itu bisa
+// bikin identity palsu bentrok (false duplicate ATAU false MIGRATION_CONFLICT untuk dua
+// baris sumber yang sebetulnya tidak berhubungan). Ditutup dengan hash pendek dari string
+// RAW (sebelum di-slug) sebagai suffix — slug tetap dipakai untuk keterbacaan Document ID,
+// tapi keunikan identity ditentukan oleh hash, bukan oleh slug.
+// PENTING (breaking change catatan migrasi): ini mengubah skema Document ID transaksi hasil
+// migrasi dibanding v6.3. Batch yang SUDAH diimport dengan skema lama tidak akan match ID
+// baru ini saat Resume — treat existing pre-6-D batches sebagai final, jangan resume lewat
+// versi ini; mulai dari sini semua batch baru pakai skema ID baru secara konsisten.
+function migHash(s) {
+  let h = 0x811c9dc5; // FNV-1a 32-bit
+  const str = String(s == null ? '' : s);
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+// Phase 6.8 / 6-D — Migration Idempotency: canonical identity = sourceSystem + sourceTransactionId
+// RAW (bukan slug), dipakai sebagai Document ID transaksi (pola sama seperti requestId di STEP 6).
 function migTxDocId(sourceSystem, sourceTransactionId) {
-  return `mig__${migSlug(sourceSystem)}__${migSlug(sourceTransactionId)}`;
+  const raw = `${sourceSystem}\u0001${sourceTransactionId}`;
+  return `mig__${migSlug(sourceSystem)}__${migSlug(sourceTransactionId)}__${migHash(raw)}`;
 }
 
 // ---- Phase 6.6: Master Data Mapping ----
@@ -1703,12 +1806,21 @@ if (btnMigUpload) btnMigUpload.addEventListener('click', async () => {
     const validated = migValidateRows(rawRows);
     const counts = migSummarize(validated);
 
+    // Roadmap Phase 6-C — Migration State Machine: validasi dijalankan sinkron di
+    // client SEBELUM batch pernah ditulis ke Firestore, jadi status UPLOADED/VALIDATING
+    // (transient, murni in-memory) sengaja tidak pernah dipersist — batch langsung
+    // tercatat pada state final dari langkah validasi: VALIDATED (ada baris yang bisa
+    // diimport) atau VALIDATION_FAILED (tidak ada satupun baris Valid/Warning, semuanya
+    // INVALID — tidak boleh lanjut ke Preview/Import sama sekali).
+    const importableCount = counts.valid + counts.warning;
+    const initialStatus = importableCount > 0 ? 'VALIDATED' : 'VALIDATION_FAILED';
+
     const batchRef = doc(collection(db, 'migrationBatches'));
     const migrationId = batchRef.id;
     await setDoc(batchRef, {
       sourceSystem, sourceFileName: file.name,
       uploadedBy: auth.currentUser.uid, uploadedByName: currentUserName, uploadedAt: serverTimestamp(),
-      status: 'VALIDATED',
+      status: initialStatus,
       totalRows: validated.length, validRows: counts.valid, warningRows: counts.warning,
       invalidRows: counts.invalid, importedRows: 0, failedRows: 0
     });
@@ -1721,6 +1833,11 @@ if (btnMigUpload) btnMigUpload.addEventListener('click', async () => {
         wb.set(rowRef, {
           migrationId, rowNumber: r.rowNumber, sourceTransactionId: r.sourceTransactionId,
           normalizedData: r.normalizedData, itemId: r.itemId || null, rackId: r.rackId || null,
+          // Phase 6-A.2 (Expected vs Actual): effectiveType/historicalKind disimpan
+          // di staging row itu sendiri (bukan cuma diturunkan ulang saat import/resume)
+          // supaya deep reconciliation & audit bisa membandingkan row EXPECTED vs
+          // transaction ACTUAL tanpa re-derivasi yang bisa drift dari logika import.
+          effectiveType: r.effectiveType || null, historicalKind: r.historicalKind,
           mappingStatus: r.mappingStatus, validationStatus: r.validationStatus,
           validationErrors: r.validationErrors, validationWarnings: r.validationWarnings,
           importStatus: r.validationStatus === 'INVALID' ? 'BLOCKED' : 'PENDING',
@@ -1781,7 +1898,14 @@ async function migRunImport(migrationId, sourceSystem, rows, isResume) {
 
   const progEl = $('#mig-import-progress');
   const batchRef = doc(db, 'migrationBatches', migrationId);
-  try { await updateDoc(batchRef, { status: 'IMPORTING', updatedAt: serverTimestamp() }); } catch (e) { /* ignore race */ }
+  try {
+    // Roadmap Phase 6-C — state machine: klik konfirmasi admin dicatat eksplisit
+    // sebagai READY_TO_IMPORT (titik audit terpisah dari VALIDATED) sebelum engine
+    // benar-benar mulai menulis. Resume tidak mengulang titik ini — batch yang
+    // di-resume sudah pernah lewat READY_TO_IMPORT sebelumnya.
+    if (!isResume) await updateDoc(batchRef, { status: 'READY_TO_IMPORT', updatedAt: serverTimestamp() });
+    await updateDoc(batchRef, { status: 'IMPORTING', updatedAt: serverTimestamp() });
+  } catch (e) { /* ignore race */ }
 
   let imported = 0, duplicate = 0, failed = 0, done = 0;
   for (const r of toProcess) {
@@ -1795,8 +1919,21 @@ async function migRunImport(migrationId, sourceSystem, rows, isResume) {
         const existing = await tx.get(trxRef);
         if (existing.exists()) {
           const prev = existing.data();
-          const same = prev.itemId === r.itemId && prev.qty === r.normalizedData.qty &&
-            (prev.rackId || null) === (r.rackId || null) && prev.type === r.effectiveType;
+          // Phase 6-D — Idempotency Deep Audit, temuan #2: perbandingan "same" versi v6.3
+          // cuma cek itemId/qty/rackId/type — historicalKind, uom, sourceDate, dan
+          // sourceCreatedByRaw TIDAK dibandingkan. Akibatnya baris dengan identity sama
+          // tapi historicalKind beda (mis. OPENING_BALANCE vs TRANSACTION) atau uom/tanggal/
+          // pencatat beda bisa lolos sebagai "duplicate" padahal payload-nya beda —
+          // persis skenario adversarial di Roadmap §8 yang seharusnya MIGRATION_CONFLICT.
+          // Sekarang payload material dibandingkan lengkap (Roadmap §8 daftar field wajib).
+          const same = prev.itemId === r.itemId
+            && prev.qty === r.normalizedData.qty
+            && (prev.rackId || null) === (r.rackId || null)
+            && prev.type === r.effectiveType
+            && prev.historicalKind === r.historicalKind
+            && (prev.uom || '') === (r.normalizedData.uom || '')
+            && (prev.sourceDate || '') === (r.normalizedData.date || '')
+            && (prev.sourceCreatedByRaw || '') === (r.normalizedData.createdByRaw || '');
           if (same) return { status: 'duplicate', transactionId: txId };
           // Phase 6.8: identity sama, payload beda → MIGRATION_CONFLICT, TIDAK overwrite.
           throw new Error('MIGRATION_CONFLICT: sourceTransactionId sudah pernah diimport dengan data berbeda — perlu review manual, bukan retry otomatis.');
@@ -1826,8 +1963,21 @@ async function migRunImport(migrationId, sourceSystem, rows, isResume) {
         tx.set(trxRef, {
           itemId: r.itemId, type: r.effectiveType, qty: r.normalizedData.qty, rackId: r.rackId || null,
           vendorId: null, noSjPo: null, note,
+          // Phase 6-D: sebelumnya uom dari CSV dibaca+divalidasi tapi tidak pernah disimpan
+          // (hilang begitu saja); sourceDate/sourceCreatedByRaw cuma nempel di teks note
+          // (tidak bisa dibandingkan terstruktur). Sekarang disimpan eksplisit supaya bisa
+          // jadi bagian audit payload equality (idempotency) dan reconciliation L2.
+          uom: r.normalizedData.uom || null, sourceDate: r.normalizedData.date || null,
+          sourceCreatedByRaw: r.normalizedData.createdByRaw || null,
           createdAt: serverTimestamp(), createdBy: auth.currentUser.uid, createdByName: currentUserName,
-          sourceSystem, sourceTransactionId: r.sourceTransactionId, migrationId, historicalKind: r.historicalKind
+          // Phase 6-E — Provenance Deep Audit: rowNumber sebelumnya HANYA tersimpan di
+          // migrationRows, tidak di transactions — trace "transaction → source" jadi tidak
+          // langsung (harus asumsi sourceTransactionId unik per batch lalu query balik).
+          // Sekarang rowNumber dipersist eksplisit (Roadmap §9 trace minimum: migrationId,
+          // rowNumber, sourceSystem, sourceTransactionId, transactionId — lengkap di satu
+          // dokumen transaksi, bisa ditelusuri langsung tanpa query tambahan).
+          sourceSystem, sourceTransactionId: r.sourceTransactionId, migrationId, rowNumber: r.rowNumber,
+          historicalKind: r.historicalKind
         });
         return { status: 'imported', transactionId: txId };
       });
@@ -1850,10 +2000,21 @@ async function migRunImport(migrationId, sourceSystem, rows, isResume) {
     }
   }
 
-  const finalStatus = failed > 0 ? 'IMPORT_FAILED' : 'IMPORTED';
+  // Roadmap Phase 6-C.2/6-C.3 — Completion Gate: batch TIDAK PERNAH langsung
+  // "selesai" di titik ini. failed>0 dengan sebagian berhasil → PARTIAL (bisa
+  // Resume, baris FAILED seperti MIGRATION_CONFLICT butuh review manual — tidak
+  // di-retry otomatis, §17). failed>0 tanpa satupun berhasil → IMPORT_FAILED
+  // (batch gagal total). failed===0 → lanjut RECONCILING, dan status akhir
+  // COMPLETED/RECONCILIATION_FAILED baru ditentukan oleh migRunDeepReconciliation
+  // (§18 — COMPLETED hanya kalau validation+import+reconciliation mandatory PASS).
+  let importStageStatus;
+  if (failed > 0 && (imported + duplicate) > 0) importStageStatus = 'PARTIAL';
+  else if (failed > 0) importStageStatus = 'IMPORT_FAILED';
+  else importStageStatus = 'RECONCILING';
+
   try {
     await updateDoc(batchRef, {
-      status: finalStatus, importedRows: imported, failedRows: failed,
+      status: importStageStatus, importedRows: imported, failedRows: failed,
       confirmedBy: auth.currentUser.uid, confirmedAt: serverTimestamp(), updatedAt: serverTimestamp()
     });
   } catch (e4) { console.error('migRunImport finalize', e4); }
@@ -1861,27 +2022,142 @@ async function migRunImport(migrationId, sourceSystem, rows, isResume) {
   if (progEl) progEl.innerHTML = `<p style="font-size:12px;color:${failed ? 'var(--danger)' : 'var(--ok)'};">Selesai — ${imported} diimport, ${duplicate} duplikat (sudah ada sebelumnya), ${failed} gagal${failed ? ' (lihat riwayat batch untuk Lanjutkan Import baris PENDING sisa, baris gagal karena konflik perlu review manual)' : ''}.</p>`;
   toast(`Import migrasi selesai — ${imported} transaksi masuk ke ledger`);
 
-  await migRunReconciliation(migrationId);
+  if (importStageStatus === 'RECONCILING') await migRunDeepReconciliation(migrationId);
   migRenderBatchList();
 }
 
-// ---- Phase 6.13: Migration Reconciliation — bandingkan migrationRows(IMPORTED) vs
-// transactions bertanda migrationId ini. Mismatch → MIGRATION_RECONCILIATION_FAILED. ----
-async function migRunReconciliation(migrationId) {
+// ---- Phase 6-A: Deep Migration Reconciliation. Count-matching saja (jumlah
+// migrationRows(IMPORTED) == jumlah transactions bertanda migrationId ini, dulu
+// disebut Phase 6.13) TIDAK CUKUP membuktikan isi transaksi benar (Roadmap §9).
+// Model: source row ↕ migration row ↕ transaction ↕ stock mutation ↕ stock balance.
+//   L1 Completeness           — jumlah baris IMPORTED vs jumlah transaksi bertanda batch ini.
+//   L2 Transaction Integrity  — field row EXPECTED (itemId/type/qty/rackId/sourceTransactionId/
+//                                historicalKind) vs transaction ACTUAL, per baris.
+//   L3 Stock Mutation Integrity — migRunImport menulis transaction+stockBalances(+stockByRacks)
+//                                dalam SATU runTransaction atomik per baris (lihat kode di atas),
+//                                jadi L2 PASS pada semua baris ⇒ mutasi stok yang tercatat juga
+//                                konsisten dengan payload yang disetujui admin. Tetap dicatat
+//                                eksplisit di sini (bukan diam-diam diasumsikan, Roadmap §12).
+//   L4 Final Balance Integrity — Opening+MASUK-KELUAR == stockBalances, dibatasi ke item yang
+//                                tersentuh batch ini (reuse computeReconciliation, §7).
+//   L5 Rack Integrity          — sama seperti L4 tapi stockByRacks. RAK_BELUM_LENGKAP TIDAK
+//                                otomatis dianggap corrupt (§9 L5) → WARNING, bukan FAILED.
+//   L6 Provenance Orphan Detection (Phase 6-E, v6.5) — transaksi bertanda migrationId batch
+//                                ini yang TIDAK match rowNumber migrationRow IMPORTED manapun
+//                                (mis. bug/race condition/tulis langsung di luar migRunImport).
+//                                Transaksi legacy pra-6-E tanpa field rowNumber dikecualikan.
+// Hasil PASS/WARNING/FAILED (§10) menentukan status akhir batch: FAILED → RECONCILIATION_FAILED
+// (batch TIDAK BOLEH berstatus COMPLETED, §18), PASS/WARNING → COMPLETED. Rekonsiliasi murni
+// BACA + tulis hasil audit — tidak pernah auto-repair ledger/stok (§12, no silent reconciliation).
+async function migRunDeepReconciliation(migrationId) {
   const batchRef = doc(db, 'migrationBatches', migrationId);
+  const levels = [];
+  let overall = 'PASS';
+  const mark = (name, status, note) => {
+    levels.push(`${name}=${status}${note ? ' (' + note + ')' : ''}`);
+    if (status === 'FAILED') overall = 'FAILED';
+    else if (status === 'WARNING' && overall !== 'FAILED') overall = 'WARNING';
+  };
+
   try {
+    // L1 — Completeness
     const txSnap = await getDocs(query(collection(db, 'transactions'), where('migrationId', '==', migrationId)));
     const rowsSnap = await getDocs(query(collection(db, 'migrationRows'), where('migrationId', '==', migrationId), where('importStatus', '==', 'IMPORTED')));
-    const match = txSnap.size === rowsSnap.size;
+    // Phase 6-E — Provenance Deep Audit: index utama sekarang txByRowNum (trace langsung
+    // via rowNumber, field baru v6.5). txBySrcId dipertahankan HANYA sebagai fallback untuk
+    // transaksi hasil migrasi pra-6-E yang belum punya field rowNumber (backward compat).
+    const txByRowNum = {}, txBySrcId = {};
+    txSnap.forEach(d => {
+      const t = d.data();
+      if (t.rowNumber != null) txByRowNum[t.rowNumber] = { id: d.id, ...t };
+      txBySrcId[t.sourceTransactionId] = { id: d.id, ...t };
+    });
+    mark('L1_Completeness', txSnap.size === rowsSnap.size ? 'PASS' : 'FAILED',
+      `transactions=${txSnap.size}, migrationRows(IMPORTED)=${rowsSnap.size}`);
+
+    // L2 — Transaction Integrity: EXPECTED (migrationRow) vs ACTUAL (transaction),
+    // ditelusuri lewat migrationId/rowNumber/sourceTransactionId/transactionId (§11).
+    let l2Mismatch = 0;
+    const mismatchTrace = [];
+    const touchedItemIds = new Set();
+    const importedRowNumbers = new Set();
+    rowsSnap.forEach(d => {
+      const row = d.data();
+      if (row.itemId) touchedItemIds.add(row.itemId);
+      if (row.rowNumber != null) importedRowNumbers.add(row.rowNumber);
+      const trx = (row.rowNumber != null && txByRowNum[row.rowNumber]) || txBySrcId[row.sourceTransactionId];
+      if (!trx) { l2Mismatch++; mismatchTrace.push(`baris#${row.rowNumber}(${row.sourceTransactionId}): transaksi tidak ditemukan`); return; }
+      const rowType = row.effectiveType || (row.normalizedData?.transactionType === 'OPENING_BALANCE' ? 'MASUK' : row.normalizedData?.transactionType);
+      const rowKind = row.historicalKind || (row.normalizedData?.transactionType === 'OPENING_BALANCE' ? 'OPENING_BALANCE' : 'TRANSACTION');
+      const fieldsOk = trx.itemId === row.itemId
+        && trx.type === rowType
+        && trx.qty === row.normalizedData?.qty
+        && (trx.rackId || null) === (row.rackId || null)
+        && trx.sourceTransactionId === row.sourceTransactionId
+        && trx.historicalKind === rowKind
+        && trx.migrationId === migrationId
+        // Phase 6-E: kalau transaksi sudah punya rowNumber (pasca-6.5), harus persis cocok
+        // dengan baris ini — legacy transaksi tanpa rowNumber (pra-6-E) tidak diwajibkan.
+        && (trx.rowNumber == null || trx.rowNumber === row.rowNumber)
+        // Phase 6-D: selaraskan L2 dengan payload equality idempotency di migRunImport —
+        // uom/sourceDate/sourceCreatedByRaw sekarang bagian dari field material yang diaudit.
+        && (trx.uom || '') === (row.normalizedData?.uom || '')
+        && (trx.sourceDate || '') === (row.normalizedData?.date || '')
+        && (trx.sourceCreatedByRaw || '') === (row.normalizedData?.createdByRaw || '');
+      if (!fieldsOk) {
+        l2Mismatch++;
+        mismatchTrace.push(`baris#${row.rowNumber}(${row.sourceTransactionId}→trx ${trx.id})`);
+        console.error('Phase 6-A L2 field mismatch', { migrationId, rowNumber: row.rowNumber, sourceTransactionId: row.sourceTransactionId, transactionId: trx.id, expected: row, actual: trx });
+      }
+    });
+    mark('L2_TransactionIntegrity', l2Mismatch === 0 ? 'PASS' : 'FAILED',
+      l2Mismatch ? `${l2Mismatch} baris mismatch: ${mismatchTrace.slice(0, 8).join('; ')}${mismatchTrace.length > 8 ? '…' : ''}` : `${rowsSnap.size} baris cocok`);
+
+    // L3 — Stock Mutation Integrity (derived — lihat catatan di atas fungsi ini)
+    mark('L3_StockMutationIntegrity', l2Mismatch === 0 ? 'PASS' : 'FAILED',
+      'derived dari L2 — transaction+stockBalances(+stockByRacks) ditulis atomik per baris di migRunImport');
+
+    // L4/L5 — Final Balance & Rack Integrity, dibatasi ke item yang tersentuh batch ini
+    const recon = await computeReconciliation();
+    const scoped = recon.rows.filter(r => touchedItemIds.has(r.itemId));
+    const l4Bad = scoped.filter(r => r.status === 'LEDGER_MISMATCH');
+    const l5Gap = scoped.filter(r => r.status === 'RAK_BELUM_LENGKAP');
+    mark('L4_FinalBalanceIntegrity', l4Bad.length === 0 ? 'PASS' : 'FAILED',
+      l4Bad.length ? `${l4Bad.length} item LEDGER_MISMATCH: ${l4Bad.map(r => r.itemId).slice(0, 10).join(',')}` : `${scoped.length} item diperiksa`);
+    mark('L5_RackIntegrity', l5Gap.length === 0 ? 'PASS' : 'WARNING',
+      l5Gap.length ? `${l5Gap.length} item rak belum lengkap (legitimate kalau MASUK tanpa rak): ${l5Gap.map(r => r.itemId).slice(0, 10).join(',')}` : `${scoped.length} item diperiksa`);
+
+    // L6 — Provenance Orphan Detection (Roadmap §9): transaksi yang bertanda migrationId
+    // batch ini TAPI tidak match rowNumber migrationRow IMPORTED manapun di batch ini —
+    // artinya transaksi "muncul" tanpa baris sumber yang sah menaunginya (mis. hasil bug,
+    // race condition, atau upaya tulis langsung di luar alur migRunImport). Transaksi
+    // legacy pra-6-E (belum punya field rowNumber) sengaja dikecualikan dari cek ini —
+    // tidak bisa dinilai orphan/tidak tanpa rowNumber, dicatat di note, bukan FAILED buta.
+    const orphanTx = [];
+    let legacyNoRowNum = 0;
+    txSnap.forEach(d => {
+      const t = d.data();
+      if (t.rowNumber == null) { legacyNoRowNum++; return; }
+      if (!importedRowNumbers.has(t.rowNumber)) orphanTx.push(`trx ${d.id} (row#${t.rowNumber}, sourceTransactionId=${t.sourceTransactionId})`);
+    });
+    mark('L6_ProvenanceOrphanDetection', orphanTx.length === 0 ? 'PASS' : 'FAILED',
+      orphanTx.length
+        ? `${orphanTx.length} transaksi orphan: ${orphanTx.slice(0, 8).join('; ')}${orphanTx.length > 8 ? '…' : ''}`
+        : `${txSnap.size} transaksi diperiksa, 0 orphan${legacyNoRowNum ? ` (${legacyNoRowNum} transaksi legacy pra-6-E dikecualikan dari cek ini)` : ''}`);
+
     await updateDoc(batchRef, {
-      reconciliationStatus: match ? 'MATCH' : 'MIGRATION_RECONCILIATION_FAILED',
+      status: overall === 'FAILED' ? 'RECONCILIATION_FAILED' : 'COMPLETED',
+      reconciliationStatus: overall,
       reconciliationNote: `transactions=${txSnap.size}, migrationRows(IMPORTED)=${rowsSnap.size}`,
+      reconciliationDetail: levels.join(' | ').slice(0, 1400),
       updatedAt: serverTimestamp()
     });
   } catch (err) {
-    console.error('migRunReconciliation', err);
-    // Query composite index mungkin belum ada di Firebase Console — ini masuk
-    // EXTERNAL VERIFICATION track (Roadmap §8), bukan blocker pekerjaan AI.
+    console.error('migRunDeepReconciliation', err);
+    // Query composite index mungkin belum ada di Firebase Console — EXTERNAL
+    // VERIFICATION track (Roadmap §7), bukan blocker pekerjaan AI. Batch SENGAJA
+    // tidak diloloskan ke COMPLETED kalau reconciliation gagal dijalankan — tetap
+    // RECONCILING (bisa dijalankan ulang lewat tombol "Jalankan Ulang Rekonsiliasi").
     try {
       await updateDoc(batchRef, {
         reconciliationStatus: 'PENDING_INDEX_OR_ERROR',
@@ -1902,8 +2178,11 @@ async function migResumeImport(migrationId, sourceSystem) {
     if (snap.empty) { toast('Tidak ada baris PENDING yang tersisa'); migRenderBatchList(); return; }
     const rows = snap.docs.map(d => {
       const x = d.data();
-      const effectiveType = x.normalizedData.transactionType === 'OPENING_BALANCE' ? 'MASUK' : x.normalizedData.transactionType;
-      const historicalKind = x.normalizedData.transactionType === 'OPENING_BALANCE' ? 'OPENING_BALANCE' : 'TRANSACTION';
+      // Phase 6-A.2: pakai effectiveType/historicalKind yang sudah tersimpan di staging
+      // row (ditulis sejak upload) kalau ada — fallback derive-ulang hanya untuk batch
+      // lama (pra-perbaikan ini) yang migrationRows-nya belum punya field tersebut.
+      const effectiveType = x.effectiveType || (x.normalizedData.transactionType === 'OPENING_BALANCE' ? 'MASUK' : x.normalizedData.transactionType);
+      const historicalKind = x.historicalKind || (x.normalizedData.transactionType === 'OPENING_BALANCE' ? 'OPENING_BALANCE' : 'TRANSACTION');
       return { rowNumber: x.rowNumber, sourceTransactionId: x.sourceTransactionId, normalizedData: x.normalizedData, itemId: x.itemId, rackId: x.rackId || null, effectiveType, historicalKind, validationStatus: x.validationStatus, importStatus: x.importStatus };
     });
     await migRunImport(migrationId, sourceSystem, rows, true);
@@ -1925,12 +2204,26 @@ async function migCancelBatch(migrationId) {
   }
 }
 
-// ---- Phase 6.14: Audit Trail ----
+// ---- Phase 6.14 / 6-C: Audit Trail + State Machine display. Status batch sekarang
+// mengikuti lifecycle penuh Roadmap §15: VALIDATED/VALIDATION_FAILED → READY_TO_IMPORT
+// → IMPORTING → (PARTIAL/IMPORT_FAILED/RECONCILING) → COMPLETED/RECONCILIATION_FAILED,
+// atau CANCELLED. COMPLETED dan RECONCILIATION_FAILED beda arti tegas: COMPLETED berarti
+// deep reconciliation (Phase 6-A) PASS/WARNING, RECONCILIATION_FAILED berarti FAILED
+// (batch TIDAK BOLEH dianggap selesai — §18 Completion Gate). ----
 function migBatchRowHTML(id, b) {
-  const statusColor = { IMPORTED: 'var(--ok)', IMPORT_FAILED: 'var(--danger)', VALIDATION_FAILED: 'var(--danger)', CANCELLED: 'var(--ink-400)' }[b.status] || '#c98a00';
+  const statusColor = {
+    COMPLETED: 'var(--ok)', PARTIAL: '#c98a00', IMPORT_FAILED: 'var(--danger)',
+    RECONCILIATION_FAILED: 'var(--danger)', VALIDATION_FAILED: 'var(--danger)', CANCELLED: 'var(--ink-400)'
+  }[b.status] || '#c98a00';
   const when = b.uploadedAt && b.uploadedAt.toDate ? b.uploadedAt.toDate().toLocaleString('id-ID') : '—';
-  const canResume = (b.status === 'IMPORTING' || b.status === 'IMPORT_FAILED');
-  const canCancel = ['UPLOADED', 'VALIDATING', 'VALIDATED', 'READY_TO_IMPORT'].includes(b.status);
+  // Resume hanya masuk akal kalau masih ada baris PENDING (proses terputus di tengah
+  // IMPORTING, atau PARTIAL). Rekonsiliasi macet (RECONCILING, mis. index Firestore
+  // belum siap) punya tombol sendiri, bukan "Lanjutkan Import" (§7 External Verification).
+  const canResume = ['IMPORTING', 'PARTIAL', 'IMPORT_FAILED'].includes(b.status);
+  const canReconcileAgain = b.status === 'RECONCILING';
+  const canCancel = ['VALIDATED', 'READY_TO_IMPORT'].includes(b.status);
+  const reconColor = b.reconciliationStatus === 'PASS' || b.reconciliationStatus === 'MATCH' ? 'var(--ok)'
+    : b.reconciliationStatus === 'WARNING' ? '#c98a00' : 'var(--danger)';
   return `
     <div style="border:1px solid rgba(30,36,48,.08);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:11.5px;">
       <div style="display:flex;justify-content:space-between;gap:8px;">
@@ -1939,9 +2232,11 @@ function migBatchRowHTML(id, b) {
       </div>
       <div style="color:var(--ink-600);margin-top:2px;">Sumber: ${esc(b.sourceSystem || '-')} • Oleh: ${esc(b.uploadedByName || '-')} • ${esc(when)}</div>
       <div style="color:var(--ink-600);margin-top:2px;">Total ${b.totalRows || 0} • Valid ${b.validRows || 0} • Warning ${b.warningRows || 0} • Invalid ${b.invalidRows || 0} • Imported ${b.importedRows || 0} • Failed ${b.failedRows || 0}</div>
-      ${b.reconciliationStatus ? `<div style="margin-top:2px;color:${b.reconciliationStatus === 'MATCH' ? 'var(--ok)' : 'var(--danger)'};">Rekonsiliasi: ${esc(b.reconciliationStatus)}${b.reconciliationNote ? ' — ' + esc(b.reconciliationNote) : ''}</div>` : ''}
-      ${(canResume || canCancel) ? `<div style="display:flex;gap:8px;margin-top:6px;">
+      ${b.reconciliationStatus ? `<div style="margin-top:2px;color:${reconColor};">Rekonsiliasi: ${esc(b.reconciliationStatus)}${b.reconciliationNote ? ' — ' + esc(b.reconciliationNote) : ''}</div>` : ''}
+      ${b.reconciliationDetail ? `<div style="margin-top:2px;color:var(--ink-600);font-size:10.5px;word-break:break-word;">${esc(b.reconciliationDetail)}</div>` : ''}
+      ${(canResume || canCancel || canReconcileAgain) ? `<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
         ${canResume ? `<button type="button" class="btn-action ghost" id="mig-resume-${id}" style="flex:1;padding:6px;">Lanjutkan Import</button>` : ''}
+        ${canReconcileAgain ? `<button type="button" class="btn-action ghost" id="mig-reconcile-${id}" style="flex:1;padding:6px;">Jalankan Ulang Rekonsiliasi</button>` : ''}
         ${canCancel ? `<button type="button" class="btn-action ghost" id="mig-cancel-${id}" style="flex:1;padding:6px;">Batalkan</button>` : ''}
       </div>` : ''}
     </div>`;
@@ -1959,6 +2254,12 @@ async function migRenderBatchList() {
       const data = d.data();
       const resumeBtn = document.getElementById(`mig-resume-${d.id}`);
       if (resumeBtn) resumeBtn.addEventListener('click', () => migResumeImport(d.id, data.sourceSystem));
+      const reconcileBtn = document.getElementById(`mig-reconcile-${d.id}`);
+      if (reconcileBtn) reconcileBtn.addEventListener('click', async () => {
+        reconcileBtn.disabled = true; reconcileBtn.textContent = 'Memproses…';
+        await migRunDeepReconciliation(d.id);
+        migRenderBatchList();
+      });
       const cancelBtn = document.getElementById(`mig-cancel-${d.id}`);
       if (cancelBtn) cancelBtn.addEventListener('click', () => migCancelBatch(d.id));
     });
@@ -2515,17 +2816,22 @@ function renderHistRow(t) {
   const item = state.items[t.itemId];
   const itemLabel = item ? `${esc(item.itemCode)} — ${esc(item.name)}` : `(item ${esc(t.itemId||'—')})`;
   const isMasuk = t.type === 'MASUK';
+  const isOpening = t.historicalKind === 'OPENING_BALANCE';
   const sign = isMasuk ? '+' : '−';
   const badgeStyle = isMasuk ? '' : 'background:rgba(214,54,44,.13);color:var(--danger);';
+  // Roadmap Phase 6-B — Opening Balance tetap readable di histori (bukan disembunyikan),
+  // tapi diberi label eksplisit "Saldo Awal" supaya tidak dikira transaksi barang masuk
+  // biasa (lihat computeReconciliation/renderDashboard untuk exclusion di KPI/metrik).
   const sub = [
+    isOpening ? 'Saldo Awal (migrasi)' : '',
     t.rackId ? (state.racks[t.rackId]?.rackCode || '') : '',
-    isMasuk && t.vendorId ? (state.vendors[t.vendorId]?.vendorName || '') : '',
-    isMasuk && t.noSjPo ? t.noSjPo : '',
+    isMasuk && !isOpening && t.vendorId ? (state.vendors[t.vendorId]?.vendorName || '') : '',
+    isMasuk && !isOpening && t.noSjPo ? t.noSjPo : '',
     t.createdByName || ''
   ].filter(Boolean).join(' · ');
   return `<div class="m-row glass" data-itemid="${esc(t.itemId||'')}">
     <div class="m-row-main">
-      <div class="m-row-title">${itemLabel}</div>
+      <div class="m-row-title">${itemLabel}${isOpening ? ' <span style="font-size:10px;font-weight:700;color:#b8860b;">· SALDO AWAL</span>' : ''}</div>
       <div class="m-row-sub">${fmtDateTime(t.createdAt)}${sub ? ' · ' + esc(sub) : ''}</div>
     </div>
     <div class="m-row-tags"><span class="badge active" style="${badgeStyle}">${sign}${t.qty} ${esc(item?.unit||'')}</span></div>
@@ -2577,17 +2883,19 @@ async function openStockCard(item) {
     </div>`;
     const listHtml = ledger.rows.slice().reverse().map(t => {
       const isMasuk = t.type === 'MASUK';
+      const isOpening = t.historicalKind === 'OPENING_BALANCE';
       const sign = isMasuk ? '+' : '−';
       const badgeStyle = isMasuk ? '' : 'background:rgba(214,54,44,.13);color:var(--danger);';
       const sub = [
-        isMasuk && t.vendorId ? (state.vendors[t.vendorId]?.vendorName || '') : '',
-        isMasuk && t.noSjPo ? t.noSjPo : '',
+        isOpening ? 'Saldo Awal (migrasi)' : '',
+        isMasuk && !isOpening && t.vendorId ? (state.vendors[t.vendorId]?.vendorName || '') : '',
+        isMasuk && !isOpening && t.noSjPo ? t.noSjPo : '',
         t.rackId ? (state.racks[t.rackId]?.rackCode || '') : '',
         t.createdByName || ''
       ].filter(Boolean).join(' · ');
       return `<div class="m-row glass">
         <div class="m-row-main">
-          <div class="m-row-title">${isMasuk?'MASUK':'KELUAR'} ${sign}${t.qty} ${esc(item.unit||'')}</div>
+          <div class="m-row-title">${isOpening ? 'SALDO AWAL' : (isMasuk?'MASUK':'KELUAR')} ${sign}${t.qty} ${esc(item.unit||'')}</div>
           <div class="m-row-sub">${fmtDateTime(t.createdAt)}${sub ? ' · ' + esc(sub) : ''}</div>
         </div>
         <div class="m-row-tags"><span class="badge active" style="${badgeStyle}">Saldo: ${t.saldo}</span></div>
@@ -3397,8 +3705,15 @@ function renderDashboard() {
   // dan Quantity Movement (jumlah qty yang berpindah) adalah dua metrik berbeda
   // dan bisa sangat menyesatkan kalau dicampur — 1 transaksi bisa berisi qty 500,
   // atau 50 transaksi bisa masing-masing qty 1. Keduanya ditampilkan terpisah.
-  const todaysMasuk = todaysTrx.filter(t => t.type === 'MASUK');
-  const todaysKeluar = todaysTrx.filter(t => t.type === 'KELUAR');
+  // Roadmap Phase 6-B — Opening Balance Semantics: historicalKind === 'OPENING_BALANCE'
+  // secara teknis transactionType-nya MASUK (supaya invariant stok tetap terjaga),
+  // TAPI ini bukan "barang masuk hari ini" yang sesungguhnya — melainkan saldo awal
+  // hasil migrasi data historis. Kalau ikut dihitung di KPI "Masuk Hari Ini", akan
+  // menyesatkan (mis. import migrasi besar di suatu hari bikin KPI meledak padahal
+  // tidak ada aktivitas gudang riil hari itu). Maka dikecualikan secara eksplisit.
+  const isOrdinaryMovement = t => t.historicalKind !== 'OPENING_BALANCE';
+  const todaysMasuk = todaysTrx.filter(t => t.type === 'MASUK' && isOrdinaryMovement(t));
+  const todaysKeluar = todaysTrx.filter(t => t.type === 'KELUAR' && isOrdinaryMovement(t));
   $('#dash-trx-masuk').textContent = todaysMasuk.length;
   $('#dash-trx-keluar').textContent = todaysKeluar.length;
   $('#dash-qty-masuk').textContent = todaysMasuk.reduce((sum, t) => sum + (Number(t.qty) || 0), 0);
