@@ -468,9 +468,12 @@
   .dash-card{
     padding:16px 14px;text-align:center;background:none;border:none;box-shadow:none;
   }
-  .dash-card:nth-child(1){border-right:1px solid var(--line-subtle);border-bottom:1px solid var(--line-subtle);}
-  .dash-card:nth-child(2){border-bottom:1px solid var(--line-subtle);}
-  .dash-card:nth-child(3){border-right:1px solid var(--line-subtle);}
+  /* Roadmap Phase 9 — KPI Clarification: grid sekarang 2 kolom x 3 baris (6 kartu:
+     Item Aktif/Stok Rendah, lalu Transaction Count Masuk/Keluar, lalu Qty Masuk/Keluar).
+     Hairline: kolom kiri (ganjil) dapat border-right; dua baris pertama (kartu 1-4)
+     dapat border-bottom; baris terakhir (5-6) tanpa border-bottom. */
+  .dash-card:nth-child(odd){border-right:1px solid var(--line-subtle);}
+  .dash-card:nth-child(-n+4){border-bottom:1px solid var(--line-subtle);}
   .dash-card:nth-child(-n+2) .dash-card-value{font-size:26px;}
   .dash-card-value{font-size:19px;font-weight:800;color:var(--ink-900);font-family:var(--font-mono);letter-spacing:-.01em;}
   .dash-card-label{font-size:10.5px;color:var(--ink-600);margin-top:3px;letter-spacing:.01em;}
@@ -537,6 +540,7 @@
   }
   .paper-opt button:active{transform:scale(.97);}
   .paper-opt button small{display:block;font-weight:400;font-size:10.5px;color:var(--ink-400);margin-top:3px;}
+  .paper-opt button.active{border-color:var(--brand,#1a3a7a);background:rgba(26,58,122,.08);color:var(--brand,#1a3a7a);}
 </style>
 </head>
 <body>
@@ -618,11 +622,22 @@
         </div>
         <div class="dash-card glass">
           <div class="dash-card-value" id="dash-trx-masuk" style="color:var(--ok);">0</div>
-          <div class="dash-card-label">Masuk Hari Ini</div>
+          <div class="dash-card-label">Transaksi Masuk Hari Ini</div>
         </div>
         <div class="dash-card glass">
           <div class="dash-card-value" id="dash-trx-keluar" style="color:var(--danger);">0</div>
-          <div class="dash-card-label">Keluar Hari Ini</div>
+          <div class="dash-card-label">Transaksi Keluar Hari Ini</div>
+        </div>
+        <!-- Roadmap Phase 9 — KPI Clarification: Transaction Count (di atas) dan
+             Quantity Movement (di bawah) sengaja dipisah jadi kartu berbeda, supaya
+             "5 transaksi" vs "500 pcs bergerak" tidak tercampur jadi satu angka. -->
+        <div class="dash-card glass">
+          <div class="dash-card-value" id="dash-qty-masuk" style="color:var(--ok);">0</div>
+          <div class="dash-card-label">Qty Masuk Hari Ini</div>
+        </div>
+        <div class="dash-card glass">
+          <div class="dash-card-value" id="dash-qty-keluar" style="color:var(--danger);">0</div>
+          <div class="dash-card-label">Qty Keluar Hari Ini</div>
         </div>
       </div>
 
@@ -682,7 +697,7 @@
           </div>
           <div class="m-row-2">
             <div class="m-field"><label>Qty</label><div class="field-wrap"><input type="number" id="trx-qty" min="1" step="1" required placeholder="0"></div></div>
-            <div class="m-field"><label>Rak</label><select id="trx-rackId"></select></div>
+            <div class="m-field"><label id="trx-rackId-label">Rak</label><select id="trx-rackId"></select></div>
           </div>
           <div id="trx-anomaly-warning" hidden style="font-size:11.5px;color:#a15c00;background:rgba(255,193,7,.16);padding:8px 10px;border-radius:8px;margin:-6px 0 12px;"></div>
           <div id="trx-masuk-fields">
@@ -813,6 +828,14 @@
 
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
           <div style="min-width:0;">
+            <div style="font-size:13px;font-weight:700;">Cetak Kartu Stok (Banyak Item)</div>
+            <div style="font-size:11px;color:var(--ink-600);">Pilih beberapa item sekaligus, cetak semua kartu stoknya dalam satu proses.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-open-kartubatch" style="flex-shrink:0;">Pilih</button>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
+          <div style="min-width:0;">
             <div style="font-size:13px;font-weight:700;">Export CSV</div>
             <div style="font-size:11px;color:var(--ink-600);">Unduh seluruh Master Item (kode, nama, stok, dll) sebagai file CSV.</div>
           </div>
@@ -827,6 +850,73 @@
           <button type="button" class="btn-action ghost" id="btn-find-collision" style="flex-shrink:0;">Cari</button>
         </div>
         <div id="collision-results" style="margin-top:6px;"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
+          <div style="min-width:0;">
+            <div style="font-size:13px;font-weight:700;">Cek Konsistensi Stok</div>
+            <div style="font-size:11px;color:var(--ink-600);">Bandingkan ledger transaksi vs stockBalances vs total stockByRacks per item. Read-only, tidak mengubah data.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-reconcile" style="flex-shrink:0;">Cek</button>
+        </div>
+        <div id="reconcile-results" style="margin-top:6px;"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
+          <div style="min-width:0;">
+            <div style="font-size:13px;font-weight:700;">Perbaikan Stok Terkendali (Recovery)</div>
+            <div style="font-size:11px;color:var(--ink-600);">Phase 5: perbaiki item LEDGER MISMATCH dari ledger transaksi asli. Wajib alasan, tercatat permanen di audit log (stockCorrections), tidak silent repair.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-recovery-preview" style="flex-shrink:0;">Preview</button>
+        </div>
+        <div id="recovery-results" style="margin-top:6px;"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid rgba(30,36,48,.08);">
+          <div style="min-width:0;">
+            <div style="font-size:13px;font-weight:700;">Migrasi Lock Kode Unik</div>
+            <div style="font-size:11px;color:var(--ink-600);">Sekali jalan: buat lock kode untuk item/kategori/vendor lama supaya ikut terlindungi validasi atomic. Aman dijalankan berkali-kali.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-migrate-locks" style="flex-shrink:0;">Jalankan</button>
+        </div>
+        <div id="migrate-locks-results" style="margin-top:6px;"></div>
+      </div>
+
+      <!-- ============ ROADMAP PHASE 6: MIGRASI DATA HISTORIS ============ -->
+      <div class="glass" style="border-radius:var(--radius-lg);padding:20px;margin-top:14px;" data-role="ADMIN" hidden>
+        <h2 style="font-size:15px;margin:0 0 4px;">Migrasi Data Historis (Phase 6)</h2>
+        <p style="font-size:11.5px;color:var(--ink-600);margin:0 0 14px;">
+          Memasukkan transaksi dari sistem lama secara terkontrol: Upload → Staging → Validasi → Mapping Master →
+          Preview → Konfirmasi Admin → Import Terkendali → Rekonsiliasi. ADMIN ONLY di setiap langkah. Tidak ada
+          jalur upload → langsung import otomatis, dan tidak ada silent-correction pada data historis.
+        </p>
+
+        <div style="border-top:1px solid rgba(30,36,48,.08);padding:12px 0;">
+          <div style="font-size:12.5px;font-weight:700;margin-bottom:6px;">1. Upload File Staging</div>
+          <label style="font-size:11px;color:var(--ink-600);">Nama Sistem Sumber (mis. "Excel Gudang Lama")</label>
+          <input type="text" id="mig-source-system" placeholder="Excel Gudang Lama 2023" style="width:100%;margin:4px 0 8px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-family:inherit;">
+          <label style="font-size:11px;color:var(--ink-600);">
+            File CSV — kolom (header wajib, urutan bebas):
+            <code style="font-size:10px;">sourceTransactionId,date,transactionType,itemCode,qty,uom,rackCode,createdBy</code>.
+            transactionType: <code style="font-size:10px;">MASUK</code> / <code style="font-size:10px;">KELUAR</code> / <code style="font-size:10px;">OPENING_BALANCE</code>.
+          </label>
+          <input type="file" id="mig-file-input" accept=".csv,text/csv" style="width:100%;margin:6px 0 8px;font-size:12px;">
+          <button type="button" class="btn-action ghost" id="btn-mig-upload" style="width:100%;" disabled>Buat Batch &amp; Validasi</button>
+          <div id="mig-upload-progress" style="margin-top:6px;"></div>
+        </div>
+
+        <div id="mig-preview-wrap" style="border-top:1px solid rgba(30,36,48,.08);padding:12px 0;display:none;">
+          <div style="font-size:12.5px;font-weight:700;margin-bottom:6px;">2. Preview &amp; Konfirmasi Import</div>
+          <div id="mig-preview-body"></div>
+        </div>
+
+        <div style="border-top:1px solid rgba(30,36,48,.08);padding:12px 0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div style="min-width:0;">
+              <div style="font-size:13px;font-weight:700;">3. Riwayat Batch Migrasi (Audit Trail)</div>
+              <div style="font-size:11px;color:var(--ink-600);">Who / when / file apa / dari mana / berapa baris / hasil apa — Phase 6.14.</div>
+            </div>
+            <button type="button" class="btn-action ghost" id="btn-mig-refresh" style="flex-shrink:0;">Muat Ulang</button>
+          </div>
+          <div id="mig-batch-list" style="margin-top:8px;"></div>
+        </div>
       </div>
     </section>
   </main>
@@ -896,16 +986,20 @@
     </div>
   </div>
 
-  <!-- ============ MODAL: PILIH UKURAN KERTAS (STEP 19) ============ -->
+  <!-- ============ MODAL: PILIH UKURAN KERTAS + CETAK/PDF ============ -->
   <div class="modal-overlay" id="modal-papersize-overlay">
     <div class="modal-sheet">
       <div class="modal-head">
-        <h3>Pilih Ukuran Kertas</h3>
+        <h3>Cetak</h3>
         <button class="modal-close" id="modal-papersize-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
-      <div class="paper-opt">
+      <div class="paper-opt" id="papersize-size-row">
         <button type="button" data-size="A4">A4<small>21 × 29.7 cm</small></button>
         <button type="button" data-size="A5">A5<small>14.8 × 21 cm</small></button>
+      </div>
+      <div class="paper-opt" id="papersize-mode-row" style="margin-top:10px;">
+        <button type="button" id="papersize-do-print">🖨️ Cetak</button>
+        <button type="button" id="papersize-do-pdf">⬇️ Unduh PDF</button>
       </div>
     </div>
   </div>
@@ -931,6 +1025,31 @@
       <div class="modal-foot" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-shrink:0;">
         <span id="labelbatch-count" style="font-size:12px;color:var(--ink-600);">0 item dipilih</span>
         <button type="button" class="btn-primary" id="labelbatch-proceed" style="width:auto;padding:10px 18px;">Lanjut →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: PILIH ITEM UNTUK CETAK KARTU STOK MASSAL ============ -->
+  <div class="modal-overlay" id="modal-kartubatch-overlay">
+    <div class="modal-sheet" style="max-height:85vh;display:flex;flex-direction:column;">
+      <div class="modal-head">
+        <h3>Cetak Kartu Stok — Pilih Item</h3>
+        <button class="modal-close" id="modal-kartubatch-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div style="padding:14px 20px 0;flex-shrink:0;">
+        <input type="text" id="kartubatch-search" placeholder="Cari kode/nama item..." style="width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;">
+        <select id="kartubatch-catfilter" style="width:100%;margin-top:8px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;background:#fff;">
+          <option value="">Semua Kategori</option>
+        </select>
+        <div style="display:flex;gap:14px;margin:10px 0 4px;">
+          <button type="button" class="link-btn" id="kartubatch-selectall">Pilih Semua</button>
+          <button type="button" class="link-btn" id="kartubatch-clearall">Kosongkan</button>
+        </div>
+      </div>
+      <div id="kartubatch-list" style="flex:1;overflow-y:auto;padding:6px 20px 12px;"></div>
+      <div class="modal-foot" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-shrink:0;">
+        <span id="kartubatch-count" style="font-size:12px;color:var(--ink-600);">0 item dipilih</span>
+        <button type="button" class="btn-primary" id="kartubatch-proceed" style="width:auto;padding:10px 18px;">Lanjut →</button>
       </div>
     </div>
   </div>
@@ -971,7 +1090,7 @@ import {
 import {
   getFirestore, doc, getDoc, getDocs, enableIndexedDbPersistence,
   collection, query, orderBy, where, limit, onSnapshot, setDoc, updateDoc,
-  runTransaction, serverTimestamp
+  runTransaction, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 // ================= FIREBASE CONFIG =================
@@ -991,7 +1110,25 @@ const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
 
-const APP_VERSION = 'v5.0'; // + Cek Per Rak, Cetak Label/Rekap Rak, Draft Transaksi, Deteksi Anomali
+// ===================== CHANGELOG =====================
+// v6.0  — Roadmap Phase 6: Migrasi Data Historis Terkendali (staging, validasi,
+//         mapping, preview, controlled import, resume, reconciliation, audit trail)
+// v6.1  — Roadmap Phase 7-9 (17 Agustus 2026):
+//   Phase 7 (Master Data Governance): dropdown vendor di form transaksi &
+//     kategori/vendor/rak-default di form Master Item kini hanya menampilkan
+//     master data ACTIVE (nilai lama yang sudah nonaktif tetap tampil ditandai
+//     "(nonaktif)" saat edit, tidak silently hilang). firestore.rules: vendor
+//     (kalau diisi) sekarang wajib ACTIVE, sama seperti item & rak.
+//   Phase 8 (QR Reliability): Kartu Stok & Label Barang cetak beralih dari QR
+//     generate via api.qrserver.com (pihak ketiga, butuh internet tiap cetak)
+//     ke qrCodeDataURL() — generate lokal pakai qrcodejs, di-embed sebagai PNG
+//     data URL, tab print offline-safe. Scanner (onScanSuccess) sekarang bisa
+//     bedakan "kode rak ke-scan di form item" dari "kode benar-benar tidak ada".
+//   Phase 9 (KPI Clarification): kartu dashboard "Masuk/Keluar Hari Ini" yang
+//     ambigu dipecah jadi 4 kartu — Transaksi Masuk/Keluar Hari Ini (Transaction
+//     Count) terpisah dari Qty Masuk/Keluar Hari Ini (Quantity Movement).
+// =======================================================
+const APP_VERSION = 'v6.1'; // Roadmap Phase 7-9: Master Data Governance + QR Reliability (lokal, no 3rd-party) + KPI Clarification (count vs qty)
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -1045,6 +1182,7 @@ function showApp(role, name, email) {
     el.hidden = !allowedRoles.includes(role);
   });
   startMasterListeners();
+  if (role === 'ADMIN' && typeof migRenderBatchList === 'function') migRenderBatchList();
 }
 
 // ---------- CONNECTION STATUS ----------
@@ -1208,6 +1346,631 @@ function renderCollisionResults() {
 const btnFindCollision = $('#btn-find-collision');
 if (btnFindCollision) btnFindCollision.addEventListener('click', renderCollisionResults);
 
+// ---------- P1-08: CEK KONSISTENSI STOK (reconciliation, read-only) ----------
+// Hitung ulang saldo dari SELURUH riwayat transactions (bukan histTransactions
+// yang dibatasi limit(150)), lalu bandingkan dengan stockBalances (cache) dan
+// total stockByRacks per item. Murni baca — tidak ada write sama sekali.
+// Diekstrak jadi fungsi terpisah dari yang murni tampilan (renderReconciliation)
+// supaya Phase 5 Recovery bisa pakai data mentahnya (rows/critical) juga.
+async function computeReconciliation() {
+  const snap = await getDocs(collection(db, 'transactions'));
+  const ledger = {}; // itemId -> saldo hasil hitung ulang dari ledger
+  snap.forEach(d => {
+    const t = d.data();
+    if (!t.itemId || !t.type || typeof t.qty !== 'number') return;
+    const delta = t.type === 'MASUK' ? t.qty : -t.qty;
+    ledger[t.itemId] = (ledger[t.itemId] || 0) + delta;
+  });
+
+  const allItemIds = new Set([...Object.keys(ledger), ...Object.keys(state.stockBalances)]);
+  const rows = [];
+  allItemIds.forEach(itemId => {
+    const ledgerQty = ledger[itemId] || 0;
+    const balQty = state.stockBalances[itemId]?.qty ?? 0;
+    const rackTotal = Object.values(state.stockByRacks)
+      .filter(r => r.itemId === itemId)
+      .reduce((sum, r) => sum + (r.qty || 0), 0);
+    let status = 'MATCH';
+    if (ledgerQty !== balQty) status = 'LEDGER_MISMATCH'; // kritis — seharusnya selalu sama persis
+    else if (balQty !== rackTotal) status = 'RAK_BELUM_LENGKAP'; // bisa legitimate (MASUK tanpa rak)
+    rows.push({ itemId, ledgerQty, balQty, rackTotal, status });
+  });
+
+  return {
+    rows,
+    critical: rows.filter(r => r.status === 'LEDGER_MISMATCH'),
+    rackGap: rows.filter(r => r.status === 'RAK_BELUM_LENGKAP')
+  };
+}
+
+async function runReconciliation() {
+  const el = $('#reconcile-results');
+  el.innerHTML = '<p style="font-size:12px;color:var(--ink-400);text-align:center;padding:10px 0;">Menghitung ulang dari seluruh transaksi…</p>';
+
+  let data;
+  try {
+    data = await computeReconciliation();
+  } catch (err) {
+    console.error('runReconciliation', err);
+    el.innerHTML = `<p style="font-size:12px;color:var(--danger);text-align:center;padding:10px 0;">Gagal memuat data: ${esc(err.message || 'error')}</p>`;
+    return;
+  }
+  const { rows, critical, rackGap } = data;
+
+  const label = id => { const it = state.items[id]; return it ? `${esc(it.itemCode)} — ${esc(it.name)}` : esc(id); };
+  const card = (r, color, note) => `
+    <div class="glass" style="border-radius:10px;padding:10px 12px;margin-top:8px;border:1px solid ${color};">
+      <div style="font-size:12px;font-weight:700;">${label(r.itemId)}</div>
+      <div style="font-size:11px;color:var(--ink-600);margin-top:4px;">Ledger: ${r.ledgerQty} · Stock Balance: ${r.balQty} · Total Rak: ${r.rackTotal}</div>
+      <div style="font-size:11px;color:${color};margin-top:2px;">${note}</div>
+    </div>`;
+
+  let html = '';
+  if (!critical.length && !rackGap.length) {
+    html = `<p style="font-size:12px;color:var(--ok);text-align:center;padding:10px 0;">✓ Semua ${rows.length} item konsisten (ledger = stockBalances = total stockByRacks).</p>`;
+  } else {
+    if (critical.length) {
+      html += `<p style="font-size:12px;color:var(--danger);margin:6px 0;font-weight:700;">⚠ ${critical.length} item LEDGER MISMATCH (kritis — saldo cache tidak sama dengan hasil hitung ulang transaksi). Gunakan "Perbaikan Stok Terkendali" di bawah untuk memperbaiki dengan audit trail:</p>`;
+      html += critical.map(r => card(r, 'rgba(214,54,44,.35)', 'Kemungkinan ada write langsung ke stockBalances di luar alur transaksi, atau bug penghitungan.')).join('');
+    }
+    if (rackGap.length) {
+      html += `<p style="font-size:12px;color:#b8860b;margin:14px 0 6px;font-weight:700;">ℹ ${rackGap.length} item saldo per-rak belum lengkap (biasanya karena ada transaksi MASUK tanpa rackId):</p>`;
+      html += rackGap.map(r => card(r, 'rgba(184,134,11,.35)', 'Ledger & Stock Balance sudah cocok — hanya distribusi per rak yang belum lengkap. Bukan bug kritis.')).join('');
+    }
+  }
+  el.innerHTML = html;
+}
+const btnReconcile = $('#btn-reconcile');
+if (btnReconcile) btnReconcile.addEventListener('click', runReconciliation);
+
+// ---------- Phase 5: PERBAIKAN STOK TERKENDALI (Controlled Data Recovery) ----------
+// Alur wajib: PREVIEW -> pilih item + isi alasan -> CONFIRMATION -> tulis AUDIT LOG
+// (stockCorrections, immutable) BARENG stockBalances yang diperbaiki, dalam satu
+// runTransaction (Rules memverifikasi keduanya via getAfter — lihat firestore.rules).
+// Tidak pernah "silent repair": stockBalances TIDAK BISA ditulis dengan jalur
+// koreksi ini tanpa audit log yang menyertainya di commit yang sama.
+let recoveryPreviewData = null; // { critical } dari computeReconciliation() terakhir
+
+async function renderRecoveryPreview() {
+  const el = $('#recovery-results');
+  el.innerHTML = '<p style="font-size:12px;color:var(--ink-400);text-align:center;padding:10px 0;">Menghitung ledger…</p>';
+  try {
+    const data = await computeReconciliation();
+    recoveryPreviewData = data;
+  } catch (err) {
+    console.error('renderRecoveryPreview', err);
+    el.innerHTML = `<p style="font-size:12px;color:var(--danger);text-align:center;padding:10px 0;">Gagal memuat data: ${esc(err.message || 'error')}</p>`;
+    return;
+  }
+  const { critical } = recoveryPreviewData;
+  if (!critical.length) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--ok);text-align:center;padding:10px 0;">✓ Tidak ada LEDGER MISMATCH — tidak ada yang perlu diperbaiki.</p>';
+    return;
+  }
+  const label = id => { const it = state.items[id]; return it ? `${esc(it.itemCode)} — ${esc(it.name)}` : esc(id); };
+  el.innerHTML = `
+    <p style="font-size:12px;color:var(--danger);margin:6px 0;font-weight:700;">PREVIEW — ${critical.length} item akan diperbaiki (Stock Balance → nilai Ledger):</p>
+    <div id="recovery-list">${critical.map(r => `
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(30,36,48,.06);font-size:12px;">
+        <input type="checkbox" class="recovery-cb" data-itemid="${esc(r.itemId)}" checked style="flex-shrink:0;">
+        <span style="flex:1;">${label(r.itemId)}</span>
+        <span style="color:var(--danger);font-weight:700;">${r.balQty} → ${r.ledgerQty}</span>
+      </label>`).join('')}</div>
+    <div style="margin-top:10px;">
+      <label style="font-size:11px;color:var(--ink-600);">Alasan perbaikan (wajib, tercatat di audit log)</label>
+      <textarea id="recovery-reason" rows="2" placeholder="Contoh: hasil reconciliation rutin, saldo cache tidak sinkron dengan ledger" style="width:100%;margin-top:4px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-family:inherit;"></textarea>
+    </div>
+    <button type="button" class="btn-action warn" id="btn-recovery-confirm" style="width:100%;margin-top:10px;">Perbaiki Item Terpilih</button>
+    <div id="recovery-progress" style="margin-top:8px;"></div>`;
+
+  $('#btn-recovery-confirm').addEventListener('click', executeRecovery);
+}
+
+async function executeRecovery() {
+  const reason = $('#recovery-reason').value.trim();
+  if (!reason) { toast('Alasan perbaikan wajib diisi'); return; }
+  const checked = Array.from(document.querySelectorAll('.recovery-cb:checked')).map(cb => cb.dataset.itemid);
+  if (!checked.length) { toast('Pilih minimal 1 item'); return; }
+  if (!confirm(`Anda akan memperbaiki ${checked.length} item stok. Perubahan ini tercatat permanen di audit log (stockCorrections) dan TIDAK BISA dihapus/diedit. Lanjutkan?`)) return;
+
+  const confirmBtn = $('#btn-recovery-confirm');
+  confirmBtn.disabled = true; confirmBtn.textContent = 'Memproses…';
+  const progressEl = $('#recovery-progress');
+  let success = 0, failed = 0;
+  const critical = recoveryPreviewData.critical;
+
+  for (const itemId of checked) {
+    const row = critical.find(r => r.itemId === itemId);
+    if (!row) continue;
+    progressEl.innerHTML = `<p style="font-size:11px;color:var(--ink-400);">Memproses ${success + failed + 1}/${checked.length}…</p>`;
+    try {
+      await runTransaction(db, async (tx) => {
+        const balRef = doc(db, 'stockBalances', itemId);
+        const balSnap = await tx.get(balRef);
+        const oldQty = balSnap.exists() ? (balSnap.data().qty || 0) : 0;
+        // AUDIT LOG dulu (immutable, create-only) — Rules mewajibkan stockBalances
+        // jalur koreksi ini menyertakan lastCorrectionId yang valid di commit yang sama.
+        const corrRef = doc(collection(db, 'stockCorrections'));
+        tx.set(corrRef, {
+          itemId, oldQty, newQty: row.ledgerQty, reason,
+          createdAt: serverTimestamp(), createdBy: auth.currentUser.uid, createdByName: currentUserName
+        });
+        tx.set(balRef, {
+          qty: row.ledgerQty, itemId, lastCorrectionId: corrRef.id, updatedAt: serverTimestamp()
+        }); // TANPA merge — jalur koreksi sengaja overwrite penuh, tidak boleh bercampur field lastTransactionId lama
+      });
+      success++;
+    } catch (err) {
+      console.error('executeRecovery', itemId, err);
+      failed++;
+    }
+  }
+
+  progressEl.innerHTML = `<p style="font-size:12px;color:${failed ? 'var(--danger)' : 'var(--ok)'};text-align:center;padding:8px 0;">Selesai — ${success} berhasil, ${failed} gagal.</p>`;
+  confirmBtn.disabled = false; confirmBtn.textContent = 'Perbaiki Item Terpilih';
+  // Refresh reconciliation & recovery preview supaya user langsung lihat hasilnya (harus MATCH sekarang).
+  runReconciliation();
+  renderRecoveryPreview();
+}
+
+const btnRecoveryPreview = $('#btn-recovery-preview');
+if (btnRecoveryPreview) btnRecoveryPreview.addEventListener('click', renderRecoveryPreview);
+
+const btnMigrateLocks = $('#btn-migrate-locks');
+if (btnMigrateLocks) btnMigrateLocks.addEventListener('click', async () => {
+  const el = $('#migrate-locks-results');
+  btnMigrateLocks.disabled = true;
+  el.innerHTML = '<p style="font-size:12px;color:var(--ink-400);text-align:center;padding:10px 0;">Memproses…</p>';
+  try {
+    const { created, skipped, failed } = await migrateCodeLocks();
+    el.innerHTML = `<p style="font-size:12px;color:var(--ok);text-align:center;padding:10px 0;">✓ Selesai — ${created} lock baru dibuat, ${skipped} sudah ada, ${failed} gagal.</p>`;
+  } catch (err) {
+    console.error('migrateCodeLocks', err);
+    el.innerHTML = `<p style="font-size:12px;color:var(--danger);text-align:center;padding:10px 0;">Gagal: ${esc(err.message||'error')}</p>`;
+  } finally {
+    btnMigrateLocks.disabled = false;
+  }
+});
+
+// ================= ROADMAP PHASE 6: MIGRASI DATA HISTORIS TERKENDALI =================
+// Arsitektur (lihat ROADMAP §9-23): ADMIN → UPLOAD → STAGING → VALIDATION → MASTER
+// MAPPING → PREVIEW → ADMIN CONFIRM → CONTROLLED IMPORT → RECONCILIATION → COMPLETE.
+// Tidak ada Cloud Function (tetap Spark plan) — sama seperti transaksi normal (STEP 6)
+// dan Recovery (Phase 5), atomicity per baris dijamin runTransaction di client + Rules.
+// Security ditegakkan di firestore.rules (ADMIN ONLY di semua match/migrationBatches
+// dan match/migrationRows, dan di jalur migrasi match/transactions) — bukan hanya di UI.
+
+// ---- Phase 6.4: Input File Contract (CSV parser, RFC4180-ish, quote-aware) ----
+function migParseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  const s = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inQuotes) {
+      if (c === '"') { if (s[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; } }
+      else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  while (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0].trim() === '') rows.pop();
+  if (!rows.length) return { header: [], rows: [] };
+  const header = rows[0].map(h => h.trim());
+  const dataRows = rows.slice(1).filter(r => r.some(c => c.trim() !== ''));
+  return {
+    header,
+    rows: dataRows.map(r => {
+      const obj = {};
+      header.forEach((h, idx) => { obj[h] = (r[idx] !== undefined ? r[idx] : '').trim(); });
+      return obj;
+    })
+  };
+}
+
+function migSlug(s) { return String(s == null ? '' : s).trim().replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 120); }
+// Phase 6.8 — Migration Idempotency: canonical identity = sourceSystem + sourceTransactionId,
+// dipakai LANGSUNG sebagai Document ID transaksi (pola sama seperti requestId di STEP 6).
+function migTxDocId(sourceSystem, sourceTransactionId) {
+  return `mig__${migSlug(sourceSystem)}__${migSlug(sourceTransactionId)}`;
+}
+
+// ---- Phase 6.6: Master Data Mapping ----
+function migBuildIndexes() {
+  const itemIdx = {}, rackIdx = {};
+  Object.values(state.items).forEach(it => { if (it.itemCode) itemIdx[String(it.itemCode).trim().toUpperCase()] = it; });
+  Object.values(state.racks).forEach(r => { if (r.rackCode) rackIdx[String(r.rackCode).trim().toUpperCase()] = r; });
+  return { itemIdx, rackIdx };
+}
+
+// ---- Phase 6.7: Validation Engine (VALID / WARNING / INVALID — tanpa silent correction) ----
+// ---- Phase 6.10: Historical Transaction vs Opening Balance dipisah lewat historicalKind ----
+function migValidateRows(rawRows) {
+  const { itemIdx, rackIdx } = migBuildIndexes();
+  const seenSrcId = new Set();
+  const seenOpeningItem = new Set();
+  return rawRows.map((raw, i) => {
+    const rowNumber = i + 1;
+    const errors = [], warnings = [];
+    const sourceTransactionId = (raw.sourceTransactionId || '').trim();
+    const dateRaw = (raw.date || '').trim();
+    const typeRaw = (raw.transactionType || '').trim().toUpperCase();
+    const itemCodeRaw = (raw.itemCode || '').trim();
+    const qtyRaw = (raw.qty || '').trim();
+    const uom = (raw.uom || '').trim();
+    const rackCodeRaw = (raw.rackCode || '').trim();
+    const createdByRaw = (raw.createdBy || '').trim();
+
+    if (!sourceTransactionId) errors.push('sourceTransactionId kosong');
+    else if (seenSrcId.has(sourceTransactionId)) errors.push('sourceTransactionId duplikat di dalam file ini');
+    else seenSrcId.add(sourceTransactionId);
+
+    if (!['MASUK', 'KELUAR', 'OPENING_BALANCE'].includes(typeRaw)) {
+      errors.push(`transactionType tidak valid: "${typeRaw || '(kosong)'}" (harus MASUK/KELUAR/OPENING_BALANCE)`);
+    }
+
+    let itemId = null, mappingStatus = 'UNMAPPED';
+    if (!itemCodeRaw) {
+      errors.push('itemCode kosong');
+    } else {
+      const match = itemIdx[itemCodeRaw.toUpperCase()];
+      if (!match) { errors.push(`item tidak ditemukan untuk kode: ${itemCodeRaw}`); }
+      else {
+        mappingStatus = 'MATCHED';
+        itemId = match.id;
+        if (match.status === 'ARCHIVED') errors.push(`item "${itemCodeRaw}" berstatus ARCHIVED — tidak bisa menerima transaksi baru`);
+      }
+    }
+
+    const qty = Number(qtyRaw);
+    if (!qtyRaw || !Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) {
+      errors.push(`qty tidak valid: "${qtyRaw || '(kosong)'}" (harus angka bulat > 0)`);
+    }
+
+    const effectiveType = typeRaw === 'OPENING_BALANCE' ? 'MASUK' : typeRaw;
+    let rackId = null;
+    if (rackCodeRaw) {
+      const rackMatch = rackIdx[rackCodeRaw.toUpperCase()];
+      if (!rackMatch) errors.push(`rak tidak ditemukan untuk kode: ${rackCodeRaw}`);
+      else if (rackMatch.status === 'ARCHIVED') errors.push(`rak "${rackCodeRaw}" berstatus ARCHIVED`);
+      else rackId = rackMatch.id;
+    } else if (effectiveType === 'KELUAR') {
+      errors.push('rackCode wajib diisi untuk transactionType KELUAR');
+    }
+
+    if (typeRaw === 'OPENING_BALANCE' && itemId) {
+      if (seenOpeningItem.has(itemId)) errors.push('lebih dari satu OPENING_BALANCE untuk item yang sama di file ini');
+      else seenOpeningItem.add(itemId);
+    }
+
+    if (!dateRaw) warnings.push('kolom date kosong (informasi saja, tidak memengaruhi ledger)');
+
+    const validationStatus = errors.length ? 'INVALID' : (warnings.length ? 'WARNING' : 'VALID');
+
+    return {
+      rowNumber, sourceTransactionId,
+      normalizedData: { date: dateRaw, transactionType: typeRaw, itemCode: itemCodeRaw, qty: Number.isFinite(qty) ? qty : null, uom, rackCode: rackCodeRaw, createdByRaw },
+      itemId, rackId,
+      effectiveType: ['MASUK', 'KELUAR'].includes(effectiveType) ? effectiveType : null,
+      historicalKind: typeRaw === 'OPENING_BALANCE' ? 'OPENING_BALANCE' : 'TRANSACTION',
+      mappingStatus, validationStatus, validationErrors: errors, validationWarnings: warnings,
+      importStatus: 'PENDING', transactionId: null
+    };
+  });
+}
+
+function migSummarize(rows) {
+  let valid = 0, warning = 0, invalid = 0, matched = 0, unmapped = 0;
+  rows.forEach(r => {
+    if (r.validationStatus === 'VALID') valid++;
+    else if (r.validationStatus === 'WARNING') warning++;
+    else invalid++;
+    if (r.mappingStatus === 'MATCHED') matched++; else unmapped++;
+  });
+  return { valid, warning, invalid, matched, unmapped, total: rows.length };
+}
+
+const migFileInput = $('#mig-file-input');
+if (migFileInput) migFileInput.addEventListener('change', () => {
+  $('#btn-mig-upload').disabled = !migFileInput.files[0];
+});
+
+// ---- Phase 6.2/6.3/6.9: buat migrationBatch + migrationRows (STAGING), validasi
+// dijalankan sinkron di client SEBELUM ditulis — jadi begitu tersimpan statusnya
+// langsung VALIDATED, TIDAK PERNAH auto-lanjut ke IMPORTING (Phase 6.9: tidak ada
+// UPLOAD → AUTO IMPORT, wajib lewat Preview + Admin Confirm secara terpisah). ----
+const btnMigUpload = $('#btn-mig-upload');
+if (btnMigUpload) btnMigUpload.addEventListener('click', async () => {
+  const file = migFileInput.files[0];
+  const sourceSystem = $('#mig-source-system').value.trim();
+  if (!file) { toast('Pilih file CSV terlebih dahulu'); return; }
+  if (!sourceSystem) { toast('Isi nama sistem sumber'); return; }
+  const progEl = $('#mig-upload-progress');
+  btnMigUpload.disabled = true; btnMigUpload.textContent = 'Memproses…';
+  try {
+    const text = await file.text();
+    const { header, rows: rawRows } = migParseCSV(text);
+    if (!rawRows.length) throw new Error('File kosong atau format tidak terbaca');
+    const required = ['sourceTransactionId', 'transactionType', 'itemCode', 'qty'];
+    const missingCols = required.filter(c => !header.includes(c));
+    if (missingCols.length) throw new Error('Kolom wajib tidak ada di header: ' + missingCols.join(', '));
+
+    progEl.innerHTML = `<p style="font-size:11px;color:var(--ink-400);">Memvalidasi ${rawRows.length} baris…</p>`;
+    const validated = migValidateRows(rawRows);
+    const counts = migSummarize(validated);
+
+    const batchRef = doc(collection(db, 'migrationBatches'));
+    const migrationId = batchRef.id;
+    await setDoc(batchRef, {
+      sourceSystem, sourceFileName: file.name,
+      uploadedBy: auth.currentUser.uid, uploadedByName: currentUserName, uploadedAt: serverTimestamp(),
+      status: 'VALIDATED',
+      totalRows: validated.length, validRows: counts.valid, warningRows: counts.warning,
+      invalidRows: counts.invalid, importedRows: 0, failedRows: 0
+    });
+
+    const CHUNK = 400; // headroom di bawah limit 500 write/batch Firestore
+    for (let i = 0; i < validated.length; i += CHUNK) {
+      const wb = writeBatch(db);
+      validated.slice(i, i + CHUNK).forEach(r => {
+        const rowRef = doc(db, 'migrationRows', `${migrationId}_${r.rowNumber}`);
+        wb.set(rowRef, {
+          migrationId, rowNumber: r.rowNumber, sourceTransactionId: r.sourceTransactionId,
+          normalizedData: r.normalizedData, itemId: r.itemId || null, rackId: r.rackId || null,
+          mappingStatus: r.mappingStatus, validationStatus: r.validationStatus,
+          validationErrors: r.validationErrors, validationWarnings: r.validationWarnings,
+          importStatus: r.validationStatus === 'INVALID' ? 'BLOCKED' : 'PENDING',
+          transactionId: null, importedAt: null
+        });
+      });
+      await wb.commit();
+      progEl.innerHTML = `<p style="font-size:11px;color:var(--ink-400);">Menyimpan staging… ${Math.min(i + CHUNK, validated.length)}/${validated.length}</p>`;
+    }
+
+    progEl.innerHTML = `<p style="font-size:12px;color:var(--ok);">✓ Batch dibuat — ${validated.length} baris (Valid ${counts.valid}, Warning ${counts.warning}, Invalid ${counts.invalid})</p>`;
+    migRenderPreview(migrationId, sourceSystem, validated, counts);
+    migFileInput.value = '';
+    $('#mig-source-system').value = '';
+    migRenderBatchList();
+  } catch (err) {
+    console.error('mig upload', err);
+    progEl.innerHTML = `<p style="font-size:12px;color:var(--danger);">Gagal: ${esc(err.message || 'error')}</p>`;
+  } finally {
+    btnMigUpload.textContent = 'Buat Batch & Validasi';
+    btnMigUpload.disabled = true;
+  }
+});
+
+// ---- Phase 6.9: Preview & Confirmation ----
+function migRenderPreview(migrationId, sourceSystem, rows, counts) {
+  const wrap = $('#mig-preview-wrap'); wrap.style.display = '';
+  const body = $('#mig-preview-body');
+  const invalidSample = rows.filter(r => r.validationStatus === 'INVALID').slice(0, 15);
+  const importable = counts.valid + counts.warning;
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:11px;margin-bottom:8px;">
+      <div>Total<br><b>${counts.total}</b></div>
+      <div>Valid<br><b style="color:var(--ok);">${counts.valid}</b></div>
+      <div>Warning<br><b style="color:#c98a00;">${counts.warning}</b></div>
+      <div>Invalid<br><b style="color:var(--danger);">${counts.invalid}</b></div>
+      <div>Mapped<br><b>${counts.matched}</b></div>
+      <div>Unmapped<br><b style="color:var(--danger);">${counts.unmapped}</b></div>
+    </div>
+    ${invalidSample.length ? `<div style="font-size:11px;color:var(--danger);max-height:140px;overflow-y:auto;border:1px solid rgba(30,36,48,.08);border-radius:8px;padding:6px 8px;margin-bottom:8px;">
+      ${invalidSample.map(r => `Baris ${r.rowNumber} (${esc(r.sourceTransactionId || '-')}): ${esc(r.validationErrors.join('; '))}`).join('<br>')}
+      ${counts.invalid > invalidSample.length ? `<br>… dan ${counts.invalid - invalidSample.length} baris invalid lainnya` : ''}
+    </div>` : ''}
+    <p style="font-size:11px;color:var(--ink-600);margin:0 0 8px;">Baris INVALID tidak diimport (Phase 6.7). ${importable} baris (Valid+Warning) siap diproses ke ledger.</p>
+    ${importable
+      ? `<button type="button" class="btn-action warn" id="btn-mig-confirm-import" style="width:100%;">Konfirmasi &amp; Jalankan Import (${importable} baris)</button>`
+      : `<p style="font-size:12px;color:var(--danger);text-align:center;">Tidak ada baris yang bisa diimport.</p>`}
+    <div id="mig-import-progress" style="margin-top:8px;"></div>`;
+  const confirmBtn = $('#btn-mig-confirm-import');
+  if (confirmBtn) confirmBtn.addEventListener('click', () => migRunImport(migrationId, sourceSystem, rows));
+}
+
+// ---- Phase 6.11: Controlled Import Engine (logical transaction per baris, bukan
+// satu Firestore transaction raksasa) + Phase 6.5 Provenance + Phase 6.8 Idempotency ----
+async function migRunImport(migrationId, sourceSystem, rows, isResume) {
+  const toProcess = rows.filter(r => r.validationStatus !== 'INVALID' && r.importStatus !== 'IMPORTED' && r.importStatus !== 'DUPLICATE');
+  if (!isResume && !confirm(`Anda akan mengimport ${toProcess.length} transaksi historis dari "${sourceSystem}" ke ledger. Setiap baris permanen (transaksi tidak bisa diedit/dihapus). Lanjutkan?`)) return;
+
+  const progEl = $('#mig-import-progress');
+  const batchRef = doc(db, 'migrationBatches', migrationId);
+  try { await updateDoc(batchRef, { status: 'IMPORTING', updatedAt: serverTimestamp() }); } catch (e) { /* ignore race */ }
+
+  let imported = 0, duplicate = 0, failed = 0, done = 0;
+  for (const r of toProcess) {
+    done++;
+    if (progEl) progEl.innerHTML = `<p style="font-size:11px;color:var(--ink-400);">Import ${done}/${toProcess.length}…</p>`;
+    const rowRef = doc(db, 'migrationRows', `${migrationId}_${r.rowNumber}`);
+    const txId = migTxDocId(sourceSystem, r.sourceTransactionId);
+    try {
+      const result = await runTransaction(db, async (tx) => {
+        const trxRef = doc(db, 'transactions', txId);
+        const existing = await tx.get(trxRef);
+        if (existing.exists()) {
+          const prev = existing.data();
+          const same = prev.itemId === r.itemId && prev.qty === r.normalizedData.qty &&
+            (prev.rackId || null) === (r.rackId || null) && prev.type === r.effectiveType;
+          if (same) return { status: 'duplicate', transactionId: txId };
+          // Phase 6.8: identity sama, payload beda → MIGRATION_CONFLICT, TIDAK overwrite.
+          throw new Error('MIGRATION_CONFLICT: sourceTransactionId sudah pernah diimport dengan data berbeda — perlu review manual, bukan retry otomatis.');
+        }
+        const balRef = doc(db, 'stockBalances', r.itemId);
+        const balSnap = await tx.get(balRef);
+        const currentQty = balSnap.exists() ? (balSnap.data().qty || 0) : 0;
+        const newQty = r.effectiveType === 'MASUK' ? currentQty + r.normalizedData.qty : currentQty - r.normalizedData.qty;
+        if (newQty < 0) throw new Error(`Stok akan jadi negatif (${newQty}) — cek kelengkapan/urutan data historis untuk item ini`);
+
+        let rackBalRef = null, newRackQty = 0;
+        if (r.rackId) {
+          rackBalRef = doc(db, 'stockByRacks', `${r.itemId}_${r.rackId}`);
+          const rackBalSnap = await tx.get(rackBalRef);
+          const currentRackQty = rackBalSnap.exists() ? (rackBalSnap.data().qty || 0) : 0;
+          newRackQty = r.effectiveType === 'MASUK' ? currentRackQty + r.normalizedData.qty : currentRackQty - r.normalizedData.qty;
+          if (newRackQty < 0) throw new Error(`Stok rak akan jadi negatif (${newRackQty}) untuk item/rak ini`);
+        }
+
+        tx.set(balRef, { qty: newQty, itemId: r.itemId, lastTransactionId: txId, updatedAt: serverTimestamp() }, { merge: true });
+        if (rackBalRef) tx.set(rackBalRef, { qty: newRackQty, itemId: r.itemId, rackId: r.rackId, lastTransactionId: txId, updatedAt: serverTimestamp() }, { merge: true });
+
+        const note = r.normalizedData.createdByRaw
+          ? `Migrasi dari ${sourceSystem} — dibuat oleh: ${r.normalizedData.createdByRaw}${r.normalizedData.date ? ' pada ' + r.normalizedData.date : ''}`
+          : `Migrasi dari ${sourceSystem}${r.normalizedData.date ? ' — tanggal asal: ' + r.normalizedData.date : ''}`;
+
+        tx.set(trxRef, {
+          itemId: r.itemId, type: r.effectiveType, qty: r.normalizedData.qty, rackId: r.rackId || null,
+          vendorId: null, noSjPo: null, note,
+          createdAt: serverTimestamp(), createdBy: auth.currentUser.uid, createdByName: currentUserName,
+          sourceSystem, sourceTransactionId: r.sourceTransactionId, migrationId, historicalKind: r.historicalKind
+        });
+        return { status: 'imported', transactionId: txId };
+      });
+
+      await updateDoc(rowRef, {
+        importStatus: result.status === 'duplicate' ? 'DUPLICATE' : 'IMPORTED',
+        transactionId: result.transactionId, importedAt: serverTimestamp()
+      });
+      if (result.status === 'duplicate') duplicate++; else imported++;
+      r.importStatus = result.status === 'duplicate' ? 'DUPLICATE' : 'IMPORTED';
+    } catch (err) {
+      console.error('migRunImport row', r.rowNumber, err);
+      failed++;
+      r.importStatus = 'FAILED';
+      try { await updateDoc(rowRef, { importStatus: 'FAILED', importedAt: serverTimestamp() }); } catch (e2) { /* baris mungkin sudah diubah proses lain — abaikan */ }
+    }
+
+    if (done % 20 === 0 || done === toProcess.length) {
+      try { await updateDoc(batchRef, { importedRows: imported, failedRows: failed, updatedAt: serverTimestamp() }); } catch (e3) { /* best-effort checkpoint, mendukung Resume kalau proses ini terputus */ }
+    }
+  }
+
+  const finalStatus = failed > 0 ? 'IMPORT_FAILED' : 'IMPORTED';
+  try {
+    await updateDoc(batchRef, {
+      status: finalStatus, importedRows: imported, failedRows: failed,
+      confirmedBy: auth.currentUser.uid, confirmedAt: serverTimestamp(), updatedAt: serverTimestamp()
+    });
+  } catch (e4) { console.error('migRunImport finalize', e4); }
+
+  if (progEl) progEl.innerHTML = `<p style="font-size:12px;color:${failed ? 'var(--danger)' : 'var(--ok)'};">Selesai — ${imported} diimport, ${duplicate} duplikat (sudah ada sebelumnya), ${failed} gagal${failed ? ' (lihat riwayat batch untuk Lanjutkan Import baris PENDING sisa, baris gagal karena konflik perlu review manual)' : ''}.</p>`;
+  toast(`Import migrasi selesai — ${imported} transaksi masuk ke ledger`);
+
+  await migRunReconciliation(migrationId);
+  migRenderBatchList();
+}
+
+// ---- Phase 6.13: Migration Reconciliation — bandingkan migrationRows(IMPORTED) vs
+// transactions bertanda migrationId ini. Mismatch → MIGRATION_RECONCILIATION_FAILED. ----
+async function migRunReconciliation(migrationId) {
+  const batchRef = doc(db, 'migrationBatches', migrationId);
+  try {
+    const txSnap = await getDocs(query(collection(db, 'transactions'), where('migrationId', '==', migrationId)));
+    const rowsSnap = await getDocs(query(collection(db, 'migrationRows'), where('migrationId', '==', migrationId), where('importStatus', '==', 'IMPORTED')));
+    const match = txSnap.size === rowsSnap.size;
+    await updateDoc(batchRef, {
+      reconciliationStatus: match ? 'MATCH' : 'MIGRATION_RECONCILIATION_FAILED',
+      reconciliationNote: `transactions=${txSnap.size}, migrationRows(IMPORTED)=${rowsSnap.size}`,
+      updatedAt: serverTimestamp()
+    });
+  } catch (err) {
+    console.error('migRunReconciliation', err);
+    // Query composite index mungkin belum ada di Firebase Console — ini masuk
+    // EXTERNAL VERIFICATION track (Roadmap §8), bukan blocker pekerjaan AI.
+    try {
+      await updateDoc(batchRef, {
+        reconciliationStatus: 'PENDING_INDEX_OR_ERROR',
+        reconciliationNote: String(err.message || err).slice(0, 300),
+        updatedAt: serverTimestamp()
+      });
+    } catch (e2) { /* ignore */ }
+  }
+}
+
+// ---- Phase 6.12: Resume — hanya melanjutkan baris berstatus PENDING (belum
+// pernah berhasil/gagal), tidak mengulang seluruh file. Baris FAILED (mis.
+// MIGRATION_CONFLICT) sengaja TIDAK di-retry otomatis — butuh review manual. ----
+async function migResumeImport(migrationId, sourceSystem) {
+  if (!confirm('Lanjutkan import baris yang masih PENDING untuk batch ini?')) return;
+  try {
+    const snap = await getDocs(query(collection(db, 'migrationRows'), where('migrationId', '==', migrationId), where('importStatus', '==', 'PENDING')));
+    if (snap.empty) { toast('Tidak ada baris PENDING yang tersisa'); migRenderBatchList(); return; }
+    const rows = snap.docs.map(d => {
+      const x = d.data();
+      const effectiveType = x.normalizedData.transactionType === 'OPENING_BALANCE' ? 'MASUK' : x.normalizedData.transactionType;
+      const historicalKind = x.normalizedData.transactionType === 'OPENING_BALANCE' ? 'OPENING_BALANCE' : 'TRANSACTION';
+      return { rowNumber: x.rowNumber, sourceTransactionId: x.sourceTransactionId, normalizedData: x.normalizedData, itemId: x.itemId, rackId: x.rackId || null, effectiveType, historicalKind, validationStatus: x.validationStatus, importStatus: x.importStatus };
+    });
+    await migRunImport(migrationId, sourceSystem, rows, true);
+  } catch (err) {
+    console.error('migResumeImport', err);
+    toast('Gagal resume: ' + (err.message || 'error') + ' — kalau ini error index Firestore, buat composite index dari link di Firebase Console (Track Eksternal).');
+  }
+}
+
+async function migCancelBatch(migrationId) {
+  if (!confirm('Batalkan batch migrasi ini? Baris yang masih PENDING tidak akan diimport.')) return;
+  try {
+    await updateDoc(doc(db, 'migrationBatches', migrationId), { status: 'CANCELLED', updatedAt: serverTimestamp() });
+    toast('Batch dibatalkan');
+    migRenderBatchList();
+  } catch (err) {
+    console.error('migCancelBatch', err);
+    toast('Gagal membatalkan: ' + (err.message || 'error'));
+  }
+}
+
+// ---- Phase 6.14: Audit Trail ----
+function migBatchRowHTML(id, b) {
+  const statusColor = { IMPORTED: 'var(--ok)', IMPORT_FAILED: 'var(--danger)', VALIDATION_FAILED: 'var(--danger)', CANCELLED: 'var(--ink-400)' }[b.status] || '#c98a00';
+  const when = b.uploadedAt && b.uploadedAt.toDate ? b.uploadedAt.toDate().toLocaleString('id-ID') : '—';
+  const canResume = (b.status === 'IMPORTING' || b.status === 'IMPORT_FAILED');
+  const canCancel = ['UPLOADED', 'VALIDATING', 'VALIDATED', 'READY_TO_IMPORT'].includes(b.status);
+  return `
+    <div style="border:1px solid rgba(30,36,48,.08);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:11.5px;">
+      <div style="display:flex;justify-content:space-between;gap:8px;">
+        <b>${esc(b.sourceFileName || '-')}</b>
+        <span style="color:${statusColor};font-weight:700;">${esc(b.status)}</span>
+      </div>
+      <div style="color:var(--ink-600);margin-top:2px;">Sumber: ${esc(b.sourceSystem || '-')} • Oleh: ${esc(b.uploadedByName || '-')} • ${esc(when)}</div>
+      <div style="color:var(--ink-600);margin-top:2px;">Total ${b.totalRows || 0} • Valid ${b.validRows || 0} • Warning ${b.warningRows || 0} • Invalid ${b.invalidRows || 0} • Imported ${b.importedRows || 0} • Failed ${b.failedRows || 0}</div>
+      ${b.reconciliationStatus ? `<div style="margin-top:2px;color:${b.reconciliationStatus === 'MATCH' ? 'var(--ok)' : 'var(--danger)'};">Rekonsiliasi: ${esc(b.reconciliationStatus)}${b.reconciliationNote ? ' — ' + esc(b.reconciliationNote) : ''}</div>` : ''}
+      ${(canResume || canCancel) ? `<div style="display:flex;gap:8px;margin-top:6px;">
+        ${canResume ? `<button type="button" class="btn-action ghost" id="mig-resume-${id}" style="flex:1;padding:6px;">Lanjutkan Import</button>` : ''}
+        ${canCancel ? `<button type="button" class="btn-action ghost" id="mig-cancel-${id}" style="flex:1;padding:6px;">Batalkan</button>` : ''}
+      </div>` : ''}
+    </div>`;
+}
+
+async function migRenderBatchList() {
+  const el = $('#mig-batch-list');
+  if (!el) return;
+  el.innerHTML = '<p style="font-size:11px;color:var(--ink-400);">Memuat…</p>';
+  try {
+    const snap = await getDocs(query(collection(db, 'migrationBatches'), orderBy('uploadedAt', 'desc'), limit(20)));
+    if (snap.empty) { el.innerHTML = '<p style="font-size:11px;color:var(--ink-400);">Belum ada batch migrasi.</p>'; return; }
+    el.innerHTML = snap.docs.map(d => migBatchRowHTML(d.id, d.data())).join('');
+    snap.docs.forEach(d => {
+      const data = d.data();
+      const resumeBtn = document.getElementById(`mig-resume-${d.id}`);
+      if (resumeBtn) resumeBtn.addEventListener('click', () => migResumeImport(d.id, data.sourceSystem));
+      const cancelBtn = document.getElementById(`mig-cancel-${d.id}`);
+      if (cancelBtn) cancelBtn.addEventListener('click', () => migCancelBatch(d.id));
+    });
+  } catch (err) {
+    console.error('migRenderBatchList', err);
+    el.innerHTML = `<p style="font-size:11px;color:var(--danger);">Gagal memuat: ${esc(err.message || 'error')} ${err.message && err.message.includes('index') ? '— buat composite index dari link error ini di Firebase Console.' : ''}</p>`;
+  }
+}
+
+const btnMigRefresh = $('#btn-mig-refresh');
+if (btnMigRefresh) btnMigRefresh.addEventListener('click', migRenderBatchList);
+
 // ---------- NAV / ROUTING ----------
 function goToView(target) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === target));
@@ -1292,6 +2055,16 @@ function getCurrentStock(itemId) {
 // ================= TRANSAKSI MODULE (STEP 6) =================
 // Client-side runTransaction (bukan Cloud Function) — keputusan: tetap di Firebase Spark plan (gratis).
 let trxType = 'MASUK';
+// P0/P1-03: idempotency — requestId dipakai LANGSUNG sebagai Document ID transaksi.
+// Kalau user retry (network timeout dikira gagal padahal sukses), Firestore transaction
+// akan baca dulu apakah trxRef sudah ada; kalau sudah, tidak diproses ulang (no-op aman).
+let trxRequestId = null;
+function _newTrxRequestId() {
+  trxRequestId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'trx-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+}
+_newTrxRequestId();
 const trxForm = $('#trx-form');
 const trxItemSel = $('#trx-itemId');
 const trxRackSel = $('#trx-rackId');
@@ -1305,6 +2078,7 @@ $('#trx-type-tabs').addEventListener('click', (e) => {
   trxType = btn.dataset.type;
   document.querySelectorAll('#trx-type-tabs button').forEach(b => b.classList.toggle('active', b === btn));
   trxMasukFields.style.display = trxType === 'MASUK' ? '' : 'none';
+  $('#trx-rackId-label').textContent = trxType === 'KELUAR' ? 'Rak (wajib)' : 'Rak';
   updateTrxStockInfo();
   checkTrxAnomaly();
   saveTrxDraft();
@@ -1320,14 +2094,25 @@ function refreshTrxSelectOptions() {
   if (prevItem && state.items[prevItem]) trxItemSel.value = prevItem;
 
   const prevRack = trxRackSel.value;
+  // Roadmap Phase 1.4 — rak ARCHIVED tidak boleh dipilih untuk transaksi baru
+  // (konsisten dengan validasi rack ACTIVE yang sekarang ditegakkan di Rules).
+  // Roadmap Final Audit fix — cek `=== 'ACTIVE'` (bukan `!== 'ARCHIVED'`), supaya
+  // data lama yang terlanjur berstatus 'INACTIVE' (sebelum bug form Rak diperbaiki)
+  // ikut ter-exclude juga, bukan cuma yang persis 'ARCHIVED'.
+  const activeRacks = Object.values(state.racks).filter(r => r.status === 'ACTIVE');
   trxRackSel.innerHTML = '<option value="">— Tidak ditentukan —</option>' +
-    Object.values(state.racks).map(r => `<option value="${r.id}">${esc(r.rackCode)}${r.rackName ? ' — '+esc(r.rackName) : ''}</option>`).join('');
+    activeRacks.map(r => `<option value="${r.id}">${esc(r.rackCode)}${r.rackName ? ' — '+esc(r.rackName) : ''}</option>`).join('');
   if (prevRack) trxRackSel.value = prevRack;
 
   const prevVendor = trxVendorSel.value;
+  // Roadmap Phase 7 — Master Data Governance: vendor INACTIVE tidak boleh dipilih
+  // untuk transaksi baru (konsisten dengan item/rak, dan sekarang ditegakkan juga
+  // di Rules). Kalau vendor yang sebelumnya terpilih ternyata baru saja jadi
+  // INACTIVE, selector di-reset ke "Tidak ada" (bukan silently keep nilai lama).
+  const activeVendors = Object.values(state.vendors).filter(v => v.status !== 'INACTIVE');
   trxVendorSel.innerHTML = '<option value="">— Tidak ada —</option>' +
-    Object.values(state.vendors).map(v => `<option value="${v.id}">${esc(v.vendorName)}</option>`).join('');
-  if (prevVendor) trxVendorSel.value = prevVendor;
+    activeVendors.map(v => `<option value="${v.id}">${esc(v.vendorName)}</option>`).join('');
+  if (prevVendor && state.vendors[prevVendor] && state.vendors[prevVendor].status !== 'INACTIVE') trxVendorSel.value = prevVendor;
 
   updateTrxStockInfo();
 }
@@ -1397,6 +2182,7 @@ function restoreTrxDraft() {
     trxType = draft.trxType;
     document.querySelectorAll('#trx-type-tabs button').forEach(b => b.classList.toggle('active', b.dataset.type === trxType));
     trxMasukFields.style.display = trxType === 'MASUK' ? '' : 'none';
+    $('#trx-rackId-label').textContent = trxType === 'KELUAR' ? 'Rak (wajib)' : 'Rak';
   }
   if (draft.itemId && state.items[draft.itemId]) trxItemSel.value = draft.itemId;
   if (draft.qty) $('#trx-qty').value = draft.qty;
@@ -1446,6 +2232,8 @@ function openTransaksiForm(prefillItemId) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === 'transaksi'));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === 'transaksi'));
   refreshTrxSelectOptions();
+  if (!trxRequestId) _newTrxRequestId();
+  $('#trx-rackId-label').textContent = trxType === 'KELUAR' ? 'Rak (wajib)' : 'Rak';
   if (prefillItemId && state.items[prefillItemId]) {
     trxItemSel.value = prefillItemId;
     const item = state.items[prefillItemId];
@@ -1469,13 +2257,38 @@ trxForm.addEventListener('submit', async (e) => {
   if (!qty || qty <= 0 || !Number.isInteger(qty)) { toast('Qty harus angka bulat positif'); return; }
   const item = state.items[itemId];
   if (!item || item.status === 'ARCHIVED') { toast('Item tidak aktif'); return; }
+  // P0-02: rackId wajib untuk KELUAR — supaya stockByRacks tidak divergen dari stockBalances.
+  if (trxType === 'KELUAR' && !rackId) { toast('Pilih rak asal barang untuk transaksi KELUAR'); return; }
 
   const submitBtn = $('#trx-submit');
   submitBtn.disabled = true; submitBtn.textContent = 'Menyimpan…';
 
+  if (!trxRequestId) _newTrxRequestId();
+  const requestId = trxRequestId;
+
   try {
     // ---- STEP 6: atomic write client-side via runTransaction (tanpa Cloud Function) ----
-    await runTransaction(db, async (tx) => {
+    const result = await runTransaction(db, async (tx) => {
+      // P0/P1-03: cek dulu apakah requestId ini sudah pernah diproses (retry-safe).
+      // Semua tx.get() harus terjadi sebelum tx.set() manapun (aturan Firestore transaction).
+      const trxRef = doc(db, 'transactions', requestId);
+      const existingTrx = await tx.get(trxRef);
+      if (existingTrx.exists()) {
+        // Phase 1.6 adversarial check: "same requestId + different payload" harus
+        // ditolak eksplisit (MIGRATION_CONFLICT-style), bukan diam-diam dianggap
+        // sukses. Kalau payload retry PERSIS sama seperti yang tersimpan → aman,
+        // no-op. Kalau beda → ada yang salah (bug/serangan), tolak dengan jelas.
+        const prev = existingTrx.data();
+        const samePayload =
+          prev.itemId === itemId && prev.type === trxType && prev.qty === qty &&
+          (prev.rackId || null) === (rackId || null) &&
+          (prev.vendorId || null) === (vendorId || null) &&
+          (prev.noSjPo || null) === (noSjPo || null) &&
+          (prev.note || null) === (note || null);
+        if (samePayload) return { duplicate: true };
+        throw new Error('IDEMPOTENCY_CONFLICT: ID permintaan ini sudah dipakai untuk transaksi dengan data berbeda. Ini seharusnya tidak terjadi pada pemakaian normal — silakan muat ulang halaman lalu coba lagi.');
+      }
+
       const balRef = doc(db, 'stockBalances', itemId);
       const balSnap = await tx.get(balRef);
       const currentQty = balSnap.exists() ? (balSnap.data().qty || 0) : 0;
@@ -1491,29 +2304,42 @@ trxForm.addEventListener('submit', async (e) => {
         if (newRackQty < 0) throw new Error('Stok di rak ini tidak cukup. Stok rak saat ini: ' + currentRackQty);
       }
 
-      tx.set(balRef, { qty: newQty, itemId, updatedAt: serverTimestamp() }, { merge: true });
+      // lastTransactionId wajib disertakan — Rules pakai getAfter() untuk memverifikasi
+      // angka ini benar-benar hasil dari transaksi requestId ini (P0-01).
+      tx.set(balRef, { qty: newQty, itemId, lastTransactionId: requestId, updatedAt: serverTimestamp() }, { merge: true });
       if (rackBalRef) {
-        tx.set(rackBalRef, { qty: newRackQty, itemId, rackId, updatedAt: serverTimestamp() }, { merge: true });
+        tx.set(rackBalRef, { qty: newRackQty, itemId, rackId, lastTransactionId: requestId, updatedAt: serverTimestamp() }, { merge: true });
       }
 
-      const trxRef = doc(collection(db, 'transactions'));
       tx.set(trxRef, {
         itemId, type: trxType, qty, rackId: rackId || null,
         vendorId: vendorId || null, noSjPo: noSjPo || null, note: note || null,
         createdAt: serverTimestamp(), createdBy: auth.currentUser.uid, createdByName: currentUserName
       });
+      return { duplicate: false };
     });
 
-    toast(`Transaksi ${trxType} tersimpan`);
+    toast(result.duplicate
+      ? `Transaksi ${trxType} sudah tersimpan sebelumnya — percobaan ulang diabaikan`
+      : `Transaksi ${trxType} tersimpan`);
     trxForm.reset();
     trxMasukFields.style.display = trxType === 'MASUK' ? '' : 'none';
     updateTrxStockInfo();
     $('#trx-anomaly-warning').hidden = true;
     clearTrxDraft();
     trxDraftBannerDismissed = false;
+    _newTrxRequestId(); // siapkan requestId baru untuk transaksi berikutnya
   } catch (err) {
     console.error(err);
-    toast('Gagal: ' + (err.message || 'error'));
+    if (err.message && err.message.startsWith('IDEMPOTENCY_CONFLICT')) {
+      toast('ID permintaan konflik dengan data berbeda — coba lagi dengan ID baru');
+      _newTrxRequestId(); // ID ini sudah "rusak" (dipakai payload lain) — jangan dipakai retry lagi
+    } else {
+      toast('Gagal: ' + (err.message || 'error'));
+      // requestId TIDAK diganti untuk error lain — supaya kalau user submit ulang
+      // (retry) atas transaksi yang SEBENARNYA sudah sukses di server tapi
+      // response-nya timeout di client, itu terdeteksi sebagai duplicate di atas.
+    }
   } finally {
     submitBtn.disabled = false; submitBtn.textContent = 'Simpan Transaksi';
   }
@@ -1521,6 +2347,28 @@ trxForm.addEventListener('submit', async (e) => {
 
 // ================= QR GENERATE MODULE (STEP 7) =================
 // QR berisi itemCode item (tidak ada field qrCode terpisah).
+// Roadmap Phase 8 — QR Reliability: satu helper QR lokal dipakai di SEMUA
+// tempat (modal preview, label rak, kartu stok cetak, label barang cetak).
+// Sebelumnya kartu stok & label barang generate QR lewat pemanggilan gambar
+// ke api.qrserver.com (pihak ketiga) — butuh internet tiap kali cetak/reprint,
+// gagal diam-diam (kotak QR kosong) kalau offline, dan mengirim kode item
+// keluar ke server pihak ketiga. qrcodejs (lib lokal, sudah dimuat sekali di
+// awal via <script> tag) dipakai untuk generate PNG data URL secara sinkron
+// di window utama — hasilnya di-embed langsung ke HTML cetak, jadi tab print
+// (window terpisah) tidak butuh koneksi apa pun untuk menampilkan QR.
+function qrCodeDataURL(text, size) {
+  if (typeof QRCode === 'undefined') return '';
+  const tmp = document.createElement('div');
+  tmp.style.cssText = 'position:absolute;left:-9999px;top:-9999px;';
+  document.body.appendChild(tmp);
+  try {
+    new QRCode(tmp, { text: String(text), width: size || 200, height: size || 200, correctLevel: QRCode.CorrectLevel.M });
+    const canvas = tmp.querySelector('canvas');
+    return canvas ? canvas.toDataURL('image/png') : (tmp.querySelector('img')?.src || '');
+  } finally {
+    document.body.removeChild(tmp);
+  }
+}
 function showItemQR(item) {
   $('#modal-qr-title').textContent = `QR — ${item.itemCode}`;
   const wrap = $('#qr-code-canvas-wrap');
@@ -1580,7 +2428,17 @@ function onScanSuccess(decodedText) {
   const code = decodedText.trim();
   const item = Object.values(state.items).find(i => i.itemCode === code);
   if (!item) {
-    statusEl.textContent = `Item dengan kode "${esc(code)}" tidak ditemukan.`;
+    // Roadmap Phase 8 — Resolve Canonical Identifier: kode QR di aplikasi ini
+    // ada dua ruang identifier terpisah (itemCode utk item, rackCode utk rak —
+    // lihat printRackLabel/showItemQR). Sebelum vonis "tidak ditemukan", cek
+    // dulu apakah kode yang di-scan itu sebenarnya kode rak (salah target scan,
+    // bukan data rusak) supaya pesannya akurat, bukan generik.
+    const rack = Object.values(state.racks).find(r => r.rackCode === code);
+    if (rack) {
+      statusEl.textContent = `Ini kode RAK "${esc(rack.rackCode)}", bukan kode item. Scan QR pada label item untuk transaksi.`;
+    } else {
+      statusEl.textContent = `Item dengan kode "${esc(code)}" tidak ditemukan.`;
+    }
     $('#scan-restart-btn').hidden = false;
     return;
   }
@@ -1758,39 +2616,81 @@ $('#modal-stockcard-overlay').addEventListener('click', (e) => { if (e.target ==
 // title = KartuStok_{kodeItem}_{tanggal} sebelum print, lalu dikembalikan
 // ke title app semula setelah selesai (event afterprint + fallback timer).
 let pendingPrintItem = null;
+let pendingPrintItems = null;
 let pendingPrintType = 'kartu';
-let pendingLabelBatch = null;
+let pendingSize = null;
 const APP_TITLE = document.title;
+
+// type: 'kartu' | 'kartu-batch' | 'label' | 'label-batch' | 'rack-label' | 'rack-stock'
+// 'kartu*' butuh pilih ukuran kertas; 'label*' tidak; 'rack-*' tetap perilaku lama (1x klik ukuran langsung cetak).
+function _papersizeNeedsSize(type){ return type==='kartu'||type==='kartu-batch'||type==='rack-label'||type==='rack-stock'; }
+function _papersizeHasModeChoice(type){ return type==='kartu'||type==='kartu-batch'||type==='label'||type==='label-batch'; }
+
+function _resetPapersizeUI(){
+  pendingSize = null;
+  $('#modal-papersize-overlay').querySelectorAll('.paper-opt button[data-size]').forEach(b=>b.classList.remove('active'));
+}
 
 function openPaperSizePicker(item, type) {
   if (!item) { toast('Item tidak ditemukan'); return; }
   pendingPrintItem = item;
-  pendingLabelBatch = null;
+  pendingPrintItems = null;
   pendingPrintType = type || 'kartu';
+  _resetPapersizeUI();
+  $('#papersize-size-row').style.display = _papersizeNeedsSize(pendingPrintType) ? '' : 'none';
+  $('#papersize-mode-row').style.display = _papersizeHasModeChoice(pendingPrintType) ? '' : 'none';
   $('#modal-papersize-overlay').classList.add('show');
 }
-function openPaperSizePickerBatch(entries) {
+function openBatchPrintPicker(items, type) {
+  if (!items || !items.length) { toast('Tidak ada item dipilih'); return; }
   pendingPrintItem = null;
-  pendingLabelBatch = entries;
-  pendingPrintType = 'label-batch';
+  pendingPrintItems = items;
+  pendingPrintType = type;
+  _resetPapersizeUI();
+  $('#papersize-size-row').style.display = _papersizeNeedsSize(pendingPrintType) ? '' : 'none';
+  $('#papersize-mode-row').style.display = _papersizeHasModeChoice(pendingPrintType) ? '' : 'none';
   $('#modal-papersize-overlay').classList.add('show');
 }
-$('#modal-papersize-close').addEventListener('click', () => { $('#modal-papersize-overlay').classList.remove('show'); pendingPrintItem = null; pendingLabelBatch = null; });
-$('#modal-papersize-overlay').addEventListener('click', (e) => { if (e.target === $('#modal-papersize-overlay')) { $('#modal-papersize-overlay').classList.remove('show'); pendingPrintItem = null; pendingLabelBatch = null; } });
-$('#modal-papersize-overlay').querySelectorAll('.paper-opt button').forEach(btn => {
+function _closePapersizeModal(){
+  $('#modal-papersize-overlay').classList.remove('show');
+  pendingPrintItem = null; pendingPrintItems = null; pendingSize = null;
+}
+$('#modal-papersize-close').addEventListener('click', _closePapersizeModal);
+$('#modal-papersize-overlay').addEventListener('click', (e) => { if (e.target === $('#modal-papersize-overlay')) _closePapersizeModal(); });
+
+$('#papersize-size-row').querySelectorAll('button[data-size]').forEach(btn => {
   btn.addEventListener('click', () => {
     const size = btn.dataset.size;
-    const item = pendingPrintItem;
-    const batch = pendingLabelBatch;
     const type = pendingPrintType;
-    $('#modal-papersize-overlay').classList.remove('show');
-    pendingPrintItem = null;
-    pendingLabelBatch = null;
-    if (type === 'rack-label') printRackLabel(item, size);
-    else if (type === 'rack-stock') printRackStockList(item, size);
-    else printStockCard(item, size);
+    // rack-label & rack-stock: perilaku lama, klik ukuran langsung eksekusi (tanpa pilihan cetak/PDF).
+    if (type === 'rack-label' || type === 'rack-stock') {
+      const item = pendingPrintItem;
+      _closePapersizeModal();
+      if (type === 'rack-label') printRackLabel(item, size);
+      else printRackStockList(item, size);
+      return;
+    }
+    // kartu / kartu-batch: hanya tandai pilihan, tunggu klik Cetak/PDF.
+    $('#papersize-size-row').querySelectorAll('button[data-size]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    pendingSize = size;
   });
 });
+
+function _executePendingPrint(mode) {
+  const type = pendingPrintType;
+  if (_papersizeNeedsSize(type) && !pendingSize) { toast('Pilih ukuran kertas dulu'); return; }
+  const item = pendingPrintItem;
+  const items = pendingPrintItems;
+  const size = pendingSize;
+  _closePapersizeModal();
+  if (type === 'kartu-batch') printStockCardBatch(items, size, mode);
+  else if (type === 'kartu') printStockCard(item, size, mode);
+  else if (type === 'label-batch') printLabelsBatch(items, mode);
+  else if (type === 'label') printItemLabel(item, mode);
+}
+$('#papersize-do-print').addEventListener('click', () => _executePendingPrint('print'));
+$('#papersize-do-pdf').addEventListener('click', () => _executePendingPrint('download'));
 
 function setPrintPageSize(size) {
   let styleTag = document.getElementById('dynamic-print-size');
@@ -1835,7 +2735,12 @@ function _kartuCardHTML(item,idx){
   if(!item)return'<div class="kartu kartu-empty"></div>';
   var ex=_exKartu;
   var qrID=item.id&&String(item.id).trim()!==''?String(item.id).trim():('MAT'+String(idx+1).padStart(3,'0'));
-  var qrData=encodeURIComponent(qrID+'|'+item.nama+'|'+item.rak);
+  // Payload QR = itemCode murni, SAMA dengan showItemQR() & onScanSuccess()
+  // (scanner cek `i.itemCode === decodedText.trim()`) — jangan pakai payload
+  // gabungan lagi, supaya kartu/label hasil cetak bisa langsung di-scan.
+  // Roadmap Phase 8: QR digenerate lokal (qrCodeDataURL), bukan lewat API
+  // pihak ketiga — supaya cetak tetap jalan tanpa internet.
+  var qrDataUrl=qrCodeDataURL(qrID,200);
   var rows='';
   for(var n=2;n<=15;n++)rows+='<div class="tr"><div class="td no">'+n+'</div><div class="td"></div><div class="td"></div><div class="td"></div><div class="td"></div><div class="td last"></div></div>';
   var tgl=item._tgl;
@@ -1857,7 +2762,7 @@ function _kartuCardHTML(item,idx){
   +'<div class="i2" style="margin-top:.4mm"><div class="ic"><span class="il">User / Dept</span><span class="iv">'+ex(item.user||'—')+'</span></div>'
   +'<div class="ic"><span class="il">BC / Non BC</span><span class="iv">'+ex(item.bc||'—')+'</span></div></div>'
   +'</div>'
-  +'<div class="qa"><div class="qb"><img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data='+qrData+'" width="100%" height="100%" crossorigin="anonymous" alt="Kode QR item '+ex(qrID)+'"></div>'
+  +'<div class="qa"><div class="qb">'+(qrDataUrl?'<img src="'+qrDataUrl+'" width="100%" height="100%" alt="Kode QR item '+ex(qrID)+'">':'<div style="font-size:5pt;color:#c0392b;text-align:center;padding:2mm;">QR gagal dibuat<br>(library QR tidak dimuat)</div>')+'</div>'
   +'<div class="qk">'+ex(qrID)+'</div><div class="ql">Scan untuk Transaksi</div></div>'
   +'</div>'
   +'<div class="ss"><div class="sc masuk"><span class="sl">Total Masuk</span><span class="sv">'+ex(item.totalMasuk||0)+'</span></div>'
@@ -1869,7 +2774,8 @@ function _kartuCardHTML(item,idx){
   +'</div>';
 }
 
-function _buildKartuPrintHTML(items,pSize){
+function _buildKartuPrintHTML(items,pSize,mode){
+  mode=mode||'print';
   var now=new Date();
   var tgl=now.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
   var yyyy=now.getFullYear(),mm=String(now.getMonth()+1).padStart(2,'0'),dd=String(now.getDate()).padStart(2,'0');
@@ -1884,7 +2790,10 @@ function _buildKartuPrintHTML(items,pSize){
   var pageH=pSize==='A5'?'148.5mm':'297mm';
   var cutV='.page::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed #bbb;transform:translateX(-50%);z-index:1}';
   var cutH=pSize==='A5'?'':'.page::after{content:"";position:absolute;top:50%;left:0;right:0;border-top:1px dashed #bbb;transform:translateY(-50%);z-index:1}';
-  var scriptAction='<script>window.onload=function(){window.print();}<\/script>';
+  var scriptAction=mode==='download'
+    ?'<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>'
+    +'<script>window.onload=function(){var el=document.getElementById("pw");var opt={margin:0,filename:'+JSON.stringify(pdfFilename)+',image:{type:"jpeg",quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:"mm",format:'+JSON.stringify(pSize==='A5'?'a5':'a4')+',orientation:'+JSON.stringify(pSize==='A5'?'landscape':'portrait')+'}};html2pdf().set(opt).from(el).save();}<\/script>'
+    :'<script>window.onload=function(){window.print();}<\/script>';
   return'<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Kartu Stok</title><style>'
   +'@page{size:'+pageRule+';margin:0mm}'
   +'@media print{'
@@ -1960,33 +2869,16 @@ function _buildKartuPrintHTML(items,pSize){
   +'</style></head><body><div id="pw">'+ph+'</div>'+scriptAction+'</body></html>';
 }
 
-async function printStockCard(item, size) {
-  if (!item) { toast('Item tidak ditemukan'); return; }
-  if (!size) { openPaperSizePicker(item); return; }
+function _kartuLedgerErrorHint(err) {
+  console.error('printStockCard error:', err);
+  if (err.code === 'failed-precondition') return 'Firestore butuh index baru untuk query ini. Buka Console browser (F12 → tab Console), cari error yang mengandung link "https://console.firebase.google.com/...", lalu klik link itu untuk membuat index otomatis. Setelah index selesai dibuat (1-2 menit), coba cetak lagi.';
+  if (err.code === 'permission-denied') return 'Akses ditolak oleh Security Rules Firestore untuk collection transactions.';
+  if (err.code) return `Kode error: ${err.code}`;
+  return err.message || 'Error tidak diketahui, cek Console (F12) untuk detail.';
+}
 
-  let ledger;
-  try {
-    ledger = await fetchItemLedger(item.id);
-  } catch (err) {
-    console.error('printStockCard error:', err);
-    let hint = '';
-    if (err.code === 'failed-precondition') {
-      hint = 'Firestore butuh index baru untuk query ini. Buka Console browser (F12 → tab Console), cari error yang mengandung link "https://console.firebase.google.com/...", lalu klik link itu untuk membuat index otomatis. Setelah index selesai dibuat (1-2 menit), coba cetak lagi.';
-    } else if (err.code === 'permission-denied') {
-      hint = 'Akses ditolak oleh Security Rules Firestore untuk collection transactions.';
-    } else if (err.code) {
-      hint = `Kode error: ${err.code}`;
-    } else if (err.message) {
-      hint = err.message;
-    }
-    toast('Gagal memuat data untuk dicetak');
-    alert('Gagal memuat data untuk dicetak.\n\n' + (hint || 'Error tidak diketahui, cek Console (F12) untuk detail.'));
-    return;
-  }
-
-  const w = window.open('', '_blank');
-  if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
-
+async function _mapItemForKartu(item) {
+  const ledger = await fetchItemLedger(item.id);
   const rak = item.defaultRack ? (state.racks[item.defaultRack]?.rackCode || '—') : '—';
   const rowsAsc = ledger.rows;
   let lastUser = '—', lastNoRef = '—', lastVendor = '—';
@@ -1999,8 +2891,7 @@ async function printStockCard(item, size) {
     }
     if (lastUser !== '—' && lastNoRef !== '—' && lastVendor !== '—') break;
   }
-
-  const mappedItem = {
+  return {
     id: item.itemCode || item.id || '',
     nama: item.name || '',
     spec: item.specification || '',
@@ -2014,8 +2905,46 @@ async function printStockCard(item, size) {
     qty: ledger.saldoAkhir,
     vendor: lastVendor
   };
+}
 
-  w.document.write(_buildKartuPrintHTML([mappedItem], size));
+async function printStockCard(item, size, mode) {
+  if (!item) { toast('Item tidak ditemukan'); return; }
+  if (!size) { openPaperSizePicker(item, 'kartu'); return; }
+
+  let mappedItem;
+  try {
+    mappedItem = await _mapItemForKartu(item);
+  } catch (err) {
+    const hint = _kartuLedgerErrorHint(err);
+    toast('Gagal memuat data untuk dicetak');
+    alert('Gagal memuat data untuk dicetak.\n\n' + hint);
+    return;
+  }
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
+  w.document.write(_buildKartuPrintHTML([mappedItem], size, mode));
+  w.document.close();
+}
+
+// items: array item — cetak banyak kartu stok sekaligus dalam satu proses (2/4 per halaman).
+async function printStockCardBatch(items, size, mode) {
+  if (!items || !items.length) { toast('Tidak ada item dipilih'); return; }
+  if (!size) { openBatchPrintPicker(items, 'kartu-batch'); return; }
+
+  let mappedItems;
+  try {
+    mappedItems = await Promise.all(items.map(_mapItemForKartu));
+  } catch (err) {
+    const hint = _kartuLedgerErrorHint(err);
+    toast('Gagal memuat data untuk dicetak');
+    alert('Gagal memuat data untuk dicetak.\n\n' + hint);
+    return;
+  }
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
+  w.document.write(_buildKartuPrintHTML(mappedItems, size, mode));
   w.document.close();
 }
 
@@ -2126,10 +3055,10 @@ function printRackStockList(rack, size) {
 
 // ---- CETAK LABEL BARANG (disamakan persis dengan desain app lama) ----
 // Sama seperti kartu stok: dibuka di tab baru dengan HTML+CSS mandiri
-// (template .lbl2 persis app lama, QR via api.qrserver.com), bukan lewat
-// #print-area. Label lama TIDAK punya pilihan ukuran kertas (selalu A4,
-// grid 4 kolom x 6 baris = 24 label/halaman), jadi di sini juga langsung
-// cetak tanpa melalui openPaperSizePicker.
+// (template .lbl2 persis app lama, QR digenerate lokal — Roadmap Phase 8),
+// bukan lewat #print-area. Label lama TIDAK punya pilihan ukuran kertas (selalu A4,
+// grid 4 kolom x 6 baris = 24 label/halaman) — tapi tetap ditawari pilihan
+// Cetak vs Unduh PDF lewat modal-papersize (size row disembunyikan).
 function _labelMapItem(item){
   return{
     id:item.itemCode||item.id||'',
@@ -2141,23 +3070,30 @@ function _labelMapItem(item){
 function _buildLabelCardHTML(item,idx){
   var ex=_exKartu;
   var qrID=item.id&&String(item.id).trim()!==''?String(item.id).trim():('MAT'+String(idx+1).padStart(3,'0'));
-  var qrData=encodeURIComponent(qrID+'|'+item.nama+'|'+item.rak);
+  // Payload QR = itemCode murni, samakan dengan generator QR utama & scanner (P1-05).
+  // Roadmap Phase 8: QR digenerate lokal (qrCodeDataURL), bukan lewat API pihak
+  // ketiga — supaya cetak/reprint label tetap jalan tanpa internet.
+  var qrDataUrl=qrCodeDataURL(qrID,150);
   return'<div class="lbl2">'
   +'<div class="lbl2-co">PT RAYARD DELI INDONESIA</div>'
-  +'<img class="lbl2-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=2&data='+qrData+'" width="100%" height="100%" crossorigin="anonymous" alt="Kode QR item '+ex(qrID)+'">'
+  +(qrDataUrl?'<img class="lbl2-qr" src="'+qrDataUrl+'" width="100%" height="100%" alt="Kode QR item '+ex(qrID)+'">':'<div class="lbl2-qr" style="display:flex;align-items:center;justify-content:center;font-size:3.5pt;color:#c0392b;">QR gagal</div>')
   +'<div class="lbl2-kode">'+ex(qrID)+'</div>'
   +'<div class="lbl2-nama">'+ex(item.nama)+'</div>'
   +(item.spec?'<div class="lbl2-spec">'+ex(item.spec)+'</div>':'')
   +'</div>';
 }
-function _buildLabelPrintHTML(items){
+function _buildLabelPrintHTML(items,mode){
+  mode=mode||'print';
   var now=new Date();var yyyy=now.getFullYear(),mm=String(now.getMonth()+1).padStart(2,'0'),dd=String(now.getDate()).padStart(2,'0');
   var pdfFilename='label-barang.'+yyyy+'.'+mm+'.'+dd+'.pdf';
   var cols=4,rows=6,perPage=cols*rows;
   var cards=items.map(function(item,idx){return _buildLabelCardHTML(item,idx);});
   var pages=[];for(var p=0;p<cards.length;p+=perPage)pages.push(cards.slice(p,p+perPage));
   var ph=pages.map(function(c,pi){var isLast=(pi===pages.length-1);return'<div class="page'+(isLast?' last-page':'')+'">'+c.join('')+'</div>';}).join('');
-  var scriptAction='<script>window.onload=function(){window.print();}<\/script>';
+  var scriptAction=mode==='download'
+    ?'<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>'
+    +'<script>window.onload=function(){var el=document.getElementById("pw");var opt={margin:0,filename:'+JSON.stringify(pdfFilename)+',image:{type:"jpeg",quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}};html2pdf().set(opt).from(el).save();}<\/script>'
+    :'<script>window.onload=function(){window.print();}<\/script>';
   return'<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Label Barang</title><style>'
   +'@page{size:A4 portrait;margin:0mm}'
   +'@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{margin:0;background:#fff}.page{box-shadow:none!important;margin:0!important;page-break-after:always;page-break-inside:avoid}.page.last-page{page-break-after:avoid!important}}'
@@ -2174,24 +3110,26 @@ function _buildLabelPrintHTML(items){
   +'</style></head><body><div id="pw">'+ph+'</div>'+scriptAction+'</body></html>';
 }
 
-async function printItemLabel(item) {
+async function printItemLabel(item, mode) {
   if (!item) { toast('Item tidak ditemukan'); return; }
+  if (!mode) { openPaperSizePicker(item, 'label'); return; }
   const w = window.open('', '_blank');
   if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
-  w.document.write(_buildLabelPrintHTML([_labelMapItem(item)]));
+  w.document.write(_buildLabelPrintHTML([_labelMapItem(item)], mode));
   w.document.close();
 }
 
 // ---- CETAK LABEL BANYAK ITEM SEKALIGUS ----
 // entries: [{ item, qty }] — qty = berapa kali label item itu diulang.
 // Semua label dari semua item digabung jadi satu grid, dicetak dalam satu proses.
-async function printLabelsBatch(entries) {
+async function printLabelsBatch(entries, mode) {
   if (!entries || !entries.length) { toast('Tidak ada item dipilih'); return; }
+  if (!mode) { openBatchPrintPicker(entries, 'label-batch'); return; }
   const w = window.open('', '_blank');
   if (!w) { alert('Popup diblokir browser.\nIzinkan popup untuk domain ini lalu coba lagi.'); return; }
   const labels = [];
   entries.forEach(e => { for (let n = 0; n < e.qty; n++) labels.push(_labelMapItem(e.item)); });
-  w.document.write(_buildLabelPrintHTML(labels));
+  w.document.write(_buildLabelPrintHTML(labels, mode));
   w.document.close();
 }
 
@@ -2309,6 +3247,100 @@ $('#labelbatch-proceed').addEventListener('click', () => {
   printLabelsBatch(entries);
 });
 
+// ---- MODAL PILIH ITEM: CETAK KARTU STOK MASSAL (tanpa qty, 1 kartu/item) ----
+const kartuBatchSelected = new Set();
+
+function openKartuBatchModal() {
+  kartuBatchSelected.clear();
+  $('#kartubatch-search').value = '';
+  const catSel = $('#kartubatch-catfilter');
+  catSel.innerHTML = '<option value="">Semua Kategori</option>' +
+    Object.values(state.categories)
+      .filter(c => c.status !== 'ARCHIVED')
+      .sort((a, b) => (a.categoryName || '').localeCompare(b.categoryName || ''))
+      .map(c => `<option value="${c.id}">${esc(c.categoryName || c.categoryCode)}</option>`).join('');
+  catSel.value = '';
+  renderKartuBatchList('', '');
+  $('#modal-kartubatch-overlay').classList.add('show');
+}
+function getFilteredKartuBatchItems(searchTerm, categoryId) {
+  const term = (searchTerm || '').trim().toLowerCase();
+  const catId = categoryId !== undefined ? categoryId : ($('#kartubatch-catfilter')?.value || '');
+  let items = Object.values(state.items).filter(i => i.status !== 'ARCHIVED');
+  if (catId) items = items.filter(i => i.categoryId === catId);
+  if (term) {
+    items = items.filter(i =>
+      (i.itemCode || '').toLowerCase().includes(term) ||
+      (i.name || '').toLowerCase().includes(term)
+    );
+  }
+  return items;
+}
+function renderKartuBatchList(searchTerm, categoryId) {
+  const listEl = $('#kartubatch-list');
+  const items = getFilteredKartuBatchItems(searchTerm, categoryId);
+  items.sort((a, b) => (a.itemCode || '').localeCompare(b.itemCode || ''));
+
+  if (!items.length) {
+    listEl.innerHTML = '<p style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;">Tidak ada item cocok.</p>';
+    updateKartuBatchCount();
+    return;
+  }
+
+  listEl.innerHTML = items.map(i => {
+    const checked = kartuBatchSelected.has(i.id);
+    return `<div class="lb-row" data-id="${i.id}">
+      <input type="checkbox" class="lb-cb" ${checked ? 'checked' : ''}>
+      <div class="lb-row-info">
+        <div class="lb-row-name">${esc(i.name || i.itemCode)}</div>
+        <div class="lb-row-sub">${esc(i.itemCode || '')}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.lb-row').forEach(row => {
+    const id = row.dataset.id;
+    const cb = row.querySelector('.lb-cb');
+    const info = row.querySelector('.lb-row-info');
+    function toggle(checked) {
+      cb.checked = checked;
+      if (checked) kartuBatchSelected.add(id);
+      else kartuBatchSelected.delete(id);
+      updateKartuBatchCount();
+    }
+    info.addEventListener('click', () => toggle(!cb.checked));
+    cb.addEventListener('click', (e) => { e.stopPropagation(); toggle(cb.checked); });
+  });
+
+  updateKartuBatchCount();
+}
+function updateKartuBatchCount() {
+  const total = kartuBatchSelected.size;
+  $('#kartubatch-count').textContent = total ? `${total} item dipilih` : '0 item dipilih';
+}
+
+const btnOpenKartuBatch = $('#btn-open-kartubatch');
+if (btnOpenKartuBatch) btnOpenKartuBatch.addEventListener('click', openKartuBatchModal);
+
+$('#modal-kartubatch-close').addEventListener('click', () => $('#modal-kartubatch-overlay').classList.remove('show'));
+$('#modal-kartubatch-overlay').addEventListener('click', (e) => { if (e.target === $('#modal-kartubatch-overlay')) $('#modal-kartubatch-overlay').classList.remove('show'); });
+$('#kartubatch-search').addEventListener('input', (e) => renderKartuBatchList(e.target.value));
+$('#kartubatch-catfilter').addEventListener('change', (e) => renderKartuBatchList($('#kartubatch-search').value, e.target.value));
+$('#kartubatch-selectall').addEventListener('click', () => {
+  getFilteredKartuBatchItems($('#kartubatch-search').value).forEach(i => kartuBatchSelected.add(i.id));
+  renderKartuBatchList($('#kartubatch-search').value);
+});
+$('#kartubatch-clearall').addEventListener('click', () => {
+  kartuBatchSelected.clear();
+  renderKartuBatchList($('#kartubatch-search').value);
+});
+$('#kartubatch-proceed').addEventListener('click', () => {
+  if (!kartuBatchSelected.size) { toast('Pilih minimal 1 item dulu'); return; }
+  const items = Array.from(kartuBatchSelected).map(id => state.items[id]);
+  $('#modal-kartubatch-overlay').classList.remove('show');
+  printStockCardBatch(items);
+});
+
 
 // Murni komputasi dari data yang sudah ada di state (items, stockBalances,
 // histTransactions) — tidak ada query Firestore tambahan.
@@ -2361,8 +3393,16 @@ function renderDashboard() {
   const todaysTrx = histTransactions.filter(t =>
     t.createdAt && typeof t.createdAt.toDate === 'function' && t.createdAt.toDate().toDateString() === todayStr
   );
-  $('#dash-trx-masuk').textContent = todaysTrx.filter(t => t.type === 'MASUK').length;
-  $('#dash-trx-keluar').textContent = todaysTrx.filter(t => t.type === 'KELUAR').length;
+  // Roadmap Phase 9 — KPI Clarification: Transaction Count (jumlah transaksi)
+  // dan Quantity Movement (jumlah qty yang berpindah) adalah dua metrik berbeda
+  // dan bisa sangat menyesatkan kalau dicampur — 1 transaksi bisa berisi qty 500,
+  // atau 50 transaksi bisa masing-masing qty 1. Keduanya ditampilkan terpisah.
+  const todaysMasuk = todaysTrx.filter(t => t.type === 'MASUK');
+  const todaysKeluar = todaysTrx.filter(t => t.type === 'KELUAR');
+  $('#dash-trx-masuk').textContent = todaysMasuk.length;
+  $('#dash-trx-keluar').textContent = todaysKeluar.length;
+  $('#dash-qty-masuk').textContent = todaysMasuk.reduce((sum, t) => sum + (Number(t.qty) || 0), 0);
+  $('#dash-qty-keluar').textContent = todaysKeluar.reduce((sum, t) => sum + (Number(t.qty) || 0), 0);
 
   // ---- daftar stok rendah (ringkas, top 10) ----
   const lsListEl = $('#dash-lowstock-list');
@@ -2487,7 +3527,10 @@ function renderRow(tab, d) {
   const code = d.categoryCode || d.vendorCode || d.rackCode || '';
   const name = d.categoryName || d.vendorName || d.rackName || '';
   const sub = tab === 'rack' ? (d.location || d.zone || '') : (d.contact || '');
-  const badge = d.status === 'INACTIVE' ? '<span class="badge archived">NONAKTIF</span>' : '<span class="badge active">AKTIF</span>';
+  // Rak pakai terminologi ACTIVE/ARCHIVED (selaras dengan filter & Rules — lihat
+  // catatan Final Audit di statusToggleHtml), Kategori/Vendor pakai ACTIVE/INACTIVE.
+  const inactiveVal = tab === 'rack' ? 'ARCHIVED' : 'INACTIVE';
+  const badge = d.status === inactiveVal ? '<span class="badge archived">NONAKTIF</span>' : '<span class="badge active">AKTIF</span>';
   const printBtn = tab === 'rack' ? `<button type="button" class="icon-btn-sm" data-print-rack="${d.id}" title="Cetak Label Rak">
       <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>` : '';
@@ -2608,11 +3651,27 @@ if (btnPrintRakDetail) btnPrintRakDetail.addEventListener('click', () => {
   openPaperSizePicker(state.racks[currentRakId] || { id: currentRakId, rackCode: currentRakId }, 'rack-stock');
 });
 
-function refreshSelectOptions() {
+// Roadmap Phase 7 — Master Data Governance: opsi kategori/vendor/rak untuk form
+// Item hanya menampilkan master data ACTIVE, supaya item baru/edit tidak diarahkan
+// ke master data yang sudah non-aktif. Kecualinya: kalau item yang sedang di-edit
+// SUDAH terlanjur terhubung ke master data yang kini INACTIVE/ARCHIVED, nilainya
+// tetap ditampilkan (ditandai "(nonaktif)") supaya tidak silently hilang/ke-reset
+// saat form dibuka — tapi tidak jadi opsi baru untuk item lain.
+function refreshSelectOptions(current) {
+  current = current || {};
   const catSel = $('#f-categoryId'), venSel = $('#f-vendorId'), rakSel = $('#f-defaultRack');
-  if (catSel) catSel.innerHTML = Object.values(state.categories).map(c => `<option value="${c.id}">${esc(c.categoryName)}</option>`).join('') || '<option value="">Belum ada kategori</option>';
-  if (venSel) venSel.innerHTML = Object.values(state.vendors).map(v => `<option value="${v.id}">${esc(v.vendorName)}</option>`).join('') || '<option value="">Belum ada vendor</option>';
-  if (rakSel) rakSel.innerHTML = Object.values(state.racks).map(r => `<option value="${r.id}">${esc(r.rackCode)} — ${esc(r.rackName||'')}</option>`).join('') || '<option value="">Belum ada rak</option>';
+  function buildOptions(map, currentId, labelFn, emptyLabel, isInactive) {
+    const all = Object.values(map);
+    const active = all.filter(x => !isInactive(x));
+    let opts = active.map(x => `<option value="${x.id}">${labelFn(x)}</option>`);
+    if (currentId && map[currentId] && isInactive(map[currentId])) {
+      opts.push(`<option value="${currentId}">${labelFn(map[currentId])} (nonaktif)</option>`);
+    }
+    return opts.length ? opts.join('') : `<option value="">${emptyLabel}</option>`;
+  }
+  if (catSel) catSel.innerHTML = buildOptions(state.categories, current.categoryId, c => esc(c.categoryName), 'Belum ada kategori', c => c.status === 'INACTIVE');
+  if (venSel) venSel.innerHTML = buildOptions(state.vendors, current.vendorId, v => esc(v.vendorName), 'Belum ada vendor', v => v.status === 'INACTIVE');
+  if (rakSel) rakSel.innerHTML = buildOptions(state.racks, current.defaultRack, r => `${esc(r.rackCode)} — ${esc(r.rackName||'')}`, 'Belum ada rak', r => r.status !== 'ACTIVE');
 }
 
 // ---- form modal ----
@@ -2651,7 +3710,7 @@ function openFormModal(tab, id) {
         <button type="button" class="btn-ghost" id="f-cancel">Batal</button>
         <button type="submit" class="btn-primary flex1">Simpan</button>
       </div>`;
-    refreshSelectOptions();
+    refreshSelectOptions(isEdit ? d : null);
     if (isEdit) { $('#f-categoryId').value = d.categoryId||''; $('#f-vendorId').value = d.vendorId||''; $('#f-defaultRack').value = d.defaultRack||''; $('#f-bcStatus').value = d.bcStatus||'NON_BC'; }
   } else if (tab === 'category') {
     const d = isEdit ? state.categories[id] : {};
@@ -2677,7 +3736,7 @@ function openFormModal(tab, id) {
         <div class="m-field"><label>Lokasi</label><div class="field-wrap"><input type="text" id="f-location" value="${esc(d.location||'')}"></div></div>
         <div class="m-field"><label>Zona</label><div class="field-wrap"><input type="text" id="f-zone" value="${esc(d.zone||'')}"></div></div>
       </div>
-      ${isEdit ? statusToggleHtml(d.status) : ''}
+      ${isEdit ? statusToggleHtml(d.status, 'ARCHIVED') : ''}
       <div class="m-actions"><button type="button" class="btn-ghost" id="f-cancel">Batal</button><button type="submit" class="btn-primary flex1">Simpan</button></div>`;
   }
 
@@ -2685,19 +3744,83 @@ function openFormModal(tab, id) {
   formOverlay.classList.add('show');
 }
 
-function statusToggleHtml(status) {
-  const active = status !== 'INACTIVE';
-  return `<div class="m-field"><label>Status</label><select id="f-status"><option value="ACTIVE" ${active?'selected':''}>ACTIVE</option><option value="INACTIVE" ${!active?'selected':''}>INACTIVE</option></select></div>`;
+// Final End-to-End Audit (17 Agustus 2026) — BUG DITEMUKAN & DIPERBAIKI:
+// form Rak sebelumnya pakai statusToggleHtml(d.status) generik yang sama
+// dengan Kategori/Vendor (opsi ACTIVE/INACTIVE) — padahal SEMUA filter rak di
+// aplikasi ini (refreshTrxSelectOptions, refreshSelectOptions Phase 7) DAN
+// firestore.rules (baseTrxFieldsValid) memakai terminologi ACTIVE/ARCHIVED
+// untuk rak, bukan INACTIVE. Akibatnya: admin men-nonaktifkan rak lewat form
+// → status jadi 'INACTIVE' → filter client (cek `!== 'ARCHIVED'`) TIDAK
+// mendeteksinya sebagai nonaktif, rak tetap muncul & bisa dipilih di form
+// transaksi → transaksi baru ditolak diam-diam oleh Rules (yang benar minta
+// persis 'ACTIVE') dengan error permission-denied yang membingungkan, padahal
+// UI terlihat mengizinkannya. Item tidak kena bug ini (quick-toggle Arsip nya
+// terpisah, sudah pakai ARCHIVED sejak awal). Diperbaiki dengan memberi param
+// kedua ke statusToggleHtml supaya form Rak konsisten pakai ACTIVE/ARCHIVED,
+// SELARAS dengan filter & Rules yang sudah ada — bukan mengubah filter/Rules
+// (yang sudah benar), tapi memperbaiki sumber datanya (form).
+function statusToggleHtml(status, inactiveValue) {
+  inactiveValue = inactiveValue || 'INACTIVE';
+  const active = status !== inactiveValue;
+  return `<div class="m-field"><label>Status</label><select id="f-status"><option value="ACTIVE" ${active?'selected':''}>ACTIVE</option><option value="${inactiveValue}" ${!active?'selected':''}>${inactiveValue}</option></select></div>`;
 }
 
-// ---- cek duplikasi kode (itemCode/categoryCode/vendorCode) sebelum simpan ----
-// Rak tidak perlu dicek: rackCode dipakai langsung sebagai Document ID di
-// Firestore, jadi otomatis unik (setDoc ke ID yang sama = overwrite, bukan duplikat).
-async function isCodeDuplicate(collectionName, field, value, excludeId) {
-  const snap = await getDocs(query(collection(db, collectionName), where(field, '==', value)));
-  let dup = false;
-  snap.forEach(d => { if (d.id !== excludeId) dup = true; });
-  return dup;
+// ---- P1-04: uniqueness ATOMIC pakai koleksi "lock" (codeLocks/{type}:{code}) ----
+// Ganti pola lama check-then-write (isCodeDuplicate + setDoc terpisah, ada race
+// condition) jadi satu runTransaction: baca lock DAN tulis lock+dokumen dalam
+// commit yang sama. Kalau 2 client race, Firestore otomatis retry yang kalah —
+// begitu retry, tx.get(lockRef) akan melihat lock sudah ada → throw sebelum commit.
+// Rak tidak perlu ini: rackCode dipakai langsung sebagai Document ID (sudah atomic).
+function _codeLockRef(type, code) {
+  return doc(db, 'codeLocks', `${type}:${code}`);
+}
+async function createWithUniqueCode(type, code, collectionName, newId, payload) {
+  const lockRef = _codeLockRef(type, code);
+  await runTransaction(db, async (tx) => {
+    const lockSnap = await tx.get(lockRef);
+    if (lockSnap.exists()) throw new Error(`Kode "${code}" sudah dipakai, silakan pakai kode lain`);
+    tx.set(lockRef, { code, type, refId: newId, createdAt: serverTimestamp() });
+    tx.set(doc(db, collectionName, newId), payload);
+  });
+}
+async function updateWithUniqueCode(type, oldCode, newCode, collectionName, id, payload) {
+  if (oldCode === newCode) { await updateDoc(doc(db, collectionName, id), payload); return; }
+  const newLockRef = _codeLockRef(type, newCode);
+  const oldLockRef = _codeLockRef(type, oldCode);
+  await runTransaction(db, async (tx) => {
+    const newLockSnap = await tx.get(newLockRef);
+    if (newLockSnap.exists()) throw new Error(`Kode "${newCode}" sudah dipakai, silakan pakai kode lain`);
+    tx.set(newLockRef, { code: newCode, type, refId: id, createdAt: serverTimestamp() });
+    tx.delete(oldLockRef); // aman kalau lock lama belum pernah ada (data lama sebelum migrasi)
+    tx.update(doc(db, collectionName, id), payload);
+  });
+}
+// ---- Migrasi Lock Kode Unik (Admin Tools) — sekali jalan, backfill data lama ----
+// Data yang dibuat SEBELUM fitur lock ini aktif belum punya dokumen codeLocks,
+// jadi belum terlindungi race condition. Tool ini scan items/categories/vendors
+// dan buat lock yang belum ada (best-effort, bukan transaksi — aman karena
+// dijalankan manual oleh admin, bukan alur otomatis berulang).
+async function migrateCodeLocks() {
+  const jobs = [
+    ['item', state.items, 'itemCode'],
+    ['category', state.categories, 'categoryCode'],
+    ['vendor', state.vendors, 'vendorCode']
+  ];
+  let created = 0, skipped = 0, failed = 0;
+  for (const [type, dataObj, field] of jobs) {
+    for (const d of Object.values(dataObj)) {
+      const code = (d[field] || '').trim();
+      if (!code) continue;
+      const lockRef = _codeLockRef(type, code);
+      try {
+        const snap = await getDoc(lockRef);
+        if (snap.exists()) { skipped++; continue; }
+        await setDoc(lockRef, { code, type, refId: d.id, createdAt: serverTimestamp(), backfilled: true });
+        created++;
+      } catch (err) { console.error('migrateCodeLocks', type, code, err); failed++; }
+    }
+  }
+  return { created, skipped, failed };
 }
 
 formEl.addEventListener('submit', async (e) => {
@@ -2710,11 +3833,6 @@ formEl.addEventListener('submit', async (e) => {
   try {
     if (tab === 'item') {
       const itemCodeVal = $('#f-itemCode').value.trim();
-      if (await isCodeDuplicate('items', 'itemCode', itemCodeVal, id)) {
-        toast('Kode Item "' + itemCodeVal + '" sudah dipakai item lain');
-        submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
-        return;
-      }
       const payload = {
         itemCode: itemCodeVal,
         name: $('#f-name').value.trim(),
@@ -2729,31 +3847,35 @@ formEl.addEventListener('submit', async (e) => {
         updatedBy: auth.currentUser.uid
       };
       if (isEdit) {
-        await updateDoc(doc(db,'items',id), payload);
+        const oldCode = state.items[id]?.itemCode || '';
+        await updateWithUniqueCode('item', oldCode, itemCodeVal, 'items', id, payload);
       } else {
         const newId = await nextSeq('itemSeq','ITEM',6);
-        await setDoc(doc(db,'items',newId), { ...payload, status:'ACTIVE', createdAt: serverTimestamp(), createdBy: auth.currentUser.uid });
+        await createWithUniqueCode('item', itemCodeVal, 'items', newId,
+          { ...payload, status:'ACTIVE', createdAt: serverTimestamp(), createdBy: auth.currentUser.uid });
       }
     } else if (tab === 'category') {
       const categoryCodeVal = $('#f-categoryCode').value.trim();
-      if (await isCodeDuplicate('categories', 'categoryCode', categoryCodeVal, id)) {
-        toast('Kode Kategori "' + categoryCodeVal + '" sudah dipakai kategori lain');
-        submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
-        return;
-      }
       const payload = { categoryCode: categoryCodeVal, categoryName: $('#f-categoryName').value.trim() };
-      if (isEdit) { payload.status = $('#f-status').value; await updateDoc(doc(db,'categories',id), payload); }
-      else { const newId = await nextSeq('categorySeq','CAT',3); await setDoc(doc(db,'categories',newId), { ...payload, status:'ACTIVE' }); }
+      if (isEdit) {
+        const oldCode = state.categories[id]?.categoryCode || '';
+        payload.status = $('#f-status').value;
+        await updateWithUniqueCode('category', oldCode, categoryCodeVal, 'categories', id, payload);
+      } else {
+        const newId = await nextSeq('categorySeq','CAT',3);
+        await createWithUniqueCode('category', categoryCodeVal, 'categories', newId, { ...payload, status:'ACTIVE' });
+      }
     } else if (tab === 'vendor') {
       const vendorCodeVal = $('#f-vendorCode').value.trim();
-      if (await isCodeDuplicate('vendors', 'vendorCode', vendorCodeVal, id)) {
-        toast('Kode Vendor "' + vendorCodeVal + '" sudah dipakai vendor lain');
-        submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
-        return;
-      }
       const payload = { vendorCode: vendorCodeVal, vendorName: $('#f-vendorName').value.trim(), contact: $('#f-contact').value.trim() };
-      if (isEdit) { payload.status = $('#f-status').value; await updateDoc(doc(db,'vendors',id), payload); }
-      else { const newId = await nextSeq('vendorSeq','VEN',3); await setDoc(doc(db,'vendors',newId), { ...payload, status:'ACTIVE' }); }
+      if (isEdit) {
+        const oldCode = state.vendors[id]?.vendorCode || '';
+        payload.status = $('#f-status').value;
+        await updateWithUniqueCode('vendor', oldCode, vendorCodeVal, 'vendors', id, payload);
+      } else {
+        const newId = await nextSeq('vendorSeq','VEN',3);
+        await createWithUniqueCode('vendor', vendorCodeVal, 'vendors', newId, { ...payload, status:'ACTIVE' });
+      }
     } else if (tab === 'rack') {
       const rackCode = $('#f-rackCode').value.trim().toUpperCase();
       const payload = { rackCode, rackName: $('#f-rackName').value.trim(), location: $('#f-location').value.trim(), zone: $('#f-zone').value.trim() };
@@ -2803,22 +3925,26 @@ function openDetailItem(id) {
       <div class="detail-kv"><div class="k">Total Masuk/Keluar</div><div class="v" id="dd-total-mk">Memuat…</div></div>
     </div>
     <div class="detail-actions">
-      <button class="btn-action ghost" id="da-edit"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Edit</button>
+      <button class="btn-action ghost" id="da-edit" ${currentRole === 'ADMIN' ? '' : 'hidden'}><svg viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Edit</button>
       <button class="btn-action ghost" id="da-transaksi" ${currentRole === 'VIEWER' ? 'hidden' : ''}>Transaksi</button>
       <button class="btn-action ghost" id="da-qr">Lihat QR</button>
       <button class="btn-action ghost" id="da-history">Lihat History</button>
       <button class="btn-action ghost" id="da-print">Cetak Kartu</button>
       <button class="btn-action ghost" id="da-print-label">Cetak Label</button>
-      <button class="btn-action ${isArchived?'ok':'warn'}" id="da-archive" style="grid-column:1/-1;">${isArchived?'Aktifkan Kembali':'Arsipkan Item'}</button>
+      <button class="btn-action ${isArchived?'ok':'warn'}" id="da-archive" style="grid-column:1/-1;" ${currentRole === 'ADMIN' ? '' : 'hidden'}>${isArchived?'Aktifkan Kembali':'Arsipkan Item'}</button>
     </div>`;
 
-  $('#da-edit').addEventListener('click', () => { detailOverlay.classList.remove('show'); openFormModal('item', id); });
+  // Edit & Arsip cuma dibind kalau tombolnya memang dirender (P1-06: cocokkan
+  // gating UI dengan Rules — items create/update butuh isAdmin()).
+  const daEditBtn = $('#da-edit');
+  if (daEditBtn) daEditBtn.addEventListener('click', () => { detailOverlay.classList.remove('show'); openFormModal('item', id); });
   $('#da-transaksi').addEventListener('click', () => { detailOverlay.classList.remove('show'); openTransaksiForm(id); });
   $('#da-qr').addEventListener('click', () => { showItemQR(d); });
   $('#da-history').addEventListener('click', () => { detailOverlay.classList.remove('show'); openStockCard(d); });
   $('#da-print').addEventListener('click', () => { printStockCard(d); });
   $('#da-print-label').addEventListener('click', () => { printItemLabel(d); });
-  $('#da-archive').addEventListener('click', async () => {
+  const daArchiveBtn = $('#da-archive');
+  if (daArchiveBtn) daArchiveBtn.addEventListener('click', async () => {
     const newStatus = isArchived ? 'ACTIVE' : 'ARCHIVED';
     if (!confirm(isArchived ? 'Aktifkan kembali item ini?' : 'Arsipkan item ini? Item ARCHIVED tidak bisa dipakai transaksi baru.')) return;
     try {
