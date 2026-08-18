@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v6.11</title>
+<title>RDI Indirect Inventory v6.12</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -205,6 +205,17 @@
   .remember{display:flex;align-items:center;gap:7px;color:var(--ink-600);cursor:pointer;user-select:none;}
   .remember input{width:15px;height:15px;accent-color:var(--red-600);cursor:pointer;}
   .link-btn{background:none;border:none;color:var(--ink-600);font-size:12px;cursor:pointer;text-decoration:underline;padding:0;}
+  /* PHASE UX-1.3 — SCOPED FIX: touch target Draft Recovery (Lanjutkan/Buang).
+     .link-btn GLOBAL TIDAK diubah (dipakai di 6+ tempat lain: Lupa Password,
+     Lihat Semua Alert, batch print select-all/clear, dll). Fix ini HANYA
+     berlaku untuk #trx-draft-restore & #trx-draft-discard via selector ID
+     (spesifisitas ID > class, jadi override aman tanpa menyentuh .link-btn).
+     Tidak mengubah text/warna/underline/behavior — hanya memperbesar area
+     sentuh ke ~44px lewat min-height + padding + inline-flex centering. */
+  #trx-draft-restore, #trx-draft-discard{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-height:44px;padding:10px 14px;border-radius:10px;
+  }
   .login-divider{width:100%;height:1px;background:rgba(30,36,48,.12);margin:18px 0 12px;}
   .login-foot{font-size:11.5px;color:var(--ink-600);text-align:center;}
 
@@ -571,6 +582,26 @@
   .dash-card:nth-child(-n+2) .dash-card-value{font-size:26px;}
   .dash-card-value{font-size:19px;font-weight:800;color:var(--ink-900);font-family:var(--font-mono);letter-spacing:-.01em;}
   .dash-card-label{font-size:10.5px;color:var(--ink-600);margin-top:3px;letter-spacing:.01em;}
+  /* PHASE UX-2 P0 — Fix #1: error banner, pakai token --warn existing (bukan
+     --danger) supaya tidak disamakan secara visual dengan "Stok Rendah" yang
+     memang problem operasional; ini murni sinyal "data belum fresh". */
+  .dash-error-banner{
+    border-radius:var(--radius-md);padding:10px 14px;margin-bottom:14px;
+    background:rgba(217,138,23,.13);border-color:rgba(217,138,23,.3);
+    color:var(--warn);font-size:12px;font-weight:600;
+  }
+  /* PHASE UX-2 P1 — Fix #4: batasi tinggi panel Stok Rendah DI DASHBOARD saja
+     (bukan halaman Alert penuh) supaya Aktivitas Terbaru tidak terlalu jauh
+     terdorong ke bawah di viewport sempit. Data/slice tidak berubah (tetap
+     sampai 10 item, lihat renderDashboard) — hanya container-nya sekarang
+     scroll internal kalau konten melebihi tinggi ini. */
+  #dash-lowstock-list.dash-lowstock-scroll{max-height:260px;overflow-y:auto;}
+  @media (max-width:390px){
+    #dash-lowstock-list.dash-lowstock-scroll{max-height:200px;}
+  }
+  @media (min-width:768px){
+    #dash-lowstock-list.dash-lowstock-scroll{max-height:340px;}
+  }
   /* ============ STEP 19: CETAK KARTU STOK ============ */
   #print-area{display:none;}
   .print-preview-overlay.show #print-area{display:block;}
@@ -820,32 +851,39 @@
 
   <main>
     <section class="view active" data-view="dashboard">
+      <!-- PHASE UX-2 P0 — Fix #1: dashboard data-freshness error banner.
+           Ditampilkan hanya kalau salah satu listener sumber data dashboard
+           (items/stockBalances/stockByRacks) gagal. Tidak menggantikan
+           console.error(), tidak mengubah listener architecture. -->
+      <div class="glass dash-error-banner" id="dash-error-banner" hidden>
+        <span>⚠️ Data dashboard belum dapat diperbarui. Periksa koneksi dan coba lagi.</span>
+      </div>
       <div class="dash-cards">
         <div class="dash-card glass">
-          <div class="dash-card-value" id="dash-total-item">0</div>
+          <div class="dash-card-value" id="dash-total-item">—</div>
           <div class="dash-card-label">Item Aktif</div>
         </div>
         <div class="dash-card glass">
-          <div class="dash-card-value" id="dash-low-stock" style="color:var(--danger);">0</div>
+          <div class="dash-card-value" id="dash-low-stock" style="color:var(--danger);">—</div>
           <div class="dash-card-label">Stok Rendah</div>
         </div>
         <div class="dash-card glass">
-          <div class="dash-card-value" id="dash-trx-masuk" style="color:var(--ok);">0</div>
+          <div class="dash-card-value" id="dash-trx-masuk" style="color:var(--ok);">—</div>
           <div class="dash-card-label">Transaksi Masuk Hari Ini</div>
         </div>
         <div class="dash-card glass">
-          <div class="dash-card-value" id="dash-trx-keluar" style="color:var(--danger);">0</div>
+          <div class="dash-card-value" id="dash-trx-keluar" style="color:var(--color-info);">—</div>
           <div class="dash-card-label">Transaksi Keluar Hari Ini</div>
         </div>
         <!-- Roadmap Phase 9 — KPI Clarification: Transaction Count (di atas) dan
              Quantity Movement (di bawah) sengaja dipisah jadi kartu berbeda, supaya
              "5 transaksi" vs "500 pcs bergerak" tidak tercampur jadi satu angka. -->
         <div class="dash-card glass">
-          <div class="dash-card-value" id="dash-qty-masuk" style="color:var(--ok);">0</div>
+          <div class="dash-card-value" id="dash-qty-masuk" style="color:var(--ok);">—</div>
           <div class="dash-card-label">Qty Masuk Hari Ini</div>
         </div>
         <div class="dash-card glass">
-          <div class="dash-card-value" id="dash-qty-keluar" style="color:var(--danger);">0</div>
+          <div class="dash-card-value" id="dash-qty-keluar" style="color:var(--color-info);">—</div>
           <div class="dash-card-label">Qty Keluar Hari Ini</div>
         </div>
       </div>
@@ -855,7 +893,7 @@
           <h2 style="font-size:14px;margin:0;">⚠️ Stok Rendah</h2>
           <button type="button" class="link-btn" id="btn-goto-alert" style="font-size:11.5px;">Lihat Semua →</button>
         </div>
-        <div id="dash-lowstock-list"></div>
+        <div id="dash-lowstock-list" class="dash-lowstock-scroll"></div>
         <p id="dash-lowstock-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:12px 0;" hidden>Tidak ada item dengan stok di bawah minimum.</p>
       </div>
 
@@ -1538,7 +1576,7 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.11'; // PHASE UX-1.2 — Error & Feedback audit pada Transaction Form: insufficient-stock (stok tersedia/diminta/kekurangan/tindakan), IDEMPOTENCY_CONFLICT disederhanakan (tanpa istilah teknis), NETWORK/TIMEOUT (tidak pernah tampilkan SUCCESS jika belum terkonfirmasi), permission-denied (pesan operasional), unknown-error fallback, double-submit guard tambahan. Tidak mengubah runTransaction/requestId/idempotency/stock mutation/Rules/migration/auth/QR.
+const APP_VERSION = 'v6.12'; // PHASE UX-1.3 SCOPED FIX — Draft Recovery touch target (Lanjutkan/Buang): #trx-draft-restore & #trx-draft-discard diperbesar ke ~44px via ID-scoped CSS (min-height+padding+inline-flex). .link-btn GLOBAL tidak diubah. Tidak menyentuh transaction/business logic apa pun.
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -2690,6 +2728,18 @@ let masterListenersStarted = false;
 let currentTab = 'item';
 let searchTerm = '';
 
+// PHASE UX-2 P0/P1 — Fix #1 & #2: state freshness tracking untuk Dashboard.
+// Tidak mengubah listener architecture/query — hanya flag tambahan yang dibaca
+// oleh error banner (Fix #1) dan gating tampilan KPI loading vs zero (Fix #2).
+const dashDataErrors = { items:false, stockBalances:false, stockByRacks:false };
+const dashLoaded = { items:false, stockBalances:false, todaysKpi:false };
+function updateDashErrorBanner() {
+  const banner = $('#dash-error-banner');
+  if (!banner) return;
+  const hasError = dashDataErrors.items || dashDataErrors.stockBalances || dashDataErrors.stockByRacks;
+  banner.hidden = !hasError;
+}
+
 function startMasterListeners() {
   if (masterListenersStarted) return;
   masterListenersStarted = true;
@@ -2711,14 +2761,16 @@ function startMasterListeners() {
 
   onSnapshot(query(collection(db,'items'), orderBy('itemCode')), snap => {
     state.items = {}; snap.forEach(d => state.items[d.id] = { id:d.id, ...d.data() });
+    dashDataErrors.items = false; dashLoaded.items = true; updateDashErrorBanner();
     renderMasterList(); refreshTrxSelectOptions(); renderHistoryList(); renderDashboard(); renderAlertPage();
-  }, err => console.error('items', err));
+  }, err => { console.error('items', err); dashDataErrors.items = true; updateDashErrorBanner(); });
 
   // ---- STEP 5: Stok Saat Ini (real-time dari stockBalances) ----
   onSnapshot(collection(db,'stockBalances'), snap => {
     state.stockBalances = {}; snap.forEach(d => state.stockBalances[d.id] = d.data());
+    dashDataErrors.stockBalances = false; dashLoaded.stockBalances = true; updateDashErrorBanner();
     renderMasterList(); updateTrxStockInfo(); renderDashboard(); renderAlertPage();
-  }, err => console.error('stockBalances', err));
+  }, err => { console.error('stockBalances', err); dashDataErrors.stockBalances = true; updateDashErrorBanner(); });
 
   // ---- STEP 8: History transaksi global ----
   startHistoryListener();
@@ -2730,8 +2782,9 @@ function startMasterListeners() {
   // ---- FASE 1: Cek Per Rak (stok per rak real-time) ----
   onSnapshot(collection(db,'stockByRacks'), snap => {
     state.stockByRacks = {}; snap.forEach(d => state.stockByRacks[d.id] = { id:d.id, ...d.data() });
+    dashDataErrors.stockByRacks = false; updateDashErrorBanner();
     renderRakOverview(); renderRakDetailList();
-  }, err => console.error('stockByRacks', err));
+  }, err => { console.error('stockByRacks', err); dashDataErrors.stockByRacks = true; updateDashErrorBanner(); });
 }
 
 // ---- STEP 5: helper ambil stok saat ini (default 0 kalau belum ada data transaksi) ----
@@ -3336,6 +3389,7 @@ function startTodaysKpiListener() {
     snap => {
       todaysTransactions = [];
       snap.forEach(d => todaysTransactions.push({ id:d.id, ...d.data() }));
+      dashLoaded.todaysKpi = true;
       renderDashboard();
     },
     err => console.error('todays kpi listener', err)
@@ -4326,10 +4380,15 @@ function renderDashboard() {
   if (!totalItemEl) return;
 
   const activeItems = Object.values(state.items).filter(i => i.status !== 'ARCHIVED');
-  totalItemEl.textContent = activeItems.length;
-
   const lowStockItems = getLowStockItems();
-  $('#dash-low-stock').textContent = lowStockItems.length;
+  // PHASE UX-2 P1 — Fix #2: kalkulasi tetap jalan seperti biasa; hanya
+  // penulisan ke DOM kartu KPI yang ditunda sampai listener items &
+  // stockBalances pertama kali sukses, supaya "0" loading tidak ambigu
+  // dengan "0" aktual (placeholder "—" dari HTML dibiarkan sampai saat itu).
+  if (dashLoaded.items && dashLoaded.stockBalances) {
+    totalItemEl.textContent = activeItems.length;
+    $('#dash-low-stock').textContent = lowStockItems.length;
+  }
 
   // Roadmap §13/§16 fix (v6.7): sumber KPI harian sekarang todaysTransactions
   // (listener where createdAt >= awal hari, TANPA limit) — bukan lagi
@@ -4355,10 +4414,14 @@ function renderDashboard() {
   const isOrdinaryMovement = t => t.historicalKind !== 'OPENING_BALANCE';
   const todaysMasuk = todaysTrx.filter(t => t.type === 'MASUK' && isOrdinaryMovement(t));
   const todaysKeluar = todaysTrx.filter(t => t.type === 'KELUAR' && isOrdinaryMovement(t));
-  $('#dash-trx-masuk').textContent = todaysMasuk.length;
-  $('#dash-trx-keluar').textContent = todaysKeluar.length;
-  $('#dash-qty-masuk').textContent = todaysMasuk.reduce((sum, t) => sum + (Number(t.qty) || 0), 0);
-  $('#dash-qty-keluar').textContent = todaysKeluar.reduce((sum, t) => sum + (Number(t.qty) || 0), 0);
+  // PHASE UX-2 P1 — Fix #2: sama seperti di atas, hanya menunda DOM write
+  // sampai listener todaysKpi pertama kali sukses (bukan mengubah hitungan).
+  if (dashLoaded.todaysKpi) {
+    $('#dash-trx-masuk').textContent = todaysMasuk.length;
+    $('#dash-trx-keluar').textContent = todaysKeluar.length;
+    $('#dash-qty-masuk').textContent = todaysMasuk.reduce((sum, t) => sum + (Number(t.qty) || 0), 0);
+    $('#dash-qty-keluar').textContent = todaysKeluar.reduce((sum, t) => sum + (Number(t.qty) || 0), 0);
+  }
 
   // ---- daftar stok rendah (ringkas, top 10) ----
   const lsListEl = $('#dash-lowstock-list');
