@@ -252,8 +252,11 @@
   .conn-pill.syncing .conn-dot{background:var(--warn);animation:pulse 1.4s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 
+  /* PHASE UX-2 P2-B: 40px -> 44px, mendekati touch-target guideline.
+     svg icon size (15px) sengaja tidak diubah supaya visual icon tetap sama,
+     hanya area tap yang membesar 2px tiap sisi. */
   .icon-btn{
-    width:40px;height:40px;border-radius:50%;border:none;
+    width:44px;height:44px;border-radius:50%;border:none;
     background:rgba(255,255,255,.6);color:var(--ink-900);
     display:flex;align-items:center;justify-content:center;cursor:pointer;
   }
@@ -300,9 +303,15 @@
     padding:8px 6px;
     display:flex;justify-content:space-around;
   }
+  /* PHASE UX-2 P2-B: min-height 44px — target touch-target guideline, tanpa
+     mengubah padding/struktur/icon/label. Konten (svg 19px + gap + label)
+     sudah mendekati batas ini; min-height hanya jadi jaminan konsisten
+     lintas browser/device, bukan menambah tinggi visual bila konten sudah
+     mencukupi. */
   .nav-item{
     display:flex;flex-direction:column;align-items:center;gap:3px;
     background:none;border:none;cursor:pointer;padding:6px 10px;border-radius:14px;
+    min-height:44px;
     color:var(--ink-400);flex:1;max-width:88px;transition:color .15s ease,background .15s ease,transform .1s ease;
   }
   .nav-item svg{width:19px;height:19px;}
@@ -395,6 +404,11 @@
   }
   .badge.active{background:rgba(30,158,100,.13);color:var(--ok);}
   .badge.archived{background:rgba(138,147,163,.15);color:var(--ink-400);}
+  /* PHASE UX-2 P2-A: variant semantic khusus untuk kondisi stok rendah —
+     sebelumnya renderLowStockRow() membajak class="badge archived" (yang
+     artinya status ARSIP) lalu override warna via inline style. Sekarang
+     ada .badge.danger sendiri, pakai token --danger existing yang sama. */
+  .badge.danger{background:rgba(214,54,44,.13);color:var(--danger);}
   .badge.rack{background:rgba(30,36,48,.06);color:var(--ink-600);}
   .badge.rack::before{display:none;} /* rak bukan status, tidak butuh dot */
   .m-empty{text-align:center;padding:30px 10px;color:var(--ink-400);font-size:12.5px;}
@@ -582,6 +596,20 @@
   .dash-card:nth-child(-n+2) .dash-card-value{font-size:26px;}
   .dash-card-value{font-size:19px;font-weight:800;color:var(--ink-900);font-family:var(--font-mono);letter-spacing:-.01em;}
   .dash-card-label{font-size:10.5px;color:var(--ink-600);margin-top:3px;letter-spacing:.01em;}
+  /* PHASE UX-2 P2-C: kartu "Stok Rendah" dibuat tappable ke halaman Alert
+     via native <button>. Scoped khusus ke .dash-card-clickable — TIDAK
+     mengubah .dash-card global (5 kartu lain tetap <div>, tidak terpengaruh).
+     Reset ini hanya menetralkan default browser button styling supaya
+     visual tetap identik dengan kartu lain (padding/text-align/background/
+     border sudah diwarisi dari .dash-card di atas). */
+  .dash-card-clickable{
+    width:100%;font:inherit;color:inherit;text-align:inherit;
+    background:inherit;appearance:none;-webkit-appearance:none;margin:0;
+    cursor:pointer;
+  }
+  .dash-card-clickable:hover{background:rgba(255,255,255,.24);}
+  .dash-card-clickable:active{background:rgba(255,255,255,.34);transform:scale(.99);}
+  .dash-card-clickable:focus-visible{outline:2px solid var(--danger);outline-offset:-2px;}
   /* PHASE UX-2 P0 — Fix #1: error banner, pakai token --warn existing (bukan
      --danger) supaya tidak disamakan secara visual dengan "Stok Rendah" yang
      memang problem operasional; ini murni sinyal "data belum fresh". */
@@ -863,10 +891,10 @@
           <div class="dash-card-value" id="dash-total-item">—</div>
           <div class="dash-card-label">Item Aktif</div>
         </div>
-        <div class="dash-card glass">
+        <button type="button" class="dash-card glass dash-card-clickable" id="dash-card-lowstock">
           <div class="dash-card-value" id="dash-low-stock" style="color:var(--danger);">—</div>
           <div class="dash-card-label">Stok Rendah</div>
-        </div>
+        </button>
         <div class="dash-card glass">
           <div class="dash-card-value" id="dash-trx-masuk" style="color:var(--ok);">—</div>
           <div class="dash-card-label">Transaksi Masuk Hari Ini</div>
@@ -1220,6 +1248,7 @@
               transactionType: <code style="font-size:10px;">MASUK</code> / <code style="font-size:10px;">KELUAR</code> / <code style="font-size:10px;">OPENING_BALANCE</code>
             </div>
           </div>
+          <button type="button" class="btn-action ghost" id="btn-mig-download-template" style="width:100%;margin-bottom:10px;">Download Template CSV</button>
           <label class="stg-filebtn">
             <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span id="mig-file-label">Pilih file CSV untuk diunggah…</span>
@@ -1779,6 +1808,31 @@ function exportItemsCSV() {
 }
 const btnExportCsv = $('#btn-export-csv');
 if (btnExportCsv) btnExportCsv.addEventListener('click', exportItemsCSV);
+
+// ---------- MIGRASI: DOWNLOAD TEMPLATE CSV ----------
+// Murni generate file statis di client (reuse csvEscape/Blob/anchor dari
+// exportItemsCSV di atas) — TIDAK menyentuh migParseCSV/migValidateRows/
+// migRunImport/staging/idempotency apa pun. Header harus tetap sinkron
+// dengan schema box di HTML (baris "Format kolom CSV") dan migValidateRows().
+function downloadMigTemplate() {
+  const rows = [
+    ['sourceTransactionId','date','transactionType','itemCode','qty','uom','rackCode','createdBy'],
+    ['CONTOH-001','2024-01-15','MASUK','KODE-ITEM-CONTOH','10','PCS','KODE-RAK-CONTOH','Nama Pembuat']
+  ];
+  const csvContent = rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'Template_Migrasi_Data_Historis.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Template CSV berhasil diunduh');
+}
+const btnMigDownloadTemplate = $('#btn-mig-download-template');
+if (btnMigDownloadTemplate) btnMigDownloadTemplate.addEventListener('click', downloadMigTemplate);
 
 // ---------- CARI KODE BENTROK (setara "Cari ID Collision" di app lama) ----------
 // Firestore Document ID sendiri tidak mungkin bentrok (setDoc ke ID sama = overwrite),
@@ -2706,6 +2760,10 @@ window.addEventListener('load', () => {
   if (activeBtn) updateNavIndicator(activeBtn.dataset.nav);
 });
 $('#btn-goto-alert').addEventListener('click', () => goToView('alert'));
+// PHASE UX-2 P2-C: kartu KPI "Stok Rendah" tappable ke halaman Alert.
+// Reuse murni canonical goToView('alert') — sama persis dengan #btn-goto-alert
+// di atas, tidak ada navigation mechanism/state baru.
+$('#dash-card-lowstock').addEventListener('click', () => goToView('alert'));
 $('#btn-back-from-alert').addEventListener('click', () => goToView('dashboard'));
 $('#btn-goto-rak').addEventListener('click', () => goToView('rak'));
 $('#btn-back-from-rak').addEventListener('click', () => goToView('dashboard'));
@@ -4353,7 +4411,7 @@ function renderLowStockRow(i) {
       <div class="m-row-title">${esc(i.name || i.itemCode)}</div>
       <div class="m-row-sub">${esc(i.itemCode||'')} · min ${i.minimumStock ?? 0} ${esc(i.unit||'')}</div>
     </div>
-    <div class="m-row-tags"><span class="badge archived" style="background:rgba(214,54,44,.13);color:var(--danger);">${getCurrentStock(i.id)} ${esc(i.unit||'')}</span></div>
+    <div class="m-row-tags"><span class="badge danger">${getCurrentStock(i.id)} ${esc(i.unit||'')}</span></div>
   </div>`;
 }
 
