@@ -362,7 +362,13 @@
 
   .m-toolbar{display:flex;gap:8px;margin-bottom:12px;}
   .m-search{flex:1;}
-  .m-search .field-wrap{background:rgba(255,255,255,.7);}
+  .m-search .field-wrap{background:rgba(255,255,255,.7);padding:14px 14px 14px 16px;}
+  .m-search-clear{
+    display:flex;align-items:center;justify-content:center;align-self:stretch;flex-shrink:0;
+    border:none;background:none;cursor:pointer;color:var(--ink-400);padding:0 2px;
+  }
+  .m-search-clear svg{width:14px;height:14px;}
+  .m-search-clear:active{color:var(--ink-600);}
   .m-add-btn{
     width:44px;height:44px;border-radius:50%;border:none;background:var(--primary-gradient);
     color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
@@ -818,7 +824,7 @@
 <!-- ============ BOOT SPLASH ============ -->
 <div id="boot-splash">
   <div class="boot-badge glass">
-    <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="#146C43" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="#146C43" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </div>
   <div class="boot-title">RDI Indirect Inventory</div>
   <div class="boot-ring"></div>
@@ -829,20 +835,20 @@
 <div id="login-screen">
   <div class="login-card glass">
     <div class="login-avatar">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h4l2-6 4 12 2-6h4" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <h1>Masuk ke Akun</h1>
     <div id="login-error"></div>
     <form id="login-form" style="width:100%;">
       <div class="field">
         <div class="field-wrap">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="none"/><path d="M4 6l8 6 8-6M4 6h16v12H4V6z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 6l8 6 8-6M4 6h16v12H4V6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <input type="email" id="login-email" autocomplete="username" required placeholder="Email">
         </div>
       </div>
       <div class="field">
         <div class="field-wrap">
-          <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.6"/></svg>
+          <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           <input type="password" id="login-password" autocomplete="current-password" required placeholder="Password">
         </div>
       </div>
@@ -931,6 +937,20 @@
           <p style="font-size:11.5px;color:var(--ink-600);margin:0;">Lihat sebaran stok tiap rak</p>
         </div>
         <button type="button" class="btn-action ghost" id="btn-goto-rak" style="width:auto;padding:9px 16px;flex-shrink:0;">Buka →</button>
+      </div>
+
+      <!-- UX-2 P2-D: Quick Transaction Entry — sibling row dari "Cek Per Rak" di
+           atas, class/struktur visual sama persis. Tidak mengubah row Cek Per
+           Rak, System Pulse, KPI cards, atau P2-C Low Stock card. min-height:44px
+           inline ditambahkan (bukan CSS class baru) khusus tombol ini supaya
+           memenuhi touch-target guideline; tidak menyentuh .btn-action global
+           maupun tombol "Buka →" di row sebelumnya. -->
+      <div class="glass" style="border-radius:var(--radius-lg);padding:14px 18px;margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div>
+          <h2 style="font-size:14px;margin:0 0 2px;">Transaksi Baru</h2>
+          <p style="font-size:11.5px;color:var(--ink-600);margin:0;">Catat transaksi manual tanpa scan QR</p>
+        </div>
+        <button type="button" class="btn-action ghost" id="btn-dash-new-trx" style="width:auto;padding:9px 16px;flex-shrink:0;min-height:44px;">Mulai Transaksi</button>
       </div>
 
       <div class="glass" style="border-radius:var(--radius-lg);padding:18px;margin-top:14px;">
@@ -1030,11 +1050,18 @@
 
       <div class="m-toolbar">
         <div class="m-search field-wrap glass" id="m-search-wrap">
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           <input type="text" id="m-search" placeholder="Cari kode, nama, spesifikasi, rak…">
+          <!-- UX-2 Stock Search: clear button, hidden sampai ada teks pencarian.
+               align-self:stretch pada .m-search-clear + padding .m-search
+               .field-wrap (di bawah) dipakai supaya tap area capai ~44px tanpa
+               memperbesar tampilan visual search bar. -->
+          <button type="button" class="m-search-clear" id="m-search-clear" title="Hapus pencarian" hidden>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
+          </button>
         </div>
         <button class="m-add-btn" id="m-add-btn" title="Tambah">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
         </button>
       </div>
 
@@ -1078,7 +1105,7 @@
           <h2 style="font-size:15px;margin:0;" id="rakdetail-title">Rak</h2>
           <div style="display:flex;gap:8px;">
             <button type="button" class="icon-btn" id="btn-print-rakdetail" title="Cetak Rekap Stok">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
             <button type="button" class="icon-btn" id="btn-back-from-rakdetail" title="Kembali">
               <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1128,7 +1155,7 @@
       <div class="glass stg-card" style="margin-top:14px;" data-role="ADMIN" hidden>
         <div class="stg-card-head">
           <h2>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Tools
           </h2>
           <span class="stg-chip">Admin</span>
@@ -1139,7 +1166,7 @@
 
         <div class="stg-row">
           <div class="stg-row-icon">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <div class="stg-row-info">
             <div class="t">Cetak Label (Banyak Item)</div>
@@ -1150,7 +1177,7 @@
 
         <div class="stg-row">
           <div class="stg-row-icon">
-            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M3 10h18M7 15h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.85"/><path d="M3 10h18M7 15h4" stroke="currentColor" stroke-width="1.85" stroke-linecap="round"/></svg>
           </div>
           <div class="stg-row-info">
             <div class="t">Cetak Kartu Stok (Banyak Item)</div>
@@ -1161,7 +1188,7 @@
 
         <div class="stg-row">
           <div class="stg-row-icon">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <div class="stg-row-info">
             <div class="t">Export CSV</div>
@@ -1174,7 +1201,7 @@
 
         <div class="stg-row">
           <div class="stg-row-icon warn">
-            <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.85"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.85" stroke-linecap="round"/></svg>
           </div>
           <div class="stg-row-info">
             <div class="t">Cari Kode Bentrok</div>
@@ -1186,7 +1213,7 @@
 
         <div class="stg-row">
           <div class="stg-row-icon ok">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <div class="stg-row-info">
             <div class="t">Cek Konsistensi Stok</div>
@@ -1198,7 +1225,7 @@
 
         <div class="stg-row">
           <div class="stg-row-icon warn">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <div class="stg-row-info">
             <div class="t">Perbaikan Stok Terkendali (Recovery)</div>
@@ -1210,7 +1237,7 @@
 
         <div class="stg-row" style="border-bottom:1px solid var(--line-subtle);">
           <div class="stg-row-icon info">
-            <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.85"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.85" stroke-linecap="round"/></svg>
           </div>
           <div class="stg-row-info">
             <div class="t">Migrasi Lock Kode Unik</div>
@@ -1225,7 +1252,7 @@
       <div class="glass stg-card" style="margin-top:14px;padding-bottom:18px;" data-role="ADMIN" hidden>
         <div class="stg-card-head">
           <h2>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M3 3v5h5M3.05 13a9 9 0 1 0 2.13-6.36L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M3 3v5h5M3.05 13a9 9 0 1 0 2.13-6.36L3 8" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Migrasi Data Historis
           </h2>
           <span class="stg-chip">Phase 6</span>
@@ -1250,7 +1277,7 @@
           </div>
           <button type="button" class="btn-action ghost" id="btn-mig-download-template" style="width:100%;margin-bottom:10px;">Download Template CSV</button>
           <label class="stg-filebtn">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span id="mig-file-label">Pilih file CSV untuk diunggah…</span>
             <input type="file" id="mig-file-input" accept=".csv,text/csv">
           </label>
@@ -1319,7 +1346,7 @@
       <div class="modal-head">
         <h3 id="modal-stockcard-title">Stock Card</h3>
         <div style="display:flex;gap:8px;align-items:center;">
-          <button class="modal-close" id="modal-stockcard-print" title="Cetak Kartu Stok"><svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="modal-close" id="modal-stockcard-print" title="Cetak Kartu Stok"><svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="modal-close" id="modal-stockcard-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
       </div>
@@ -1415,7 +1442,7 @@
   <nav class="bottom-nav glass">
     <span class="nav-indicator" id="navIndicator"></span>
     <button class="nav-item active" data-nav="dashboard">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M3 13h4v8H3zM10 3h4v18h-4zM17 8h4v13h-4z" stroke="currentColor" stroke-width="1.8"/></svg>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 13h4v8H3zM10 3h4v18h-4zM17 8h4v13h-4z" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round"/></svg>
       <span>Dashboard</span>
     </button>
     <button class="nav-item" data-nav="master" data-role="ADMIN" hidden>
@@ -1424,15 +1451,15 @@
     </button>
     <button class="nav-item nav-item-fab" data-nav="scan" data-role="ADMIN,WAREHOUSE" hidden title="Scan">
       <span class="fab-circle">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </span>
     </button>
     <button class="nav-item" data-nav="history">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M3 3v5h5M3.05 13a9 9 0 1 0 2.13-6.36L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 3v5h5M3.05 13a9 9 0 1 0 2.13-6.36L3 8" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>History</span>
     </button>
     <button class="nav-item" data-nav="pengaturan">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" stroke-width="1.85"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>Pengaturan</span>
     </button>
   </nav>
@@ -2766,6 +2793,11 @@ $('#btn-goto-alert').addEventListener('click', () => goToView('alert'));
 $('#dash-card-lowstock').addEventListener('click', () => goToView('alert'));
 $('#btn-back-from-alert').addEventListener('click', () => goToView('dashboard'));
 $('#btn-goto-rak').addEventListener('click', () => goToView('rak'));
+// UX-2 P2-D: Quick Transaction Entry dari Dashboard. Reuse murni
+// openTransaksiForm() tanpa prefillItemId — sama seperti flow QR/detail,
+// bedanya cuma tidak ada prefillItemId. Tidak ada requestId/listener/query
+// baru; openTransaksiForm() sendiri sudah menangani switch nav/view.
+$('#btn-dash-new-trx').addEventListener('click', () => openTransaksiForm());
 $('#btn-back-from-rak').addEventListener('click', () => goToView('dashboard'));
 $('#btn-back-from-rakdetail').addEventListener('click', () => goToView('rak'));
 
@@ -2893,7 +2925,7 @@ function refreshTrxSelectOptions() {
   const prevItem = trxItemSel.value;
   const activeItems = Object.values(state.items).filter(i => i.status !== 'ARCHIVED');
   trxItemSel.innerHTML = activeItems.length
-    ? activeItems.map(i => `<option value="${i.id}">${esc(i.itemCode)} — ${esc(i.name)}</option>`).join('')
+    ? '<option value="">— Pilih item —</option>' + activeItems.map(i => `<option value="${i.id}">${esc(i.itemCode)} — ${esc(i.name)}</option>`).join('')
     : '<option value="">Belum ada item aktif</option>';
   if (prevItem && state.items[prevItem]) trxItemSel.value = prevItem;
 
@@ -3126,6 +3158,11 @@ function hideTrxErrorPanel() {
 function openTransaksiForm(prefillItemId) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === 'transaksi'));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === 'transaksi'));
+  // UX-2 P2-D: reset dulu sebelum refresh, supaya prevItem-restore logic di
+  // refreshTrxSelectOptions() tidak diam-diam mempertahankan item lama (stale)
+  // saat form dibuka ulang tanpa prefill. Prefill valid tetap di-set eksplisit
+  // di bawah, jadi behavior openTransaksiForm(item.id) tidak berubah.
+  trxItemSel.value = '';
   refreshTrxSelectOptions();
   if (!trxRequestId) _newTrxRequestId();
   $('#trx-rackId-label').textContent = trxType === 'KELUAR' ? 'Rak (wajib)' : 'Rak';
@@ -3735,7 +3772,7 @@ function _kartuCardHTML(item,idx){
   +'<div class="bar"></div>'
   +'<div class="kh">'
   +'<div class="khl">'
-  +'<div class="htop"><div class="la"><div class="li"><svg viewBox="0 0 16 16" fill="none"><rect x="1" y="4" width="14" height="10" rx="1" stroke="white" stroke-width="1.5"/><path d="M5 4V3a3 3 0 016 0v1" stroke="white" stroke-width="1.5"/></svg></div>'
+  +'<div class="htop"><div class="la"><div class="li"><svg viewBox="0 0 16 16" fill="none"><rect x="1" y="4" width="14" height="10" rx="1" stroke="white" stroke-width="1.7"/><path d="M5 4V3a3 3 0 016 0v1" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg></div>'
   +'<div><div class="cn">PT RAYARD DELI INDONESIA</div><div class="cs">Spare Part, Tools &amp; Indirect Inventory</div></div></div>'
   +'<div class="tb2">KARTU STOK</div></div>'
   +'<div class="id-row"><span class="id-lbl">ID Item</span><span class="id-val">'+ex(item.id||'—')+'</span></div>'
@@ -4535,6 +4572,7 @@ $('#master-tabs').addEventListener('click', (e) => {
   document.querySelectorAll('#master-tabs button').forEach(b => b.classList.toggle('active', b === btn));
   $('#m-search').value = '';
   searchTerm = '';
+  $('#m-search-clear').hidden = true;
   $('#m-search').placeholder = currentTab === 'item'
     ? 'Cari kode, nama, spesifikasi, rak…'
     : 'Cari kode atau nama…';
@@ -4542,7 +4580,17 @@ $('#master-tabs').addEventListener('click', (e) => {
 });
 $('#m-search').addEventListener('input', (e) => {
   searchTerm = e.target.value.trim().toLowerCase();
+  $('#m-search-clear').hidden = !searchTerm;
   renderMasterList();
+});
+// UX-2 Stock Search: clear button — reset input & searchTerm, reuse
+// renderMasterList() existing, tidak ada query/listener baru.
+$('#m-search-clear').addEventListener('click', () => {
+  $('#m-search').value = '';
+  searchTerm = '';
+  $('#m-search-clear').hidden = true;
+  renderMasterList();
+  $('#m-search').focus();
 });
 $('#m-add-btn').addEventListener('click', () => openFormModal(currentTab, null));
 
@@ -4568,7 +4616,14 @@ function renderMasterList() {
   }
 
   if (!data.length) {
-    listEl.innerHTML = `<div class="m-empty">Belum ada data. Ketuk + untuk menambah.</div>`;
+    // UX-2 Stock Search: pesan "Item tidak ditemukan" khusus saat tab Item +
+    // pencarian aktif menghasilkan 0 hasil (bukan database kosong beneran).
+    // Tab lain (category/vendor/rack) & kondisi non-search tetap pesan lama,
+    // tidak diubah.
+    const msg = (currentTab === 'item' && searchTerm)
+      ? 'Item tidak ditemukan'
+      : 'Belum ada data. Ketuk + untuk menambah.';
+    listEl.innerHTML = `<div class="m-empty">${msg}</div>`;
     return;
   }
 
@@ -4598,7 +4653,7 @@ function renderRow(tab, d) {
         <div class="m-row-title">${esc(d.name || '(tanpa nama)')}</div>
         <div class="m-row-sub">${esc(d.itemCode||'')} · ${esc(d.unit||'')}</div>
       </div>
-      <div class="m-row-tags">${stockBadge}<span class="badge rack">${esc(rack)}</span>${badge}</div>
+      <div class="m-row-tags">${stockBadge}${badge}<span class="badge rack">${esc(rack)}</span></div>
     </div>`;
   }
   const code = d.categoryCode || d.vendorCode || d.rackCode || '';
@@ -4609,7 +4664,7 @@ function renderRow(tab, d) {
   const inactiveVal = tab === 'rack' ? 'ARCHIVED' : 'INACTIVE';
   const badge = d.status === inactiveVal ? '<span class="badge archived">NONAKTIF</span>' : '<span class="badge active">AKTIF</span>';
   const printBtn = tab === 'rack' ? `<button type="button" class="icon-btn-sm" data-print-rack="${d.id}" title="Cetak Label Rak">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>` : '';
   return `<div class="m-row glass" data-id="${d.id}">
     <div class="m-row-main">
@@ -5022,15 +5077,15 @@ function openDetailItem(id) {
     </div>
 
     <div class="detail-actions">
-      <button class="btn-action ghost" id="da-edit" ${currentRole === 'ADMIN' ? '' : 'hidden'}><svg viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Edit</button>
+      <button class="btn-action ghost" id="da-edit" ${currentRole === 'ADMIN' ? '' : 'hidden'}><svg viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>Edit</button>
       <button class="btn-action gradient" id="da-transaksi" ${currentRole === 'VIEWER' ? 'hidden' : ''}><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Transaksi</button>
     </div>
 
     <div class="action-tile-grid">
-      <button class="action-tile" id="da-qr"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor"/></svg></span>Lihat QR</button>
-      <button class="action-tile" id="da-history"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v5l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>History</button>
-      <button class="action-tile" id="da-print"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Cetak Kartu</button>
-      <button class="action-tile" id="da-print-label"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M20.6 12.5 12.5 20.6a2 2 0 0 1-2.8 0L3 13.9V3h10.9l6.7 6.7a2 2 0 0 1 0 2.8Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1.3" fill="currentColor"/></svg></span>Cetak Label</button>
+      <button class="action-tile" id="da-qr"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.85"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.85"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.85"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor"/></svg></span>Lihat QR</button>
+      <button class="action-tile" id="da-history"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v5l3 2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg></span>History</button>
+      <button class="action-tile" id="da-print"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Cetak Kartu</button>
+      <button class="action-tile" id="da-print-label"><span class="tile-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M20.6 12.5 12.5 20.6a2 2 0 0 1-2.8 0L3 13.9V3h10.9l6.7 6.7a2 2 0 0 1 0 2.8Z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1.3" fill="currentColor"/></svg></span>Cetak Label</button>
     </div>
 
     <div class="detail-actions" style="grid-template-columns:1fr;margin-top:8px;">
