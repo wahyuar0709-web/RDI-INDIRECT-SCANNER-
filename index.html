@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v6.28</title>
+<title>RDI Indirect Inventory v6.31</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -144,6 +144,12 @@
   }
   @keyframes spin{to{transform:rotate(360deg);}}
 
+  /* UX-4.2 #3: standard loading primitive (Priority A). Reuses .boot-ring's
+     spin keyframe so no new animation is introduced. Text stays contextual
+     (passed as content), only spinner+layout is standardized. */
+  .app-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:30px 10px;color:var(--ink-400);font-size:12px;}
+  .app-loading-spinner{width:14px;height:14px;flex-shrink:0;border-radius:50%;border:2px solid rgba(var(--red-600-rgb),.2);border-top-color:var(--color-primary);animation:spin .8s linear infinite;}
+
   /* ---------- LOGIN ---------- */
   #login-screen{
     position:fixed;inset:0;z-index:900;
@@ -268,21 +274,6 @@
   }
   .icon-btn-sm svg{width:13px;height:13px;}
   .icon-btn-sm:active{background:rgba(30,36,48,.14);}
-  .tb-user{
-    display:flex;align-items:center;gap:7px;height:40px;padding:0 12px 0 4px;
-    border-radius:999px;border:none;cursor:pointer;
-    background:rgba(255,255,255,.6);color:var(--ink-900);max-width:150px;
-  }
-  .tb-user:active{background:rgba(255,255,255,.85);}
-  .tb-user-avatar{
-    width:28px;height:28px;border-radius:50%;flex-shrink:0;
-    background:var(--primary-gradient,var(--color-primary));color:#fff;
-    display:flex;align-items:center;justify-content:center;
-    font-family:var(--font-display);font-weight:700;font-size:11px;letter-spacing:.02em;
-  }
-  .tb-user-name{
-    font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  }
   .badge.rack-stock{background:rgba(20,108,67,.1);color:var(--red-600);}
   .badge.rack-stock.empty{background:rgba(138,147,163,.15);color:var(--ink-400);}
 
@@ -512,7 +503,7 @@
     border:1px solid rgba(30,36,48,.10);
   }
   .trx-stock-box-label{font-size:10.5px;font-weight:700;color:var(--ink-600);letter-spacing:.03em;}
-  .trx-stock-box-value{font-size:15px;font-weight:800;color:var(--ink-900);}
+  .trx-stock-box-value{font-size:15px;font-weight:800;color:var(--ink-900);font-family:var(--font-mono);}
   .trx-stock-box.result{border-color:rgba(20,108,67,.22);}
   .trx-stock-box.result.insufficient{border-color:rgba(214,54,44,.3);}
   .trx-stock-box.result.insufficient .trx-stock-box-value{color:var(--danger);}
@@ -528,7 +519,7 @@
   .trx-success-item{font-size:13px;font-weight:700;color:var(--ink-900);}
   .trx-success-qty{font-size:12px;color:var(--ink-600);margin:2px 0 8px;}
   .trx-success-final-label{font-size:10px;color:var(--ink-400);text-transform:uppercase;letter-spacing:.04em;}
-  .trx-success-final-value{font-size:16px;font-weight:800;color:var(--ok);}
+  .trx-success-final-value{font-size:16px;font-weight:800;color:var(--ok);font-family:var(--font-mono);}
   .m-actions{display:flex;gap:10px;margin-top:16px;}
   .btn-ghost{
     flex:1;padding:12px;border-radius:999px;border:1.5px solid rgba(30,36,48,.15);
@@ -912,10 +903,6 @@
     </div>
     <div class="tb-right">
       <div class="conn-pill" id="conn-pill"><span class="conn-dot"></span><span id="conn-label">Online</span></div>
-      <button type="button" class="tb-user" id="btn-header-user" title="Profil & Pengaturan">
-        <span class="tb-user-avatar" id="tb-user-avatar">–</span>
-        <span class="tb-user-name" id="tb-user-name">—</span>
-      </button>
     </div>
   </header>
 
@@ -1145,17 +1132,17 @@
                align-self:stretch pada .m-search-clear + padding .m-search
                .field-wrap (di bawah) dipakai supaya tap area capai ~44px tanpa
                memperbesar tampilan visual search bar. -->
-          <button type="button" class="m-search-clear" id="m-search-clear" title="Hapus pencarian" hidden>
+          <button type="button" class="m-search-clear" id="m-search-clear" aria-label="Hapus pencarian" title="Hapus pencarian" hidden>
             <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
           </button>
         </div>
-        <button class="m-add-btn" id="m-add-btn" title="Tambah">
+        <button class="m-add-btn" id="m-add-btn" aria-label="Tambah item" title="Tambah">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
         </button>
       </div>
 
       <div class="m-list" id="m-list">
-        <div class="m-empty">Memuat data…</div>
+        <div class="app-loading"><span class="app-loading-spinner"></span><span>Memuat data…</span></div>
       </div>
     </section>
 
@@ -1168,7 +1155,7 @@
             </div>
             <h2 style="font-size:15px;margin:0;">Alert Stok Rendah</h2>
           </div>
-          <button type="button" class="icon-btn" id="btn-back-from-alert" title="Kembali">
+          <button type="button" class="icon-btn" id="btn-back-from-alert" aria-label="Kembali" title="Kembali">
             <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
@@ -1186,7 +1173,7 @@
             </div>
             <h2 style="font-size:15px;margin:0;">Cek Per Rak</h2>
           </div>
-          <button type="button" class="icon-btn" id="btn-back-from-rak" title="Kembali">
+          <button type="button" class="icon-btn" id="btn-back-from-rak" aria-label="Kembali" title="Kembali">
             <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
@@ -1203,10 +1190,10 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
           <h2 style="font-size:15px;margin:0;" id="rakdetail-title">Rak</h2>
           <div style="display:flex;gap:8px;">
-            <button type="button" class="icon-btn" id="btn-print-rakdetail" title="Cetak Rekap Stok">
+            <button type="button" class="icon-btn" id="btn-print-rakdetail" aria-label="Cetak Rekap Stok" title="Cetak Rekap Stok">
               <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            <button type="button" class="icon-btn" id="btn-back-from-rakdetail" title="Kembali">
+            <button type="button" class="icon-btn" id="btn-back-from-rakdetail" aria-label="Kembali" title="Kembali">
               <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
           </div>
@@ -1460,7 +1447,7 @@
     <div class="modal-sheet">
       <div class="modal-head">
         <h3 id="modal-form-title">Tambah</h3>
-        <button class="modal-close" id="modal-form-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <button class="modal-close" id="modal-form-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <form id="modal-form"></form>
     </div>
@@ -1471,7 +1458,7 @@
     <div class="modal-sheet">
       <div class="modal-head">
         <h3 id="modal-detail-title">Detail Item</h3>
-        <button class="modal-close" id="modal-detail-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <button class="modal-close" id="modal-detail-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <div id="modal-detail-body"></div>
     </div>
@@ -1482,7 +1469,7 @@
     <div class="modal-sheet">
       <div class="modal-head">
         <h3 id="modal-qr-title">QR Item</h3>
-        <button class="modal-close" id="modal-qr-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <button class="modal-close" id="modal-qr-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <div id="qr-code-canvas-wrap"></div>
       <p style="text-align:center;font-size:11.5px;color:var(--ink-600);margin:0 0 4px;">Cetak atau simpan gambar ini untuk ditempel di rak/kemasan item.</p>
@@ -1495,8 +1482,8 @@
       <div class="modal-head">
         <h3 id="modal-stockcard-title">Stock Card</h3>
         <div style="display:flex;gap:8px;align-items:center;">
-          <button class="modal-close" id="modal-stockcard-print" title="Cetak Kartu Stok"><svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          <button class="modal-close" id="modal-stockcard-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <button class="modal-close" id="modal-stockcard-print" aria-label="Cetak Kartu Stok" title="Cetak Kartu Stok"><svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="modal-close" id="modal-stockcard-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
       </div>
       <div id="modal-stockcard-body"></div>
@@ -1507,7 +1494,7 @@
   <div class="print-preview-overlay" id="print-preview-overlay">
     <div class="print-preview-head">
       <h3 style="font-size:14px;margin:0;font-weight:800;">Pratinjau Cetak</h3>
-      <button type="button" class="icon-btn" id="print-preview-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button type="button" class="icon-btn" id="print-preview-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>
     <div class="print-preview-body">
       <div class="print-preview-page">
@@ -1525,7 +1512,7 @@
     <div class="modal-sheet">
       <div class="modal-head">
         <h3>Cetak</h3>
-        <button class="modal-close" id="modal-papersize-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <button class="modal-close" id="modal-papersize-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <div class="paper-opt" id="papersize-size-row">
         <button type="button" data-size="A4">A4<small>21 × 29.7 cm</small></button>
@@ -1543,11 +1530,11 @@
     <div class="modal-sheet" style="max-height:85vh;display:flex;flex-direction:column;">
       <div class="modal-head">
         <h3>Cetak Label — Pilih Item</h3>
-        <button class="modal-close" id="modal-labelbatch-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <button class="modal-close" id="modal-labelbatch-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <div style="padding:14px 20px 0;flex-shrink:0;">
-        <input type="text" id="labelbatch-search" placeholder="Cari kode/nama item..." style="width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;">
-        <select id="labelbatch-catfilter" style="width:100%;margin-top:8px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;background:#fff;">
+        <input type="text" id="labelbatch-search" placeholder="Cari kode/nama item..." style="width:100%;padding:9px 12px;border-radius:12px;border:1px solid var(--line);font-size:13px;">
+        <select id="labelbatch-catfilter" style="width:100%;margin-top:8px;padding:9px 12px;border-radius:12px;border:1px solid var(--line);font-size:13px;background:#fff;">
           <option value="">Semua Kategori</option>
         </select>
         <div style="display:flex;gap:14px;margin:10px 0 4px;">
@@ -1568,11 +1555,11 @@
     <div class="modal-sheet" style="max-height:85vh;display:flex;flex-direction:column;">
       <div class="modal-head">
         <h3>Cetak Kartu Stok — Pilih Item</h3>
-        <button class="modal-close" id="modal-kartubatch-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <button class="modal-close" id="modal-kartubatch-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <div style="padding:14px 20px 0;flex-shrink:0;">
-        <input type="text" id="kartubatch-search" placeholder="Cari kode/nama item..." style="width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;">
-        <select id="kartubatch-catfilter" style="width:100%;margin-top:8px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;background:#fff;">
+        <input type="text" id="kartubatch-search" placeholder="Cari kode/nama item..." style="width:100%;padding:9px 12px;border-radius:12px;border:1px solid var(--line);font-size:13px;">
+        <select id="kartubatch-catfilter" style="width:100%;margin-top:8px;padding:9px 12px;border-radius:12px;border:1px solid var(--line);font-size:13px;background:#fff;">
           <option value="">Semua Kategori</option>
         </select>
         <div style="display:flex;gap:14px;margin:10px 0 4px;">
@@ -1598,7 +1585,7 @@
       <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
       <span>Master</span>
     </button>
-    <button class="nav-item nav-item-fab" data-nav="scan" data-role="ADMIN,WAREHOUSE" hidden title="Scan">
+    <button class="nav-item nav-item-fab" data-nav="scan" data-role="ADMIN,WAREHOUSE" hidden title="Scan" aria-label="Scan">
       <span class="fab-circle">
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </span>
@@ -1781,7 +1768,7 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.28'; // v6.23: Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi. v6.24: fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu. v6.25: FIX bug lama — list Kategori di menu Master selalu kosong (currentTab+'s' salah generate 'categorys', bukan 'categories'). v6.26: baris list Item di Master — tambah baris Spesifikasi (muncul kalau field terisi, buat bedain item bernama mirip/terpotong), hapus badge Status AKTIF/ARSIP (redundan, urutan sort sudah taruh ARSIP di bawah). v6.27: font huruf & angka diganti ke standar native sistem (iOS/Android/Windows) — hapus dependency Google Fonts (Sora/Inter/JetBrains Mono), pakai -apple-system/Segoe UI/Roboto untuk teks & ui-monospace/SF Mono/Roboto Mono untuk angka-kode. v6.28: tombol Keluar di header atas diganti dengan badge nama user yang sedang login (avatar inisial + nama) — tap badge membuka halaman Pengaturan, tombol Keluar tetap ada di sana (btn-logout-2). Tidak ada perubahan Firestore schema/rules.
+const APP_VERSION = 'v6.31'; // v6.23: Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi. v6.24: fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu. v6.25: FIX bug lama — list Kategori di menu Master selalu kosong (currentTab+'s' salah generate 'categorys', bukan 'categories'). v6.26: baris list Item di Master — tambah baris Spesifikasi (muncul kalau field terisi, buat bedain item bernama mirip/terpotong), hapus badge Status AKTIF/ARSIP (redundan, urutan sort sudah taruh ARSIP di bawah). v6.27: font huruf & angka diganti ke standar native sistem (iOS/Android/Windows) — hapus dependency Google Fonts (Sora/Inter/JetBrains Mono), pakai -apple-system/Segoe UI/Roboto untuk teks & ui-monospace/SF Mono/Roboto Mono untuk angka-kode. v6.28: tombol Keluar di header atas diganti dengan badge nama user yang sedang login (avatar inisial + nama) — tap badge membuka halaman Pengaturan, tombol Keluar tetap ada di sana (btn-logout-2). v6.29: REVISI — badge nama user di header dihapus lagi, header kembali hanya menampilkan nama aplikasi + status Online. Profil user (nama/role/avatar) tetap tampil di halaman Pengaturan seperti semula. v6.30: FIX bug — garis indicator (underline hijau) bottom nav salah posisi setelah login (nempel di tab lain, bukan di tab aktif sebenarnya). Root cause: posisi indicator dihitung saat tombol Master/Scan masih hidden (default), lalu begitu role user diketahui dan tombol-tombol itu dimunculkan, layout nav bar bergeser (justify-content:space-around) tapi indicator tidak dihitung ulang. Sekarang posisi indicator direfresh begitu visibility tombol berdasarkan role diterapkan. Tidak ada perubahan Firestore schema/rules. v6.31: UX-4/UX-4.2/UX-5 — Visual Polish & Final Quality Gate (20 Agustus 2026). CSS/markup only, tidak ada perubahan Firestore schema/rules/transaction logic. (1) Button shape diaudit — sudah konsisten pill/rounded-14px, tidak ada perubahan kode. (2) Hero number typography — .trx-stock-box-value & .trx-success-final-value ditambah font-family:var(--font-mono) supaya angka stok/hasil transaksi terasa data-grade, selaras .dash-card-value. (3) Loading state distandarkan — komponen baru .app-loading/.app-loading-spinner (reuse @keyframes spin dari .boot-ring) menggantikan teks polos "Memuat…" di list utama Master, panel batch migrasi, dan modal Stock Card riwayat transaksi. (4) Token warna primary — var(--color-primary)/rgba(var(--red-600-rgb)) dipakai konsisten di komponen loading baru, tanpa mass-refactor reference lama. (5) Radius field form di modal Cetak Label/Cetak Kartu Stok & textarea alasan recovery diselaraskan ke 12px (dari 10px/8px), konsisten dgn field form lain. (6) Accessibility — 17 icon-only button (tombol close modal, kembali, cetak, hapus pencarian, tambah item, scan) ditambah aria-label deskriptif. Semua perubahan diverifikasi node --check (JS syntax OK) dan diff manual baris-per-baris; UX-1/UX-2/UX-3 (safety, workflow speed, complex workflow) tidak tersentuh.
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -1828,7 +1815,6 @@ function showApp(role, name, email) {
   loginScreen.classList.remove('show');
   appShell.classList.add('show');
   const pgnName = $('#pgn-username'), pgnRole = $('#pgn-userrole'), pgnAvatar = $('#pgn-avatar');
-  const tbName = $('#tb-user-name'), tbAvatar = $('#tb-user-avatar');
   if (pgnName) pgnName.textContent = name || email || 'User';
   if (pgnRole) pgnRole.textContent = role;
   if (pgnAvatar) {
@@ -1836,13 +1822,13 @@ function showApp(role, name, email) {
     const parts = src.split(/\s+/).filter(Boolean);
     const initials = parts.length > 1 ? (parts[0][0] + parts[1][0]) : src.slice(0, 2);
     pgnAvatar.textContent = initials.toUpperCase();
-    if (tbAvatar) tbAvatar.textContent = initials.toUpperCase();
   }
-  if (tbName) tbName.textContent = name || email || 'User';
   document.querySelectorAll('[data-role]').forEach(el => {
     const allowedRoles = el.dataset.role.split(',').map(r => r.trim());
     el.hidden = !allowedRoles.includes(role);
   });
+  const activeNavBtn = document.querySelector('.nav-item.active');
+  if (activeNavBtn) updateNavIndicator(activeNavBtn.dataset.nav);
   startMasterListeners();
   if (role === 'ADMIN' && typeof migRenderBatchList === 'function') migRenderBatchList();
 }
@@ -1949,7 +1935,6 @@ async function doLogout() {
   showLogin();
 }
 $('#btn-logout-2').addEventListener('click', doLogout);
-$('#btn-header-user').addEventListener('click', () => goToView('pengaturan'));
 
 // ---------- EXPORT CSV ----------
 // Fix (audit cetak/export): cell yang diawali =, +, -, @ bisa dieksekusi sebagai formula
@@ -2160,7 +2145,7 @@ async function renderRecoveryPreview() {
       </label>`).join('')}</div>
     <div style="margin-top:10px;">
       <label style="font-size:11px;color:var(--ink-600);">Alasan perbaikan (wajib, tercatat di audit log)</label>
-      <textarea id="recovery-reason" rows="2" placeholder="Contoh: hasil reconciliation rutin, saldo cache tidak sinkron dengan ledger" style="width:100%;margin-top:4px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-family:inherit;"></textarea>
+      <textarea id="recovery-reason" rows="2" placeholder="Contoh: hasil reconciliation rutin, saldo cache tidak sinkron dengan ledger" style="width:100%;margin-top:4px;padding:8px 10px;border-radius:12px;border:1px solid var(--line);font-size:12px;font-family:inherit;"></textarea>
     </div>
     <button type="button" class="btn-action warn" id="btn-recovery-confirm" style="width:100%;margin-top:10px;">Perbaiki Item Terpilih</button>
     <div id="recovery-progress" style="margin-top:8px;"></div>`;
@@ -3080,7 +3065,7 @@ function migBatchRowHTML(id, b) {
 async function migRenderBatchList() {
   const el = $('#mig-batch-list');
   if (!el) return;
-  el.innerHTML = '<p style="font-size:11px;color:var(--ink-400);">Memuat…</p>';
+  el.innerHTML = '<div class="app-loading"><span class="app-loading-spinner"></span><span>Memuat…</span></div>';
   try {
     const snap = await getDocs(query(collection(db, 'migrationBatches'), orderBy('uploadedAt', 'desc'), limit(20)));
     if (snap.empty) { el.innerHTML = '<p style="font-size:11px;color:var(--ink-400);">Belum ada batch migrasi.</p>'; return; }
@@ -3962,7 +3947,7 @@ async function openStockCard(item) {
   const body = $('#modal-stockcard-body');
   overlay.dataset.itemId = item.id;
   $('#modal-stockcard-title').textContent = `Stock Card — ${item.itemCode}`;
-  body.innerHTML = `<p style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;">Memuat riwayat…</p>`;
+  body.innerHTML = `<div class="app-loading"><span class="app-loading-spinner"></span><span>Memuat riwayat…</span></div>`;
   overlay.classList.add('show');
 
   try {
@@ -5055,7 +5040,7 @@ function renderRow(tab, d) {
   // catatan Final Audit di statusToggleHtml), Kategori/Vendor pakai ACTIVE/INACTIVE.
   const inactiveVal = tab === 'rack' ? 'ARCHIVED' : 'INACTIVE';
   const badge = d.status === inactiveVal ? '<span class="badge archived">NONAKTIF</span>' : '<span class="badge active">AKTIF</span>';
-  const printBtn = tab === 'rack' ? `<button type="button" class="icon-btn-sm" data-print-rack="${d.id}" title="Cetak Label Rak">
+  const printBtn = tab === 'rack' ? `<button type="button" class="icon-btn-sm" data-print-rack="${d.id}" title="Cetak Label Rak" aria-label="Cetak Label Rak">
       <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>` : '';
   return `<div class="m-row glass" data-id="${d.id}">
