@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v6.26</title>
+<title>RDI Indirect Inventory v6.28</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -11,9 +11,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="RDI Inventory">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <!-- STEP 7: Scan QR — generate QR dari itemCode + scan kamera -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
@@ -63,7 +60,8 @@
     --line-subtle:rgba(30,36,48,.06);
     --shadow-elevated:0 16px 36px -16px rgba(30,36,48,.24);
     --shadow-pressed:0 1px 4px -1px rgba(30,36,48,.14);
-    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+    --font-mono:ui-monospace,"SF Mono","Roboto Mono","Segoe UI Mono","Courier New",monospace;
+    --font-display:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     /* ---- PREMIUM PASS: refined gradient/highlight tokens ---- */
     --primary-gradient:linear-gradient(155deg,#1a7d4d 0%,var(--red-600) 55%,var(--red-700) 100%);
     --glass-highlight:inset 0 1px 0 rgba(255,255,255,.55);
@@ -83,12 +81,12 @@
   html,body{overflow-x:hidden;max-width:100vw;}
   body{
     margin:0;
-    font-family:'Inter',system-ui,sans-serif;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     color:var(--ink-900);
     -webkit-tap-highlight-color:transparent;
     overscroll-behavior:none;
   }
-  h1,h2,h3,.font-display{font-family:'Sora',system-ui,sans-serif;letter-spacing:-.01em;}
+  h1,h2,h3,.font-display{font-family:var(--font-display);letter-spacing:-.01em;}
   button{font-family:inherit;}
   code{overflow-wrap:anywhere;} /* guard tambahan: <code> baru di masa depan otomatis wrap, tidak perlu diingat per-tempat */
 
@@ -270,6 +268,21 @@
   }
   .icon-btn-sm svg{width:13px;height:13px;}
   .icon-btn-sm:active{background:rgba(30,36,48,.14);}
+  .tb-user{
+    display:flex;align-items:center;gap:7px;height:40px;padding:0 12px 0 4px;
+    border-radius:999px;border:none;cursor:pointer;
+    background:rgba(255,255,255,.6);color:var(--ink-900);max-width:150px;
+  }
+  .tb-user:active{background:rgba(255,255,255,.85);}
+  .tb-user-avatar{
+    width:28px;height:28px;border-radius:50%;flex-shrink:0;
+    background:var(--primary-gradient,var(--color-primary));color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-display);font-weight:700;font-size:11px;letter-spacing:.02em;
+  }
+  .tb-user-name{
+    font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
   .badge.rack-stock{background:rgba(20,108,67,.1);color:var(--red-600);}
   .badge.rack-stock.empty{background:rgba(138,147,163,.15);color:var(--ink-400);}
 
@@ -527,7 +540,7 @@
   .detail-subhead{display:flex;align-items:center;gap:12px;margin:-4px 0 16px;}
   .detail-avatar{
     width:46px;height:46px;border-radius:14px;flex-shrink:0;background:var(--primary-gradient);
-    color:#fff;font-family:'Sora',system-ui,sans-serif;font-weight:800;font-size:13px;letter-spacing:.01em;
+    color:#fff;font-family:var(--font-display);font-weight:800;font-size:13px;letter-spacing:.01em;
     display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-btn);
   }
   .detail-subhead-info{min-width:0;flex:1;}
@@ -741,11 +754,11 @@
     background:rgba(255,255,255,.16);
     border:1px solid rgba(255,255,255,.35);
     display:flex;align-items:center;justify-content:center;
-    font-family:'Sora',system-ui,sans-serif;font-weight:700;font-size:19px;
+    font-family:var(--font-display);font-weight:700;font-size:19px;
     letter-spacing:.02em;
     box-shadow:inset 0 1px 0 rgba(255,255,255,.3);
   }
-  .stg-hero-name{font-family:'Sora',system-ui,sans-serif;font-size:16.5px;font-weight:700;line-height:1.25;}
+  .stg-hero-name{font-family:var(--font-display);font-size:16.5px;font-weight:700;line-height:1.25;}
   .stg-hero-role{
     display:inline-flex;align-items:center;gap:5px;margin-top:5px;
     font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
@@ -808,7 +821,7 @@
   .stg-mig-step:first-of-type{border-top:none;padding-top:6px;}
   .stg-mig-num{
     position:absolute;left:2px;top:15px;width:22px;height:22px;border-radius:8px;
-    background:var(--primary-gradient);color:#fff;font-family:'Sora',system-ui,sans-serif;
+    background:var(--primary-gradient);color:#fff;font-family:var(--font-display);
     font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;
     box-shadow:var(--shadow-sm);
   }
@@ -899,8 +912,9 @@
     </div>
     <div class="tb-right">
       <div class="conn-pill" id="conn-pill"><span class="conn-dot"></span><span id="conn-label">Online</span></div>
-      <button class="icon-btn" id="btn-logout" title="Keluar">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <button type="button" class="tb-user" id="btn-header-user" title="Profil & Pengaturan">
+        <span class="tb-user-avatar" id="tb-user-avatar">–</span>
+        <span class="tb-user-name" id="tb-user-name">—</span>
       </button>
     </div>
   </header>
@@ -1767,7 +1781,7 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.26'; // v6.23: Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi. v6.24: fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu. v6.25: FIX bug lama — list Kategori di menu Master selalu kosong (currentTab+'s' salah generate 'categorys', bukan 'categories'). v6.26: baris list Item di Master — tambah baris Spesifikasi (muncul kalau field terisi, buat bedain item bernama mirip/terpotong), hapus badge Status AKTIF/ARSIP (redundan, urutan sort sudah taruh ARSIP di bawah). Tidak ada perubahan Firestore schema/rules.
+const APP_VERSION = 'v6.28'; // v6.23: Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi. v6.24: fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu. v6.25: FIX bug lama — list Kategori di menu Master selalu kosong (currentTab+'s' salah generate 'categorys', bukan 'categories'). v6.26: baris list Item di Master — tambah baris Spesifikasi (muncul kalau field terisi, buat bedain item bernama mirip/terpotong), hapus badge Status AKTIF/ARSIP (redundan, urutan sort sudah taruh ARSIP di bawah). v6.27: font huruf & angka diganti ke standar native sistem (iOS/Android/Windows) — hapus dependency Google Fonts (Sora/Inter/JetBrains Mono), pakai -apple-system/Segoe UI/Roboto untuk teks & ui-monospace/SF Mono/Roboto Mono untuk angka-kode. v6.28: tombol Keluar di header atas diganti dengan badge nama user yang sedang login (avatar inisial + nama) — tap badge membuka halaman Pengaturan, tombol Keluar tetap ada di sana (btn-logout-2). Tidak ada perubahan Firestore schema/rules.
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -1814,6 +1828,7 @@ function showApp(role, name, email) {
   loginScreen.classList.remove('show');
   appShell.classList.add('show');
   const pgnName = $('#pgn-username'), pgnRole = $('#pgn-userrole'), pgnAvatar = $('#pgn-avatar');
+  const tbName = $('#tb-user-name'), tbAvatar = $('#tb-user-avatar');
   if (pgnName) pgnName.textContent = name || email || 'User';
   if (pgnRole) pgnRole.textContent = role;
   if (pgnAvatar) {
@@ -1821,7 +1836,9 @@ function showApp(role, name, email) {
     const parts = src.split(/\s+/).filter(Boolean);
     const initials = parts.length > 1 ? (parts[0][0] + parts[1][0]) : src.slice(0, 2);
     pgnAvatar.textContent = initials.toUpperCase();
+    if (tbAvatar) tbAvatar.textContent = initials.toUpperCase();
   }
+  if (tbName) tbName.textContent = name || email || 'User';
   document.querySelectorAll('[data-role]').forEach(el => {
     const allowedRoles = el.dataset.role.split(',').map(r => r.trim());
     el.hidden = !allowedRoles.includes(role);
@@ -1931,8 +1948,8 @@ async function doLogout() {
   await signOut(auth);
   showLogin();
 }
-$('#btn-logout').addEventListener('click', doLogout);
 $('#btn-logout-2').addEventListener('click', doLogout);
+$('#btn-header-user').addEventListener('click', () => goToView('pengaturan'));
 
 // ---------- EXPORT CSV ----------
 // Fix (audit cetak/export): cell yang diawali =, +, -, @ bisa dieksekusi sebagai formula
