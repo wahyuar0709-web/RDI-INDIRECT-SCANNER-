@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v6.12</title>
+<title>RDI Indirect Inventory v6.22</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -417,6 +417,13 @@
   .badge.danger{background:rgba(214,54,44,.13);color:var(--danger);}
   .badge.rack{background:rgba(30,36,48,.06);color:var(--ink-600);}
   .badge.rack::before{display:none;} /* rak bukan status, tidak butuh dot */
+  /* UX-2 History Hierarchy: label TYPE (MASUK/KELUAR/SALDO AWAL) di riwayat
+     transaksi — scoped ke .hist-type saja, tidak menyentuh .badge/.m-row global. */
+  .hist-type{font-size:10px;font-weight:800;letter-spacing:.04em;}
+  .hist-type-masuk{color:var(--ok);}
+  .hist-type-keluar{color:var(--danger);}
+  .hist-type-opening{color:#b8860b;}
+  .hist-date{color:var(--ink-400);}
   .m-empty{text-align:center;padding:30px 10px;color:var(--ink-400);font-size:12.5px;}
 
   /* ---------- MODAL ---------- */
@@ -582,39 +589,52 @@
   .scan-result-item{font-size:13px;font-weight:600;color:var(--ink-900);}
   #qr-code-canvas-wrap{display:flex;justify-content:center;padding:10px 0;}
 
-  /* ---- STEP 10: Dashboard (PHASE 10: composition over card-stacking) ----
-     .dash-cards is now the single glass surface; individual .dash-card cells
-     are flat quadrants divided by hairlines, not four stacked elevated cards. */
+  /* ---- STEP 10: Dashboard (PREMIUM PASS 2: elevated cards + icon accents,
+     fintech-modern direction — menggantikan Phase 10 "flat quadrant" lama
+     atas permintaan eksplisit user). Tiap KPI sekarang kartu elevated
+     sendiri (glass+shadow+radius masing-masing), bukan 1 surface dibagi
+     hairline. .icon-chip reusable, dipakai juga di header section lain. */
+  .icon-chip{
+    width:34px;height:34px;border-radius:11px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);
+  }
+  .icon-chip svg{width:17px;height:17px;}
+  .icon-chip.sm{width:28px;height:28px;border-radius:9px;}
+  .icon-chip.sm svg{width:14px;height:14px;}
+  .icon-chip.primary{background:rgba(20,108,67,.12);color:var(--red-600);}
+  .icon-chip.ok{background:rgba(30,158,100,.12);color:var(--ok);}
+  .icon-chip.danger{background:rgba(214,54,44,.12);color:var(--danger);}
+  .icon-chip.warn{background:rgba(217,138,23,.14);color:var(--warn);}
+  .icon-chip.info{background:rgba(37,99,168,.12);color:var(--color-info);}
+  .icon-chip.opening{background:rgba(184,134,11,.14);color:#b8860b;}
   .dash-cards{
-    display:grid;grid-template-columns:1fr 1fr;border-radius:var(--radius-lg);overflow:hidden;
-    background:var(--glass-bg);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
-    border:1px solid var(--glass-border);box-shadow:var(--glass-shadow),var(--glass-highlight);
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;
   }
   .dash-card{
-    padding:16px 14px;text-align:center;background:none;border:none;box-shadow:none;
+    padding:14px;text-align:left;border-radius:var(--radius-md);
+    background:var(--glass-bg);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+    border:1px solid var(--glass-border);box-shadow:var(--shadow-sm),var(--glass-highlight);
+    display:flex;flex-direction:column;gap:10px;
   }
-  /* Roadmap Phase 9 — KPI Clarification: grid sekarang 2 kolom x 3 baris (6 kartu:
-     Item Aktif/Stok Rendah, lalu Transaction Count Masuk/Keluar, lalu Qty Masuk/Keluar).
-     Hairline: kolom kiri (ganjil) dapat border-right; dua baris pertama (kartu 1-4)
-     dapat border-bottom; baris terakhir (5-6) tanpa border-bottom. */
-  .dash-card:nth-child(odd){border-right:1px solid var(--line-subtle);}
-  .dash-card:nth-child(-n+4){border-bottom:1px solid var(--line-subtle);}
-  .dash-card:nth-child(-n+2) .dash-card-value{font-size:26px;}
-  .dash-card-value{font-size:19px;font-weight:800;color:var(--ink-900);font-family:var(--font-mono);letter-spacing:-.01em;}
-  .dash-card-label{font-size:10.5px;color:var(--ink-600);margin-top:3px;letter-spacing:.01em;}
+  /* Roadmap Phase 9 — KPI Clarification tetap dipertahankan: kartu 1-2 (Item
+     Aktif/Stok Rendah) KPI utama, font value lebih besar dari 4 kartu lain. */
+  .dash-card:nth-child(-n+2) .dash-card-value{font-size:24px;}
+  .dash-card-value{font-size:18px;font-weight:800;color:var(--ink-900);font-family:var(--font-mono);letter-spacing:-.01em;}
+  .dash-card-label{font-size:10.5px;color:var(--ink-600);margin-top:2px;letter-spacing:.01em;}
   /* PHASE UX-2 P2-C: kartu "Stok Rendah" dibuat tappable ke halaman Alert
      via native <button>. Scoped khusus ke .dash-card-clickable — TIDAK
-     mengubah .dash-card global (5 kartu lain tetap <div>, tidak terpengaruh).
-     Reset ini hanya menetralkan default browser button styling supaya
-     visual tetap identik dengan kartu lain (padding/text-align/background/
-     border sudah diwarisi dari .dash-card di atas). */
+     mengubah .dash-card global (kartu lain tetap <div>, tidak terpengaruh).
+     Reset ini hanya menetralkan default browser button styling; background/
+     border/shadow/radius sudah diwarisi dari .dash-card di atas (elemen ini
+     match kedua selector sekaligus). */
   .dash-card-clickable{
     width:100%;font:inherit;color:inherit;text-align:inherit;
-    background:inherit;appearance:none;-webkit-appearance:none;margin:0;
+    appearance:none;-webkit-appearance:none;margin:0;
     cursor:pointer;
   }
-  .dash-card-clickable:hover{background:rgba(255,255,255,.24);}
-  .dash-card-clickable:active{background:rgba(255,255,255,.34);transform:scale(.99);}
+  .dash-card-clickable:hover{transform:translateY(-1px);box-shadow:var(--shadow-md),var(--glass-highlight);}
+  .dash-card-clickable:active{transform:scale(.98);box-shadow:var(--shadow-pressed);}
   .dash-card-clickable:focus-visible{outline:2px solid var(--danger);outline-offset:-2px;}
   /* PHASE UX-2 P0 — Fix #1: error banner, pakai token --warn existing (bukan
      --danger) supaya tidak disamakan secara visual dengan "Stok Rendah" yang
@@ -894,18 +914,30 @@
       </div>
       <div class="dash-cards">
         <div class="dash-card glass">
+          <div class="icon-chip primary">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4.5 7.5L12 12l7.5-4.5M12 12v9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
           <div class="dash-card-value" id="dash-total-item">—</div>
           <div class="dash-card-label">Item Aktif</div>
         </div>
         <button type="button" class="dash-card glass dash-card-clickable" id="dash-card-lowstock">
+          <div class="icon-chip danger">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 4L3 20h18L12 4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.6" r=".9" fill="currentColor" stroke="none"/></svg>
+          </div>
           <div class="dash-card-value" id="dash-low-stock" style="color:var(--danger);">—</div>
           <div class="dash-card-label">Stok Rendah</div>
         </button>
         <div class="dash-card glass">
+          <div class="icon-chip ok sm">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
           <div class="dash-card-value" id="dash-trx-masuk" style="color:var(--ok);">—</div>
           <div class="dash-card-label">Transaksi Masuk Hari Ini</div>
         </div>
         <div class="dash-card glass">
+          <div class="icon-chip info sm">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
           <div class="dash-card-value" id="dash-trx-keluar" style="color:var(--color-info);">—</div>
           <div class="dash-card-label">Transaksi Keluar Hari Ini</div>
         </div>
@@ -913,10 +945,16 @@
              Quantity Movement (di bawah) sengaja dipisah jadi kartu berbeda, supaya
              "5 transaksi" vs "500 pcs bergerak" tidak tercampur jadi satu angka. -->
         <div class="dash-card glass">
+          <div class="icon-chip ok sm">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
           <div class="dash-card-value" id="dash-qty-masuk" style="color:var(--ok);">—</div>
           <div class="dash-card-label">Qty Masuk Hari Ini</div>
         </div>
         <div class="dash-card glass">
+          <div class="icon-chip info sm">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
           <div class="dash-card-value" id="dash-qty-keluar" style="color:var(--color-info);">—</div>
           <div class="dash-card-label">Qty Keluar Hari Ini</div>
         </div>
@@ -924,7 +962,12 @@
 
       <div class="glass" style="border-radius:var(--radius-lg);padding:18px;margin-top:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <h2 style="font-size:14px;margin:0;">⚠️ Stok Rendah</h2>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="icon-chip danger sm">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 4L3 20h18L12 4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.6" r=".9" fill="currentColor" stroke="none"/></svg>
+            </div>
+            <h2 style="font-size:14px;margin:0;">Stok Rendah</h2>
+          </div>
           <button type="button" class="link-btn" id="btn-goto-alert" style="font-size:11.5px;">Lihat Semua →</button>
         </div>
         <div id="dash-lowstock-list" class="dash-lowstock-scroll"></div>
@@ -932,9 +975,14 @@
       </div>
 
       <div class="glass" style="border-radius:var(--radius-lg);padding:14px 18px;margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <div>
-          <h2 style="font-size:14px;margin:0 0 2px;">📦 Cek Per Rak</h2>
-          <p style="font-size:11.5px;color:var(--ink-600);margin:0;">Lihat sebaran stok tiap rak</p>
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+          <div class="icon-chip primary sm">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v4H4zM4 10h16v4H4zM4 16h16v4H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          </div>
+          <div style="min-width:0;">
+            <h2 style="font-size:14px;margin:0 0 2px;">Cek Per Rak</h2>
+            <p style="font-size:11.5px;color:var(--ink-600);margin:0;">Lihat sebaran stok tiap rak</p>
+          </div>
         </div>
         <button type="button" class="btn-action ghost" id="btn-goto-rak" style="width:auto;padding:9px 16px;flex-shrink:0;">Buka →</button>
       </div>
@@ -946,15 +994,25 @@
            memenuhi touch-target guideline; tidak menyentuh .btn-action global
            maupun tombol "Buka →" di row sebelumnya. -->
       <div class="glass" style="border-radius:var(--radius-lg);padding:14px 18px;margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <div>
-          <h2 style="font-size:14px;margin:0 0 2px;">Transaksi Baru</h2>
-          <p style="font-size:11.5px;color:var(--ink-600);margin:0;">Catat transaksi manual tanpa scan QR</p>
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+          <div class="icon-chip ok sm">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
+          </div>
+          <div style="min-width:0;">
+            <h2 style="font-size:14px;margin:0 0 2px;">Transaksi Baru</h2>
+            <p style="font-size:11.5px;color:var(--ink-600);margin:0;">Catat transaksi manual tanpa scan QR</p>
+          </div>
         </div>
         <button type="button" class="btn-action ghost" id="btn-dash-new-trx" style="width:auto;padding:9px 16px;flex-shrink:0;min-height:44px;">Mulai Transaksi</button>
       </div>
 
       <div class="glass" style="border-radius:var(--radius-lg);padding:18px;margin-top:14px;">
-        <h2 style="font-size:14px;margin:0 0 12px;">Aktivitas Terbaru</h2>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <div class="icon-chip info sm">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h2 style="font-size:14px;margin:0;">Aktivitas Terbaru</h2>
+        </div>
         <div id="dash-recent-list"></div>
         <p id="dash-recent-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:12px 0;" hidden>Belum ada transaksi.</p>
       </div>
@@ -962,7 +1020,12 @@
 
     <section class="view" data-view="scan">
       <div class="glass" style="border-radius:var(--radius-lg);padding:18px;">
-        <h2 style="font-size:15px;margin:0 0 14px;">Scan QR Item</h2>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div class="icon-chip primary sm">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h2 style="font-size:15px;margin:0;">Scan QR Item</h2>
+        </div>
         <div class="scan-wrap">
           <div id="qr-reader"></div>
           <div class="scan-status" id="scan-status">Arahkan kamera ke QR item.</div>
@@ -973,7 +1036,12 @@
 
     <section class="view" data-view="transaksi">
       <div class="glass" style="border-radius:var(--radius-lg);padding:18px;">
-        <h2 style="font-size:15px;margin:0 0 14px;">Transaksi Stok</h2>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div class="icon-chip ok sm">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
+          </div>
+          <h2 style="font-size:15px;margin:0;">Transaksi Stok</h2>
+        </div>
         <div class="glass" id="trx-draft-banner" hidden style="border-radius:10px;padding:10px 12px;margin-bottom:14px;border:1px solid rgba(20,108,67,.25);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
           <span style="font-size:11.5px;color:var(--ink-700);">📝 Ada draft transaksi belum tersimpan (<span id="trx-draft-time"></span>).</span>
           <span style="display:flex;gap:8px;flex-shrink:0;">
@@ -1026,7 +1094,12 @@
 
     <section class="view" data-view="history">
       <div class="glass" style="border-radius:var(--radius-lg);padding:18px;">
-        <h2 style="font-size:15px;margin:0 0 14px;">History Transaksi</h2>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div class="icon-chip info sm">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h2 style="font-size:15px;margin:0;">History Transaksi</h2>
+        </div>
         <div class="m-field">
           <input type="text" id="hist-search" placeholder="Cari kode/nama item…">
         </div>
@@ -1073,7 +1146,12 @@
     <section class="view" data-view="alert">
       <div class="glass" style="border-radius:var(--radius-lg);padding:20px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <h2 style="font-size:15px;margin:0;">⚠️ Alert Stok Rendah</h2>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="icon-chip danger sm">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 4L3 20h18L12 4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.6" r=".9" fill="currentColor" stroke="none"/></svg>
+            </div>
+            <h2 style="font-size:15px;margin:0;">Alert Stok Rendah</h2>
+          </div>
           <button type="button" class="icon-btn" id="btn-back-from-alert" title="Kembali">
             <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -1086,7 +1164,12 @@
     <section class="view" data-view="rak">
       <div class="glass" style="border-radius:var(--radius-lg);padding:20px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <h2 style="font-size:15px;margin:0;">📦 Cek Per Rak</h2>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="icon-chip primary sm">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v4H4zM4 10h16v4H4zM4 16h16v4H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            </div>
+            <h2 style="font-size:15px;margin:0;">Cek Per Rak</h2>
+          </div>
           <button type="button" class="icon-btn" id="btn-back-from-rak" title="Kembali">
             <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -1632,7 +1715,7 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.12'; // PHASE UX-1.3 SCOPED FIX — Draft Recovery touch target (Lanjutkan/Buang): #trx-draft-restore & #trx-draft-discard diperbesar ke ~44px via ID-scoped CSS (min-height+padding+inline-flex). .link-btn GLOBAL tidak diubah. Tidak menyentuh transaction/business logic apa pun.
+const APP_VERSION = 'v6.22'; // Sejak v6.20: (1) UX-2 History Hierarchy — TYPE/ITEM/QTY/RACK/DATE reorder di Riwayat Transaksi, SALDO AWAL dibedakan warna. (2) Premium Visual Pass — elevated KPI cards (dari flat quadrant) + komponen .icon-chip berwarna di Dashboard, Alert, Cek Per Rak, Scan, Transaksi, History (ganti emoji lama). Murni visual/HTML-CSS, tidak ada perubahan Firestore schema/rules/transaction logic.
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -3534,23 +3617,43 @@ function renderHistRow(t) {
   const isMasuk = t.type === 'MASUK';
   const isOpening = t.historicalKind === 'OPENING_BALANCE';
   const sign = isMasuk ? '+' : '−';
-  const badgeStyle = isMasuk ? '' : 'background:rgba(214,54,44,.13);color:var(--danger);';
-  // Roadmap Phase 6-B — Opening Balance tetap readable di histori (bukan disembunyikan),
-  // tapi diberi label eksplisit "Saldo Awal" supaya tidak dikira transaksi barang masuk
-  // biasa (lihat computeReconciliation/renderDashboard untuk exclusion di KPI/metrik).
+  // UX-2 History Hierarchy: TYPE sekarang label eksplisit (bukan cuma warna+tanda),
+  // 3-way MASUK/KELUAR/SALDO AWAL — SALDO AWAL tetap warna berbeda (amber, konsisten
+  // dgn aksen lama #b8860b) supaya tidak tertukar dgn MASUK biasa (hijau).
+  const typeClass = isOpening ? 'opening' : (isMasuk ? 'masuk' : 'keluar');
+  const typeLabel = isOpening ? 'SALDO AWAL' : (isMasuk ? 'MASUK' : 'KELUAR');
+  const qtyStyle = isOpening
+    ? 'background:rgba(184,134,11,.14);color:#b8860b;'
+    : (isMasuk ? '' : 'background:rgba(214,54,44,.13);color:var(--danger);');
+  // Roadmap Phase 6-B — Opening Balance tetap readable di histori (bukan disembunyikan);
+  // label "SALDO AWAL"-nya sekarang dibawa oleh tag TYPE di atas (lihat typeLabel),
+  // bukan lagi suffix kecil di title (lihat computeReconciliation/renderDashboard
+  // untuk exclusion di KPI/metrik — tidak disentuh).
+  // RACK diprioritaskan lebih dulu (info sekunder yang tetap relevan operasional),
+  // DATE dipindah ke akhir baris & didim (lihat .hist-date) — tetap ada, tidak mendominasi.
   const sub = [
-    isOpening ? 'Saldo Awal (migrasi)' : '',
     t.rackId ? (state.racks[t.rackId]?.rackCode || '') : '',
     isMasuk && !isOpening && t.vendorId ? (state.vendors[t.vendorId]?.vendorName || '') : '',
     isMasuk && !isOpening && t.noSjPo ? t.noSjPo : '',
     t.createdByName || ''
   ].filter(Boolean).join(' · ');
+  const dateStr = fmtDateTime(t.createdAt);
+  // PREMIUM PASS 2: icon-chip kecil di kiri baris (fintech-modern transaction
+  // list) — variant warna reuse .icon-chip.ok/.danger existing; .opening
+  // (amber) baru, scoped, konsisten dgn warna SALDO AWAL yang sudah ada.
+  const typeIcon = isOpening
+    ? '<path d="M5 3v18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M5 4h11l-2 4 2 4H5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>'
+    : isMasuk
+      ? '<path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>'
+      : '<path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>';
+  const chipVariant = isOpening ? 'opening' : (isMasuk ? 'ok' : 'danger');
   return `<div class="m-row glass" data-itemid="${esc(t.itemId||'')}">
+    <div class="icon-chip sm ${chipVariant}"><svg viewBox="0 0 24 24" fill="none">${typeIcon}</svg></div>
     <div class="m-row-main">
-      <div class="m-row-title">${itemLabel}${isOpening ? ' <span style="font-size:10px;font-weight:700;color:#b8860b;">· SALDO AWAL</span>' : ''}</div>
-      <div class="m-row-sub">${fmtDateTime(t.createdAt)}${sub ? ' · ' + esc(sub) : ''}</div>
+      <div class="m-row-title"><span class="hist-type hist-type-${typeClass}">${typeLabel}</span> ${itemLabel}</div>
+      <div class="m-row-sub">${sub ? esc(sub) + ' · ' : ''}<span class="hist-date">${dateStr}</span></div>
     </div>
-    <div class="m-row-tags"><span class="badge active" style="${badgeStyle}">${sign}${t.qty} ${esc(item?.unit||'')}</span></div>
+    <div class="m-row-tags"><span class="badge active" style="${qtyStyle}">${sign}${t.qty} ${esc(item?.unit||'')}</span></div>
   </div>`;
 }
 
