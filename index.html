@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v6.22</title>
+<title>RDI Indirect Inventory v6.25</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -1766,7 +1766,7 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.22'; // Sejak v6.20: (1) UX-2 History Hierarchy — TYPE/ITEM/QTY/RACK/DATE reorder di Riwayat Transaksi, SALDO AWAL dibedakan warna. (2) Premium Visual Pass — elevated KPI cards (dari flat quadrant) + komponen .icon-chip berwarna di Dashboard, Alert, Cek Per Rak, Scan, Transaksi, History (ganti emoji lama). Murni visual/HTML-CSS, tidak ada perubahan Firestore schema/rules/transaction logic.
+const APP_VERSION = 'v6.25'; // v6.23: Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi. v6.24: fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu. v6.25: FIX bug lama — list Kategori di menu Master selalu kosong (currentTab+'s' salah generate 'categorys', bukan 'categories'); tidak ada perubahan Firestore schema/rules.
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -4956,9 +4956,18 @@ $('#m-search-clear').addEventListener('click', () => {
 $('#m-add-btn').addEventListener('click', () => openFormModal(currentTab, null));
 
 // ---- render list ----
+// FIX: currentTab + 's' salah untuk tab 'category' -> jadi 'categorys' (bukan
+// 'categories', plural tidak beraturan), sehingga state['categorys'] selalu
+// undefined dan list Kategori SELALU kosong (bukan cuma data baru — SEMUA
+// kategori tidak pernah tampil di sini, meski tersimpan benar di Firestore dan
+// tampil normal di dropdown Kategori form Item karena dropdown itu eksplisit
+// pakai state.categories, bukan konkatenasi string). vendor->vendors dan
+// rack->racks kebetulan beraturan jadi tidak kena bug ini. Diganti pakai mapping
+// eksplisit supaya tidak bergantung pada aturan plural bahasa Inggris.
+const MASTER_STATE_KEY = { item: 'items', category: 'categories', vendor: 'vendors', rack: 'racks' };
 function renderMasterList() {
   const listEl = $('#m-list');
-  let data = Object.values(state[currentTab === 'item' ? 'items' : currentTab + 's'] || {});
+  let data = Object.values(state[MASTER_STATE_KEY[currentTab]] || {});
 
   if (searchTerm) {
     data = data.filter(d => {
