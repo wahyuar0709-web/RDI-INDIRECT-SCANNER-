@@ -17,6 +17,7 @@
 <!-- STEP 7: Scan QR — generate QR dari itemCode + scan kamera -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     /* ===== STEP 20 — PHASE 1: DESIGN FOUNDATION =====
@@ -1351,18 +1352,18 @@
           <div class="stg-mig-title">Upload File Staging</div>
           <label class="stg-field-label">Nama Sistem Sumber</label>
           <input type="text" id="mig-source-system" placeholder='mis. "Excel Gudang Lama 2023"' class="stg-input">
-          <label class="stg-field-label">Format kolom CSV (header wajib, urutan bebas)</label>
+          <label class="stg-field-label">Format kolom Excel (.xlsx) — sheet pertama, header wajib, urutan bebas</label>
           <div class="stg-schema-box">
             <code style="font-size:10px;overflow-wrap:anywhere;word-break:break-word;">sourceTransactionId,date,transactionType,itemCode,qty,uom,rackCode,createdBy</code>
             <div style="margin-top:6px;font-size:10.5px;color:var(--ink-600);">
               transactionType: <code style="font-size:10px;">MASUK</code> / <code style="font-size:10px;">KELUAR</code> / <code style="font-size:10px;">OPENING_BALANCE</code>
             </div>
           </div>
-          <button type="button" class="btn-action ghost" id="btn-mig-download-template" style="width:100%;margin-bottom:10px;">Download Template CSV</button>
+          <button type="button" class="btn-action ghost" id="btn-mig-download-template" style="width:100%;margin-bottom:10px;">Download Template Excel</button>
           <label class="stg-filebtn">
             <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span id="mig-file-label">Pilih file CSV untuk diunggah…</span>
-            <input type="file" id="mig-file-input" accept=".csv,text/csv">
+            <span id="mig-file-label">Pilih file Excel (.xlsx) untuk diunggah…</span>
+            <input type="file" id="mig-file-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
           </label>
           <button type="button" class="btn-action ghost" id="btn-mig-upload" style="width:100%;margin-top:10px;" disabled>Buat Batch &amp; Validasi</button>
           <div id="mig-upload-progress" style="margin-top:6px;"></div>
@@ -1919,27 +1920,22 @@ function exportItemsCSV() {
 const btnExportCsv = $('#btn-export-csv');
 if (btnExportCsv) btnExportCsv.addEventListener('click', exportItemsCSV);
 
-// ---------- MIGRASI: DOWNLOAD TEMPLATE CSV ----------
-// Murni generate file statis di client (reuse csvEscape/Blob/anchor dari
-// exportItemsCSV di atas) — TIDAK menyentuh migParseCSV/migValidateRows/
-// migRunImport/staging/idempotency apa pun. Header harus tetap sinkron
-// dengan schema box di HTML (baris "Format kolom CSV") dan migValidateRows().
+// ---------- MIGRASI: DOWNLOAD TEMPLATE EXCEL (.xlsx) ----------
+// Murni generate file statis di client via SheetJS (XLSX.utils) — TIDAK
+// menyentuh migParseXLSX/migValidateRows/migRunImport/staging/idempotency
+// apa pun. Header harus tetap sinkron dengan schema box di HTML (baris
+// "Format kolom Excel") dan migValidateRows(). Sheet pertama & satu-satunya
+// bernama "Migrasi" — cocok dengan asumsi migParseXLSX (selalu baca sheet ke-0).
 function downloadMigTemplate() {
   const rows = [
     ['sourceTransactionId','date','transactionType','itemCode','qty','uom','rackCode','createdBy'],
     ['CONTOH-001','2024-01-15','MASUK','KODE-ITEM-CONTOH','10','PCS','KODE-RAK-CONTOH','Nama Pembuat']
   ];
-  const csvContent = rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
-  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'Template_Migrasi_Data_Historis.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast('Template CSV berhasil diunduh');
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Migrasi');
+  XLSX.writeFile(wb, 'Template_Migrasi_Data_Historis.xlsx');
+  toast('Template Excel berhasil diunduh');
 }
 const btnMigDownloadTemplate = $('#btn-mig-download-template');
 if (btnMigDownloadTemplate) btnMigDownloadTemplate.addEventListener('click', downloadMigTemplate);
@@ -2178,33 +2174,40 @@ if (btnMigrateLocks) btnMigrateLocks.addEventListener('click', async () => {
 // Security ditegakkan di firestore.rules (ADMIN ONLY di semua match/migrationBatches
 // dan match/migrationRows, dan di jalur migrasi match/transactions) — bukan hanya di UI.
 
-// ---- Phase 6.4: Input File Contract (CSV parser, RFC4180-ish, quote-aware) ----
-function migParseCSV(text) {
-  const rows = [];
-  let row = [], field = '', inQuotes = false;
-  const s = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i];
-    if (inQuotes) {
-      if (c === '"') { if (s[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; } }
-      else field += c;
-    } else {
-      if (c === '"') inQuotes = true;
-      else if (c === ',') { row.push(field); field = ''; }
-      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
-      else field += c;
+// ---- Phase 6.4: Input File Contract (XLSX parser via SheetJS — sheet pertama saja) ----
+// Kontrak OUTPUT sengaja dibuat IDENTIK dengan migParseCSV lama: {header:[...],
+// rows:[{kolom:string,...}]}. migValidateRows/staging/idempotency di bawah sini
+// TIDAK TAHU dan TIDAK PEDULI file aslinya .csv atau .xlsx — nol perubahan di sana.
+function migParseXLSX(arrayBuffer) {
+  const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+  const sheetName = wb.SheetNames[0];
+  if (!sheetName) return { header: [], rows: [] };
+  const sheet = wb.Sheets[sheetName];
+  // raw:true (default) supaya angka (qty dll) tetap angka asli, BUKAN string
+  // terformat locale (mis. "1,000") yang bisa bikin migValidateRows salah baca.
+  const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' });
+  const toCell = (v) => {
+    if (v instanceof Date) {
+      // Kolom tanggal Excel tersimpan sebagai serial number; cellDates:true
+      // membuat SheetJS otomatis mengubahnya jadi JS Date — dikonversi ke
+      // string YYYY-MM-DD di sini (bukan di migValidateRows) supaya kontrak
+      // "rows berisi string" tetap sama seperti jalur CSV lama.
+      const y = v.getFullYear(), m = String(v.getMonth() + 1).padStart(2, '0'), d = String(v.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
-  }
-  if (field.length || row.length) { row.push(field); rows.push(row); }
-  while (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0].trim() === '') rows.pop();
+    if (v === null || v === undefined) return '';
+    return String(v).trim();
+  };
+  let rows = aoa.map(r => r.map(toCell));
+  while (rows.length && rows[rows.length - 1].every(c => c === '')) rows.pop();
   if (!rows.length) return { header: [], rows: [] };
   const header = rows[0].map(h => h.trim());
-  const dataRows = rows.slice(1).filter(r => r.some(c => c.trim() !== ''));
+  const dataRows = rows.slice(1).filter(r => r.some(c => c !== ''));
   return {
     header,
     rows: dataRows.map(r => {
       const obj = {};
-      header.forEach((h, idx) => { obj[h] = (r[idx] !== undefined ? r[idx] : '').trim(); });
+      header.forEach((h, idx) => { obj[h] = r[idx] !== undefined ? r[idx] : ''; });
       return obj;
     })
   };
@@ -2338,7 +2341,7 @@ if (migFileInput) migFileInput.addEventListener('change', () => {
   const f = migFileInput.files[0];
   $('#btn-mig-upload').disabled = !f;
   const lbl = $('#mig-file-label');
-  if (lbl) lbl.textContent = f ? f.name : 'Pilih file CSV untuk diunggah…';
+  if (lbl) lbl.textContent = f ? f.name : 'Pilih file Excel (.xlsx) untuk diunggah…';
 });
 
 // ---- Phase 6.2/6.3/6.9: buat migrationBatch + migrationRows (STAGING), validasi
@@ -2349,14 +2352,14 @@ const btnMigUpload = $('#btn-mig-upload');
 if (btnMigUpload) btnMigUpload.addEventListener('click', async () => {
   const file = migFileInput.files[0];
   const sourceSystem = $('#mig-source-system').value.trim();
-  if (!file) { toast('Pilih file CSV terlebih dahulu'); return; }
+  if (!file) { toast('Pilih file Excel terlebih dahulu'); return; }
   if (!sourceSystem) { toast('Isi nama sistem sumber'); return; }
   const progEl = $('#mig-upload-progress');
   btnMigUpload.disabled = true; btnMigUpload.textContent = 'Memproses…';
   try {
-    const text = await file.text();
-    const { header, rows: rawRows } = migParseCSV(text);
-    if (!rawRows.length) throw new Error('File kosong atau format tidak terbaca');
+    const arrayBuffer = await file.arrayBuffer();
+    const { header, rows: rawRows } = migParseXLSX(arrayBuffer);
+    if (!rawRows.length) throw new Error('File kosong, sheet pertama tidak berisi data, atau format tidak terbaca');
     const required = ['sourceTransactionId', 'transactionType', 'itemCode', 'qty'];
     const missingCols = required.filter(c => !header.includes(c));
     if (missingCols.length) throw new Error('Kolom wajib tidak ada di header: ' + missingCols.join(', '));
