@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v6.25</title>
+<title>RDI Indirect Inventory v6.26</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -400,6 +400,7 @@
   .m-row-main{flex:1;min-width:0;}
   .m-row-title{font-size:13px;font-weight:700;color:var(--ink-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .m-row-sub{font-size:11px;color:var(--ink-600);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-mono);letter-spacing:-.01em;}
+  .m-row-spec{font-size:10.5px;color:var(--ink-400);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .m-row-tags{display:flex;gap:6px;flex-shrink:0;align-items:center;font-family:var(--font-mono);}
   .badge{
     font-size:9.5px;font-weight:700;letter-spacing:.03em;padding:3px 9px 3px 8px;border-radius:999px;
@@ -1766,7 +1767,7 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.25'; // v6.23: Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi. v6.24: fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu. v6.25: FIX bug lama — list Kategori di menu Master selalu kosong (currentTab+'s' salah generate 'categorys', bukan 'categories'); tidak ada perubahan Firestore schema/rules.
+const APP_VERSION = 'v6.26'; // v6.23: Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi. v6.24: fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu. v6.25: FIX bug lama — list Kategori di menu Master selalu kosong (currentTab+'s' salah generate 'categorys', bukan 'categories'). v6.26: baris list Item di Master — tambah baris Spesifikasi (muncul kalau field terisi, buat bedain item bernama mirip/terpotong), hapus badge Status AKTIF/ARSIP (redundan, urutan sort sudah taruh ARSIP di bawah). Tidak ada perubahan Firestore schema/rules.
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -5013,17 +5014,21 @@ function renderMasterList() {
 function renderRow(tab, d) {
   if (tab === 'item') {
     const rack = d.defaultRack ? (state.racks[d.defaultRack]?.rackCode || d.defaultRack) : '—';
-    const badge = d.status === 'ARCHIVED' ? '<span class="badge archived">ARSIP</span>' : '<span class="badge active">AKTIF</span>';
     // ---- STEP 5: badge Stok Saat Ini, merah kalau di bawah Minimum Stock ----
     const currentStock = getCurrentStock(d.id);
     const isLowStock = currentStock < (d.minimumStock ?? 0);
     const stockBadge = `<span class="badge ${isLowStock ? 'archived' : 'active'}" style="${isLowStock ? 'background:rgba(214,54,44,.13);color:var(--danger);' : ''}">${currentStock} ${esc(d.unit||'')}</span>`;
+    // Baris Spesifikasi: pembeda utama saat banyak item bernama mirip/terpotong
+    // (mis. beberapa "Bearing for edge b...") — hanya dirender kalau field-nya
+    // terisi, supaya tidak ada baris kosong nge-ganggu buat item tanpa spek.
+    const specLine = d.specification ? `<div class="m-row-spec">${esc(d.specification)}</div>` : '';
     return `<div class="m-row glass" data-id="${d.id}">
       <div class="m-row-main">
         <div class="m-row-title">${esc(d.name || '(tanpa nama)')}</div>
         <div class="m-row-sub">${esc(d.itemCode||'')} · ${esc(d.unit||'')}</div>
+        ${specLine}
       </div>
-      <div class="m-row-tags">${stockBadge}${badge}<span class="badge rack">${esc(rack)}</span></div>
+      <div class="m-row-tags">${stockBadge}<span class="badge rack">${esc(rack)}</span></div>
     </div>`;
   }
   const code = d.categoryCode || d.vendorCode || d.rackCode || '';
