@@ -1332,6 +1332,56 @@
         <div id="migrate-locks-results" class="stg-results"></div>
       </div>
 
+      <!-- ============ BULK IMPORT MASTER ITEM ============ -->
+      <!-- Beda sengaja dgn Migrasi Data Historis: item adalah master data MUTABLE
+           (bisa diedit/diarsipkan kapan saja), bukan ledger transaksi immutable —
+           jadi TIDAK butuh staging Firestore (migrationBatches/migrationRows) atau
+           state machine multi-tahap. Preview & validasi murni in-memory di client;
+           begitu Admin klik Konfirmasi, tiap baris valid langsung lewat jalur yang
+           SAMA PERSIS dengan form Tambah Item satu-per-satu (createWithUniqueCode +
+           nextSeq) — supaya proteksi race-condition kode unik & counter ID sekuensial
+           tetap konsisten, tidak ada jalur pintas yang bisa bikin itemCode bentrok.
+      -->
+      <div class="glass stg-card" style="margin-top:14px;padding-bottom:18px;" data-role="ADMIN" hidden>
+        <div class="stg-card-head">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M20 13V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4M14 19l3 3 5-5" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Bulk Import Master Item
+          </h2>
+          <span class="stg-chip">Baru</span>
+        </div>
+        <p class="stg-card-sub">
+          Daftarkan banyak item sekaligus dari Excel — item WAJIB terdaftar di sini dulu sebelum
+          transaksi historisnya bisa dimigrasi lewat "Migrasi Data Historis" di bawah (transaksi
+          migrasi mencocokkan itemCode ke Master Item yang sudah ada, tidak membuat item baru).
+        </p>
+        <div class="stg-mig-step">
+          <div class="stg-mig-num">1</div>
+          <div class="stg-mig-title">Upload File Item</div>
+          <label class="stg-field-label">Format kolom Excel (.xlsx) — sheet pertama, header wajib, urutan bebas</label>
+          <div class="stg-schema-box">
+            <code style="font-size:10px;overflow-wrap:anywhere;word-break:break-word;">itemCode,name,specification,unit,categoryCode,vendorCode,rackCode,bcStatus,minimumStock</code>
+            <div style="margin-top:6px;font-size:10.5px;color:var(--ink-600);">
+              Wajib: itemCode, name, unit. Opsional: specification, categoryCode/vendorCode/rackCode (harus sudah
+              terdaftar kalau diisi), bcStatus (<code style="font-size:10px;">BC</code>/<code style="font-size:10px;">NON_BC</code>, default NON_BC), minimumStock (default 0).
+            </div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-bulkitem-download-template" style="width:100%;margin-bottom:10px;">Download Template Excel</button>
+          <label class="stg-filebtn">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="bulkitem-file-label">Pilih file Excel (.xlsx) untuk diunggah…</span>
+            <input type="file" id="bulkitem-file-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          </label>
+          <button type="button" class="btn-action ghost" id="btn-bulkitem-preview" style="width:100%;margin-top:10px;" disabled>Validasi &amp; Preview</button>
+          <div id="bulkitem-preview-progress" style="margin-top:6px;"></div>
+        </div>
+        <div id="bulkitem-preview-wrap" class="stg-mig-step" style="display:none;">
+          <div class="stg-mig-num">2</div>
+          <div class="stg-mig-title">Preview &amp; Konfirmasi Import</div>
+          <div id="bulkitem-preview-body"></div>
+        </div>
+      </div>
+
       <!-- ============ ROADMAP PHASE 6: MIGRASI DATA HISTORIS ============ -->
       <div class="glass stg-card" style="margin-top:14px;padding-bottom:18px;" data-role="ADMIN" hidden>
         <div class="stg-card-head">
@@ -2163,6 +2213,211 @@ if (btnMigrateLocks) btnMigrateLocks.addEventListener('click', async () => {
     el.innerHTML = `<p style="font-size:12px;color:var(--danger);text-align:center;padding:10px 0;">Gagal: ${esc(err.message||'error')}</p>`;
   } finally {
     btnMigrateLocks.disabled = false;
+  }
+});
+
+// ================= BULK IMPORT MASTER ITEM =================
+// Beda sengaja dgn migrasi transaksi historis di bawah: item adalah master data
+// MUTABLE (bisa diedit/diarsipkan kapan saja lewat form biasa), bukan ledger
+// immutable — jadi validasi & preview PURE IN-MEMORY di client (tidak ditulis ke
+// Firestore sebagai staging), tidak ada migrationBatches/migrationRows/state
+// machine. Begitu Admin konfirmasi, tiap baris valid dibuat lewat createWithUniqueCode()
+// + nextSeq() — JALUR YANG SAMA PERSIS dipakai form Tambah Item satu-per-satu
+// (lihat formEl submit handler, tab==='item') — supaya lock kode unik & counter
+// ID sekuensial (settings/counters.itemSeq) tetap konsisten, tidak ada jalur
+// pintas tulis-langsung yang bisa bikin itemCode bentrok/ID_Item tabrakan.
+
+function bulkItemBuildIndexes() {
+  const catIdx = {}, venIdx = {}, rackIdx = {};
+  Object.values(state.categories || {}).forEach(c => { if (c.categoryCode) catIdx[String(c.categoryCode).trim().toUpperCase()] = c; });
+  Object.values(state.vendors || {}).forEach(v => { if (v.vendorCode) venIdx[String(v.vendorCode).trim().toUpperCase()] = v; });
+  Object.values(state.racks || {}).forEach(r => { if (r.rackCode) rackIdx[String(r.rackCode).trim().toUpperCase()] = r; });
+  return { catIdx, venIdx, rackIdx };
+}
+
+// validationStatus: VALID / WARNING / INVALID (error format/mapping, tidak diimpor)
+// / EXISTS (itemCode sudah ada di Master Item — dilewati, bukan error, karena
+// mengedit item lewat bulk import BUKAN scope fitur ini, hanya create baru).
+function bulkItemValidateRows(rawRows) {
+  const { catIdx, venIdx, rackIdx } = bulkItemBuildIndexes();
+  const seenCode = new Set();
+  return rawRows.map((raw, i) => {
+    const rowNumber = i + 1;
+    const errors = [], warnings = [];
+    const itemCode = (raw.itemCode || '').trim();
+    const name = (raw.name || '').trim();
+    const specification = (raw.specification || '').trim();
+    const unit = (raw.unit || '').trim();
+    const categoryCodeRaw = (raw.categoryCode || '').trim();
+    const vendorCodeRaw = (raw.vendorCode || '').trim();
+    const rackCodeRaw = (raw.rackCode || '').trim();
+    const bcStatusRaw = (raw.bcStatus || '').trim().toUpperCase();
+    const minStockRaw = (raw.minimumStock || '').trim();
+
+    let existsAlready = false;
+    if (!itemCode) errors.push('itemCode kosong');
+    else {
+      const upper = itemCode.toUpperCase();
+      if (seenCode.has(upper)) errors.push('itemCode duplikat di dalam file ini');
+      else seenCode.add(upper);
+      if (Object.values(state.items || {}).some(it => (it.itemCode || '').trim().toUpperCase() === upper)) existsAlready = true;
+    }
+    if (!name) errors.push('name kosong');
+    if (!unit) errors.push('unit kosong');
+
+    let categoryId = null;
+    if (categoryCodeRaw) {
+      const m = catIdx[categoryCodeRaw.toUpperCase()];
+      if (!m) errors.push(`kategori tidak ditemukan untuk kode: ${categoryCodeRaw}`);
+      else categoryId = m.id;
+    }
+    let vendorId = null;
+    if (vendorCodeRaw) {
+      const m = venIdx[vendorCodeRaw.toUpperCase()];
+      if (!m) errors.push(`vendor tidak ditemukan untuk kode: ${vendorCodeRaw}`);
+      else vendorId = m.id;
+    }
+    let defaultRack = null;
+    if (rackCodeRaw) {
+      const m = rackIdx[rackCodeRaw.toUpperCase()];
+      if (!m) errors.push(`rak tidak ditemukan untuk kode: ${rackCodeRaw}`);
+      else if (m.status === 'ARCHIVED') errors.push(`rak "${rackCodeRaw}" berstatus ARCHIVED`);
+      else defaultRack = m.id;
+    }
+
+    let bcStatus = 'NON_BC';
+    if (bcStatusRaw) {
+      if (!['BC', 'NON_BC'].includes(bcStatusRaw)) errors.push(`bcStatus tidak valid: "${bcStatusRaw}" (harus BC/NON_BC)`);
+      else bcStatus = bcStatusRaw;
+    }
+
+    let minimumStock = 0;
+    if (minStockRaw) {
+      const n = Number(minStockRaw);
+      if (!Number.isFinite(n) || n < 0) errors.push(`minimumStock tidak valid: "${minStockRaw}" (harus angka >= 0)`);
+      else minimumStock = n;
+    }
+
+    const validationStatus = existsAlready ? 'EXISTS' : (errors.length ? 'INVALID' : (warnings.length ? 'WARNING' : 'VALID'));
+    return {
+      rowNumber, itemCode, name, specification, unit, categoryId, vendorId, defaultRack,
+      bcStatus, minimumStock, validationStatus, validationErrors: errors, validationWarnings: warnings
+    };
+  });
+}
+
+function bulkItemSummarize(rows) {
+  let valid = 0, warning = 0, invalid = 0, exists = 0;
+  rows.forEach(r => {
+    if (r.validationStatus === 'VALID') valid++;
+    else if (r.validationStatus === 'WARNING') warning++;
+    else if (r.validationStatus === 'EXISTS') exists++;
+    else invalid++;
+  });
+  return { valid, warning, invalid, exists, total: rows.length };
+}
+
+function downloadBulkItemTemplate() {
+  const rows = [
+    ['itemCode', 'name', 'specification', 'unit', 'categoryCode', 'vendorCode', 'rackCode', 'bcStatus', 'minimumStock'],
+    ['MAT-0001', 'Contoh Material', 'Spesifikasi contoh', 'PCS', 'ELEK', 'VEN-001', 'RAK-A01', 'NON_BC', '5']
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Item');
+  XLSX.writeFile(wb, 'Template_Bulk_Import_Item.xlsx');
+  toast('Template Excel berhasil diunduh');
+}
+const btnBulkItemDownloadTemplate = $('#btn-bulkitem-download-template');
+if (btnBulkItemDownloadTemplate) btnBulkItemDownloadTemplate.addEventListener('click', downloadBulkItemTemplate);
+
+const bulkItemFileInput = $('#bulkitem-file-input');
+let bulkItemValidatedRows = null; // cache hasil preview terakhir, dipakai saat Konfirmasi Import
+if (bulkItemFileInput) bulkItemFileInput.addEventListener('change', () => {
+  const f = bulkItemFileInput.files[0];
+  $('#btn-bulkitem-preview').disabled = !f;
+  const lbl = $('#bulkitem-file-label');
+  if (lbl) lbl.textContent = f ? f.name : 'Pilih file Excel (.xlsx) untuk diunggah…';
+  $('#bulkitem-preview-wrap').style.display = 'none';
+  bulkItemValidatedRows = null;
+});
+
+const btnBulkItemPreview = $('#btn-bulkitem-preview');
+if (btnBulkItemPreview) btnBulkItemPreview.addEventListener('click', async () => {
+  const file = bulkItemFileInput.files[0];
+  if (!file) { toast('Pilih file Excel terlebih dahulu'); return; }
+  const progEl = $('#bulkitem-preview-progress');
+  btnBulkItemPreview.disabled = true; btnBulkItemPreview.textContent = 'Memproses…';
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const { header, rows: rawRows } = migParseXLSX(arrayBuffer); // reuse parser generik dari Migrasi Data Historis
+    if (!rawRows.length) throw new Error('File kosong, sheet pertama tidak berisi data, atau format tidak terbaca');
+    const required = ['itemCode', 'name', 'unit'];
+    const missingCols = required.filter(c => !header.includes(c));
+    if (missingCols.length) throw new Error('Kolom wajib tidak ada di header: ' + missingCols.join(', '));
+
+    const validated = bulkItemValidateRows(rawRows);
+    bulkItemValidatedRows = validated;
+    const counts = bulkItemSummarize(validated);
+    const importable = counts.valid + counts.warning;
+
+    const problemRows = validated.filter(r => r.validationStatus === 'INVALID' || r.validationStatus === 'EXISTS');
+    const problemHtml = problemRows.length
+      ? `<div style="margin-top:8px;max-height:220px;overflow-y:auto;font-size:11px;">` +
+        problemRows.slice(0, 100).map(r => {
+          const tag = r.validationStatus === 'EXISTS' ? 'Sudah ada' : 'Invalid';
+          const msg = r.validationStatus === 'EXISTS' ? 'itemCode sudah terdaftar di Master Item' : r.validationErrors.join('; ');
+          return `<div style="padding:4px 0;border-bottom:1px solid var(--line-subtle);"><b>Baris ${r.rowNumber}</b> (${esc(r.itemCode || '(kosong)')}) — ${tag}: ${esc(msg)}</div>`;
+        }).join('') +
+        (problemRows.length > 100 ? `<div style="padding:4px 0;color:var(--ink-600);">…dan ${problemRows.length - 100} baris lain</div>` : '') +
+        `</div>`
+      : '';
+
+    $('#bulkitem-preview-body').innerHTML = `
+      <div style="font-size:12px;line-height:1.7;">
+        Total baris: <b>${counts.total}</b> · Siap diimpor: <b style="color:var(--color-primary);">${importable}</b>
+        (Valid: ${counts.valid}, Warning: ${counts.warning}) · Sudah ada (dilewati): ${counts.exists} · Invalid: ${counts.invalid}
+      </div>
+      ${problemHtml}
+      <button type="button" class="btn-action" id="btn-bulkitem-confirm" style="width:100%;margin-top:10px;" ${importable ? '' : 'disabled'}>
+        Konfirmasi Import ${importable} Item
+      </button>
+      <div id="bulkitem-import-progress" style="margin-top:6px;"></div>
+    `;
+    $('#bulkitem-preview-wrap').style.display = '';
+
+    const btnConfirm = $('#btn-bulkitem-confirm');
+    if (btnConfirm) btnConfirm.addEventListener('click', async () => {
+      btnConfirm.disabled = true;
+      const importProg = $('#bulkitem-import-progress');
+      const toImport = bulkItemValidatedRows.filter(r => r.validationStatus === 'VALID' || r.validationStatus === 'WARNING');
+      let done = 0, failed = 0;
+      const failMsgs = [];
+      for (const r of toImport) {
+        importProg.innerHTML = `<p style="font-size:11px;color:var(--ink-400);">Mengimpor ${done + 1} dari ${toImport.length}… (${r.itemCode})</p>`;
+        try {
+          const newId = await nextSeq('itemSeq', 'ITEM', 6);
+          await createWithUniqueCode('item', r.itemCode, 'items', newId, {
+            itemCode: r.itemCode, name: r.name, unit: r.unit, specification: r.specification,
+            categoryId: r.categoryId, vendorId: r.vendorId, defaultRack: r.defaultRack,
+            bcStatus: r.bcStatus, minimumStock: r.minimumStock,
+            status: 'ACTIVE', createdAt: serverTimestamp(), createdBy: auth.currentUser.uid
+          });
+          done++;
+        } catch (err) {
+          failed++;
+          failMsgs.push(`Baris ${r.rowNumber} (${r.itemCode}): ${err.message || 'error'}`);
+        }
+      }
+      importProg.innerHTML = `<p style="font-size:11.5px;">Selesai: <b>${done}</b> berhasil, <b>${failed}</b> gagal.</p>` +
+        (failMsgs.length ? `<div style="max-height:150px;overflow-y:auto;font-size:11px;color:var(--ink-600);">${failMsgs.map(esc).join('<br>')}</div>` : '');
+      toast(`Bulk import selesai: ${done} berhasil${failed ? `, ${failed} gagal` : ''}`);
+    });
+  } catch (err) {
+    console.error(err);
+    toast('Gagal memproses: ' + (err.message || 'error'));
+  } finally {
+    btnBulkItemPreview.disabled = false; btnBulkItemPreview.textContent = 'Validasi & Preview';
   }
 });
 
