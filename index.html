@@ -503,6 +503,96 @@
     .dash-card{padding:14px 10px;}
     .dash-card:nth-child(-n+2) .dash-card-value{font-size:23px;}
   }
+
+  /* ================================================================
+     DESKTOP UI ENHANCEMENT (v6.43) — presentation/layout only.
+     Mobile ≤767px: SEMUA rule di bawah ini terbungkus @media
+     min-width, nol dampak ke layout mobile existing (bottom-nav
+     fixed, modal bottom-sheet, dst tetap identik).
+     CSS-only, TIDAK ada HTML/JS baru — nav desktop memakai markup
+     nav.bottom-nav & .nav-item yang SAMA, hanya direposisi lewat
+     #app{display:flex} + order (bukan elemen baru).
+     ================================================================ */
+
+  /* ---- TABLET 768–1023px: hybrid, nav mobile existing dipertahankan
+     (jumlah nav item terlalu sedikit utk sidebar, dan di lebar ini
+     nav bottom-sheet-style masih lebih usable daripada dipaksa desktop) ---- */
+  @media (min-width:768px) and (max-width:1023px){
+    main{max-width:720px;padding:20px;}
+    .dash-cards{grid-template-columns:repeat(3,1fr);}
+    .modal-sheet{max-width:560px;}
+  }
+
+  /* ---- DESKTOP ≥1024px: app shell jadi operational workspace ---- */
+  @media (min-width:1024px){
+    /* #app jadi flex column supaya nav (DOM-nya tetap setelah main/modal,
+       tidak diubah) bisa divisualkan di antara topbar & main via `order`,
+       tanpa memindah satupun elemen di HTML. */
+    #app{display:flex;flex-direction:column;padding-bottom:0;}
+
+    header.topbar{
+      order:1;position:sticky;top:0;margin:0;border-radius:0;
+      padding:12px 24px;
+    }
+
+    /* Nav: hanya 4 destinasi (Dashboard/Master/History/Pengaturan) + 1 FAB
+       Scan — terlalu sedikit utk sidebar 220-240px (akan jadi ruang kosong
+       yang tidak proporsional), jadi dipakai compact horizontal nav,
+       ditempatkan tepat di bawah topbar (bukan floating, supaya tidak
+       overlap dgn conn-pill status di topbar kanan). */
+    nav.bottom-nav{
+      order:2;position:static;left:auto;right:auto;bottom:auto;
+      width:auto;margin:10px 24px 0;border-radius:16px;padding:6px;
+      justify-content:flex-start;
+    }
+    /* underline indicator didesain khusus utk geometri bottom-nav mobile
+       (rapat, translateX dari kiri) — di layout horizontal compact ini
+       digantikan .nav-item.active (background hijau, sudah ada), supaya
+       tidak berisiko nyangkut/salah posisi seperti bug lama v6.30/v6.32
+       yang justru muncul dari perhitungan translateX yang bergeser. */
+    .nav-indicator{display:none;}
+    .nav-item{flex:none;max-width:none;flex-direction:row;padding:8px 16px;min-height:38px;}
+    .nav-item span{font-size:11.5px;}
+    .nav-item-fab{margin-top:0;}
+    .nav-item-fab .fab-circle{width:36px;height:36px;box-shadow:none;}
+    .nav-item-fab .fab-circle svg{width:16px;height:16px;}
+
+    main{order:3;max-width:900px;padding:20px 24px;margin:0 auto;}
+
+    /* Dashboard KPI: 4 kolom (2 primary + 2 secondary per baris pertama
+       kalau 6 kartu total), breathing room lebih lega dari mobile 2-kolom */
+    .dash-cards{grid-template-columns:repeat(4,1fr);gap:14px;}
+
+    /* Modal: sudah center sejak breakpoint 560px (existing) — desktop
+       cuma beri ruang lebih supaya tidak terasa sempit di layar lebar.
+       Modal data-dense (Stock Card riwayat, batch label/kartu — daftar
+       item scrollable) dapat lebar ekstra utk kurangi scroll vertikal. */
+    .modal-sheet{max-width:560px;}
+    #modal-stockcard-overlay .modal-sheet,
+    #modal-labelbatch-overlay .modal-sheet,
+    #modal-rackbatch-overlay .modal-sheet,
+    #modal-kartubatch-overlay .modal-sheet{max-width:680px;}
+
+    /* List row Master: breathing room lebih lega. TIDAK direstrukturisasi
+       jadi grid kolom terpisah (Item | Spec | Stock | Status | Action) —
+       itu butuh ubah template renderMasterList() di JS, di luar scope
+       "CSS only preferred" utk enhancement ini; didokumentasikan sebagai
+       item lanjutan di Known Non-blocking Issues. */
+    .m-row{padding:14px 20px;}
+    .m-row-title{font-size:13.5px;}
+  }
+
+  /* ---- LARGE DESKTOP ≥1280px: breathing room, BUKAN scale-up ukuran
+     (button height/font-size/icon size sengaja TIDAK ditambah) ---- */
+  @media (min-width:1280px){
+    main{max-width:1120px;}
+    header.topbar{padding:14px 32px;}
+    nav.bottom-nav{margin:10px 32px 0;}
+  }
+  @media (min-width:1440px){
+    main{max-width:1260px;}
+  }
+
   .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
   .modal-head h3{font-size:15px;margin:0;}
   .btn-action{
@@ -1849,7 +1939,7 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.42'; // v6.42: fitur baru — Cetak Label Rak (Banyak Rak) di Pengaturan > Tools > Cetak & Ekspor, sejajar dengan Cetak Label (Banyak Item) & Cetak Kartu Stok (Banyak Item). Sebelumnya cetak label rak cuma bisa satu-per-satu lewat halaman "Cek Per Rak". Sekarang bisa pilih banyak rak sekaligus (search + qty per rak) lalu digabung jadi satu proses cetak/preview, pakai desain label QR yang SAMA PERSIS dengan printRackLabel single (lbl-card/lbl-grid), lewat modal ukuran kertas A4/A5 yang sudah ada (reuse modal-papersize, tipe baru 'rack-label-batch'). Murni UI baru + fungsi cetak client-side (window.print/print-area) — TIDAK ada perubahan Firestore schema/rules/transaction logic/data rak. JS syntax diverifikasi node --check OK, div balance modal baru diverifikasi seimbang (7/7), tidak ada duplicate id baru selain yang sudah pre-existing (pw, f-cancel, didokumentasikan di v6.41).
+const APP_VERSION = 'v6.43'; // v6.43: DESKTOP UI ENHANCEMENT — adaptive layout ≥768px (tablet hybrid) & ≥1024px (desktop operational workspace: topbar sticky full-width, nav.bottom-nav & nav-item existing direposisi jadi compact horizontal nav di bawah topbar via #app{display:flex}+order — TANPA elemen HTML baru, TANPA satu baris JS pun yang berubah selain string version ini), dashboard KPI 4-kolom, modal desktop center max-width 560-680px (data-dense: stock card/batch label/batch kartu lebih lebar), m-row breathing room, large desktop ≥1280/1440px content-width lega tanpa scale-up ukuran elemen. Mobile ≤767px 100% tidak berubah (semua rule dibungkus @media min-width). 100% CSS-only — diverifikasi diff byte-for-byte: JS body IDENTIK dgn v6.42 (0 baris beda di luar string version ini), HTML markup 0 baris berubah (div balance 527/526 sama persis dgn v6.42). CSS brace balance 480/480 PASS, node --check PASS. v6.42: fitur baru — Cetak Label Rak (Banyak Rak) di Pengaturan > Tools > Cetak & Ekspor, sejajar dengan Cetak Label (Banyak Item) & Cetak Kartu Stok (Banyak Item). Sebelumnya cetak label rak cuma bisa satu-per-satu lewat halaman "Cek Per Rak". Sekarang bisa pilih banyak rak sekaligus (search + qty per rak) lalu digabung jadi satu proses cetak/preview, pakai desain label QR yang SAMA PERSIS dengan printRackLabel single (lbl-card/lbl-grid), lewat modal ukuran kertas A4/A5 yang sudah ada (reuse modal-papersize, tipe baru 'rack-label-batch'). Murni UI baru + fungsi cetak client-side (window.print/print-area) — TIDAK ada perubahan Firestore schema/rules/transaction logic/data rak. JS syntax diverifikasi node --check OK, div balance modal baru diverifikasi seimbang (7/7), tidak ada duplicate id baru selain yang sudah pre-existing (pw, f-cancel, didokumentasikan di v6.41).
 // riwayat sebelumnya — v6.41: UI VISUAL QA — Release Polish setelah v6.40 UI Upgrade. CSS-only, TIDAK ada perubahan JS/business logic. (1) Focus-visible outline outward 2px (v6.40) dipecah: .nav-item (rapat di bottom-nav) & .m-row (bertumpuk hairline-only, tanpa gap) diubah ke outline INWARD (-2px) supaya ring tidak berisiko kepotong/tumpang-tindih tetangga — elemen lain (btn-primary/btn-ghost/btn-action/icon-btn/icon-btn-sm/action-tile/m-add-btn/modal-close/segmented button) tetap outward karena punya ruang sekitar. (2) .dash-card-clickable:focus-visible sebelumnya masih pakai var(--danger) (merah) dari sebelum UI Upgrade — diseragamkan ke var(--color-primary) (hijau) supaya semua focus ring konsisten satu warna. Diaudit juga: overflow-x guard global masih utuh, hierarki hero-number (30px, Stock Card) > KPI primary (24px) > KPI secondary (18px) tidak berubah, tidak ada CSS selector/brace baru yang rusak (362/362 balance), JS syntax PASS (node --check). Ditemukan 2 duplicate id ("f-cancel","pw") — PRE-EXISTING dari sebelum UI Upgrade (dipakai di template string form/print berbeda yang tidak pernah render bersamaan di DOM), didokumentasikan sebagai P3, tidak diubah (di luar scope visual QA, berisiko kalau disentuh tanpa tes JS mendalam). v6.40: UI UPGRADE — Premium Industrial Visual Redesign (CSS/markup-visual only, TIDAK ada perubahan business logic/API/database/transaction engine/stock calculation/migration/reconciliation/recovery/audit/validation/workflow/requestId/idempotency/double-submit guard). (1) Background diganti total — candy pastel blob (kuning/cyan/pink/ungu) yang generic-SaaS/childish diganti neutral cool-gray + ambient glow hijau brand tipis di 2 sudut + garis blueprint/technical grid halus yang memudar ke tepi (identitas manufacturing/warehouse); markup <span class="b1-b5"> dipertahankan (display:none) untuk nol risiko. (2) Dashboard KPI — 2 kartu primary (Item Aktif/Stok Rendah) sekarang punya elevation lebih kuat (shadow-md) + aksen garis brand tipis di tepi atas, jadi hierarki primary vs secondary KPI langsung terbaca tanpa mengandalkan ukuran font saja. (3) List row Master — padding dirapikan 13px/16px (dari 12px/14px) untuk rhythm yang lebih premium/lega. (4) Search Master — field-wrap lebih solid (border & shadow-sm) + makin solid saat focus, terasa sebagai command/operational search, bukan input biasa. (5) Header app — tb-name dapat letter-spacing halus, terasa lebih typeset. (6) Accessibility — tambah :focus-visible ring (var(--color-primary)) generik ke tombol/kontrol interaktif yang sebelumnya belum punya indikator fokus keyboard eksplisit (btn-primary/btn-ghost/btn-action/icon-btn/icon-btn-sm/nav-item/m-row/action-tile/m-add-btn/modal-close/segmented button) — melengkapi aria-label UX-5, tidak mengubah behavior. Semua perubahan CSS-only kecuali diberi catatan; JS syntax diverifikasi node --check OK, CSS brace-balance diverifikasi manual (361/361). UX-1/UX-2/UX-3/UX-4/UX-5 tidak tersentuh — tidak ada perubahan elemen/atribut yang dipakai event handler, hanya style. v6.32: FIX bug — garis indicator (underline hijau) bottom nav masih salah posisi (nempel di antara History/Pengaturan meski tab aktif Master), bug lanjutan dari v6.30. Root cause sebenarnya CSS: .nav-indicator posisinya position:absolute tanpa `left` eksplisit, jadi browser pakai "static position" bawaan dari flex layout (justify-content:space-around) sebagai titik nol — titik nol ini BUKAN 0 dan ikut bergeser begitu jumlah tombol nav yang tampil berubah (Master/Scan muncul setelah role diketahui), sehingga transform:translateX(...) yang dihitung dari getBoundingClientRect jadi ditumpuk di atas baseline yang salah/tidak konsisten antar item nav. Fix: tambah `left:0` eksplisit di CSS .nav-indicator supaya translateX selalu dihitung dari titik nol yang pasti (kiri dalam nav bar), match dengan referensi navRect.left yang dipakai di updateNavIndicator(). Tambahan: 2 tempat yang membuka form Transaksi langsung (openTransaksiForm dari Master, dan dari hasil Scan QR) sebelumnya melepas class .active dari semua tombol nav tanpa memanggil updateNavIndicator, sehingga indicator bisa nyangkut di posisi tab sebelumnya — sekarang eksplisit disembunyikan (reuse updateNavIndicator('transaksi'), sama seperti perilaku FAB Scan). CSS/JS-logic only, tidak ada perubahan Firestore schema/rules/transaction logic. v6.23: Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi. v6.24: fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu. v6.25: FIX bug lama — list Kategori di menu Master selalu kosong (currentTab+'s' salah generate 'categorys', bukan 'categories'). v6.26: baris list Item di Master — tambah baris Spesifikasi (muncul kalau field terisi, buat bedain item bernama mirip/terpotong), hapus badge Status AKTIF/ARSIP (redundan, urutan sort sudah taruh ARSIP di bawah). v6.27: font huruf & angka diganti ke standar native sistem (iOS/Android/Windows) — hapus dependency Google Fonts (Sora/Inter/JetBrains Mono), pakai -apple-system/Segoe UI/Roboto untuk teks & ui-monospace/SF Mono/Roboto Mono untuk angka-kode. v6.28: tombol Keluar di header atas diganti dengan badge nama user yang sedang login (avatar inisial + nama) — tap badge membuka halaman Pengaturan, tombol Keluar tetap ada di sana (btn-logout-2). v6.29: REVISI — badge nama user di header dihapus lagi, header kembali hanya menampilkan nama aplikasi + status Online. Profil user (nama/role/avatar) tetap tampil di halaman Pengaturan seperti semula. v6.30: FIX bug — garis indicator (underline hijau) bottom nav salah posisi setelah login (nempel di tab lain, bukan di tab aktif sebenarnya). Root cause: posisi indicator dihitung saat tombol Master/Scan masih hidden (default), lalu begitu role user diketahui dan tombol-tombol itu dimunculkan, layout nav bar bergeser (justify-content:space-around) tapi indicator tidak dihitung ulang. Sekarang posisi indicator direfresh begitu visibility tombol berdasarkan role diterapkan. Tidak ada perubahan Firestore schema/rules. v6.31: UX-4/UX-4.2/UX-5 — Visual Polish & Final Quality Gate (20 Agustus 2026). CSS/markup only, tidak ada perubahan Firestore schema/rules/transaction logic. (1) Button shape diaudit — sudah konsisten pill/rounded-14px, tidak ada perubahan kode. (2) Hero number typography — .trx-stock-box-value & .trx-success-final-value ditambah font-family:var(--font-mono) supaya angka stok/hasil transaksi terasa data-grade, selaras .dash-card-value. (3) Loading state distandarkan — komponen baru .app-loading/.app-loading-spinner (reuse @keyframes spin dari .boot-ring) menggantikan teks polos "Memuat…" di list utama Master, panel batch migrasi, dan modal Stock Card riwayat transaksi. (4) Token warna primary — var(--color-primary)/rgba(var(--red-600-rgb)) dipakai konsisten di komponen loading baru, tanpa mass-refactor reference lama. (5) Radius field form di modal Cetak Label/Cetak Kartu Stok & textarea alasan recovery diselaraskan ke 12px (dari 10px/8px), konsisten dgn field form lain. (6) Accessibility — 17 icon-only button (tombol close modal, kembali, cetak, hapus pencarian, tambah item, scan) ditambah aria-label deskriptif. Semua perubahan diverifikasi node --check (JS syntax OK) dan diff manual baris-per-baris; UX-1/UX-2/UX-3 (safety, workflow speed, complex workflow) tidak tersentuh.
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
