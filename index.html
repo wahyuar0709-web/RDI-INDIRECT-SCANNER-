@@ -1322,6 +1322,17 @@
 
         <div class="stg-row">
           <div class="stg-row-icon">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.85"/><rect x="14" y="5" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.85"/><rect x="3" y="16" width="7" height="3" rx="1" stroke="currentColor" stroke-width="1.85"/><rect x="14" y="16" width="7" height="3" rx="1" stroke="currentColor" stroke-width="1.85"/></svg>
+          </div>
+          <div class="stg-row-info">
+            <div class="t">Cetak Label Rak (Banyak Rak)</div>
+            <div class="d">Pilih beberapa rak sekaligus, cetak semua label QR-nya dalam satu proses.</div>
+          </div>
+          <button type="button" class="btn-action ghost" id="btn-open-rackbatch">Pilih</button>
+        </div>
+
+        <div class="stg-row">
+          <div class="stg-row-icon">
             <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <div class="stg-row-info">
@@ -1598,6 +1609,28 @@
     </div>
   </div>
 
+  <!-- ============ MODAL: PILIH RAK UNTUK CETAK LABEL RAK MASSAL ============ -->
+  <div class="modal-overlay" id="modal-rackbatch-overlay">
+    <div class="modal-sheet" style="max-height:85vh;display:flex;flex-direction:column;">
+      <div class="modal-head">
+        <h3>Cetak Label Rak — Pilih Rak</h3>
+        <button class="modal-close" id="modal-rackbatch-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div style="padding:14px 20px 0;flex-shrink:0;">
+        <input type="text" id="rackbatch-search" placeholder="Cari kode/nama rak..." style="width:100%;padding:9px 12px;border-radius:12px;border:1px solid var(--line);font-size:13px;">
+        <div style="display:flex;gap:14px;margin:10px 0 4px;">
+          <button type="button" class="link-btn" id="rackbatch-selectall">Pilih Semua</button>
+          <button type="button" class="link-btn" id="rackbatch-clearall">Kosongkan</button>
+        </div>
+      </div>
+      <div id="rackbatch-list" style="flex:1;overflow-y:auto;padding:6px 20px 12px;"></div>
+      <div class="modal-foot" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-shrink:0;">
+        <span id="rackbatch-count" style="font-size:12px;color:var(--ink-600);">0 rak dipilih</span>
+        <button type="button" class="btn-primary" id="rackbatch-proceed" style="width:auto;padding:10px 18px;">Lanjut →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ MODAL: PILIH ITEM UNTUK CETAK KARTU STOK MASSAL ============ -->
   <div class="modal-overlay" id="modal-kartubatch-overlay">
     <div class="modal-sheet" style="max-height:85vh;display:flex;flex-direction:column;">
@@ -1816,7 +1849,8 @@ const db = getFirestore(fbApp);
 //   supaya elemen tak-bisa-wrap serupa di masa depan tidak lagi melebarkan seluruh
 //   halaman/menggeser modal manapun.
 // =======================================================
-const APP_VERSION = 'v6.41'; // v6.41: UI VISUAL QA — Release Polish setelah v6.40 UI Upgrade. CSS-only, TIDAK ada perubahan JS/business logic. (1) Focus-visible outline outward 2px (v6.40) dipecah: .nav-item (rapat di bottom-nav) & .m-row (bertumpuk hairline-only, tanpa gap) diubah ke outline INWARD (-2px) supaya ring tidak berisiko kepotong/tumpang-tindih tetangga — elemen lain (btn-primary/btn-ghost/btn-action/icon-btn/icon-btn-sm/action-tile/m-add-btn/modal-close/segmented button) tetap outward karena punya ruang sekitar. (2) .dash-card-clickable:focus-visible sebelumnya masih pakai var(--danger) (merah) dari sebelum UI Upgrade — diseragamkan ke var(--color-primary) (hijau) supaya semua focus ring konsisten satu warna. Diaudit juga: overflow-x guard global masih utuh, hierarki hero-number (30px, Stock Card) > KPI primary (24px) > KPI secondary (18px) tidak berubah, tidak ada CSS selector/brace baru yang rusak (362/362 balance), JS syntax PASS (node --check). Ditemukan 2 duplicate id ("f-cancel","pw") — PRE-EXISTING dari sebelum UI Upgrade (dipakai di template string form/print berbeda yang tidak pernah render bersamaan di DOM), didokumentasikan sebagai P3, tidak diubah (di luar scope visual QA, berisiko kalau disentuh tanpa tes JS mendalam). v6.40: UI UPGRADE — Premium Industrial Visual Redesign (CSS/markup-visual only, TIDAK ada perubahan business logic/API/database/transaction engine/stock calculation/migration/reconciliation/recovery/audit/validation/workflow/requestId/idempotency/double-submit guard). (1) Background diganti total — candy pastel blob (kuning/cyan/pink/ungu) yang generic-SaaS/childish diganti neutral cool-gray + ambient glow hijau brand tipis di 2 sudut + garis blueprint/technical grid halus yang memudar ke tepi (identitas manufacturing/warehouse); markup <span class="b1-b5"> dipertahankan (display:none) untuk nol risiko. (2) Dashboard KPI — 2 kartu primary (Item Aktif/Stok Rendah) sekarang punya elevation lebih kuat (shadow-md) + aksen garis brand tipis di tepi atas, jadi hierarki primary vs secondary KPI langsung terbaca tanpa mengandalkan ukuran font saja. (3) List row Master — padding dirapikan 13px/16px (dari 12px/14px) untuk rhythm yang lebih premium/lega. (4) Search Master — field-wrap lebih solid (border & shadow-sm) + makin solid saat focus, terasa sebagai command/operational search, bukan input biasa. (5) Header app — tb-name dapat letter-spacing halus, terasa lebih typeset. (6) Accessibility — tambah :focus-visible ring (var(--color-primary)) generik ke tombol/kontrol interaktif yang sebelumnya belum punya indikator fokus keyboard eksplisit (btn-primary/btn-ghost/btn-action/icon-btn/icon-btn-sm/nav-item/m-row/action-tile/m-add-btn/modal-close/segmented button) — melengkapi aria-label UX-5, tidak mengubah behavior. Semua perubahan CSS-only kecuali diberi catatan; JS syntax diverifikasi node --check OK, CSS brace-balance diverifikasi manual (361/361). UX-1/UX-2/UX-3/UX-4/UX-5 tidak tersentuh — tidak ada perubahan elemen/atribut yang dipakai event handler, hanya style. v6.32: FIX bug — garis indicator (underline hijau) bottom nav masih salah posisi (nempel di antara History/Pengaturan meski tab aktif Master), bug lanjutan dari v6.30. Root cause sebenarnya CSS: .nav-indicator posisinya position:absolute tanpa `left` eksplisit, jadi browser pakai "static position" bawaan dari flex layout (justify-content:space-around) sebagai titik nol — titik nol ini BUKAN 0 dan ikut bergeser begitu jumlah tombol nav yang tampil berubah (Master/Scan muncul setelah role diketahui), sehingga transform:translateX(...) yang dihitung dari getBoundingClientRect jadi ditumpuk di atas baseline yang salah/tidak konsisten antar item nav. Fix: tambah `left:0` eksplisit di CSS .nav-indicator supaya translateX selalu dihitung dari titik nol yang pasti (kiri dalam nav bar), match dengan referensi navRect.left yang dipakai di updateNavIndicator(). Tambahan: 2 tempat yang membuka form Transaksi langsung (openTransaksiForm dari Master, dan dari hasil Scan QR) sebelumnya melepas class .active dari semua tombol nav tanpa memanggil updateNavIndicator, sehingga indicator bisa nyangkut di posisi tab sebelumnya — sekarang eksplisit disembunyikan (reuse updateNavIndicator('transaksi'), sama seperti perilaku FAB Scan). CSS/JS-logic only, tidak ada perubahan Firestore schema/rules/transaction logic. v6.23: Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi. v6.24: fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu. v6.25: FIX bug lama — list Kategori di menu Master selalu kosong (currentTab+'s' salah generate 'categorys', bukan 'categories'). v6.26: baris list Item di Master — tambah baris Spesifikasi (muncul kalau field terisi, buat bedain item bernama mirip/terpotong), hapus badge Status AKTIF/ARSIP (redundan, urutan sort sudah taruh ARSIP di bawah). v6.27: font huruf & angka diganti ke standar native sistem (iOS/Android/Windows) — hapus dependency Google Fonts (Sora/Inter/JetBrains Mono), pakai -apple-system/Segoe UI/Roboto untuk teks & ui-monospace/SF Mono/Roboto Mono untuk angka-kode. v6.28: tombol Keluar di header atas diganti dengan badge nama user yang sedang login (avatar inisial + nama) — tap badge membuka halaman Pengaturan, tombol Keluar tetap ada di sana (btn-logout-2). v6.29: REVISI — badge nama user di header dihapus lagi, header kembali hanya menampilkan nama aplikasi + status Online. Profil user (nama/role/avatar) tetap tampil di halaman Pengaturan seperti semula. v6.30: FIX bug — garis indicator (underline hijau) bottom nav salah posisi setelah login (nempel di tab lain, bukan di tab aktif sebenarnya). Root cause: posisi indicator dihitung saat tombol Master/Scan masih hidden (default), lalu begitu role user diketahui dan tombol-tombol itu dimunculkan, layout nav bar bergeser (justify-content:space-around) tapi indicator tidak dihitung ulang. Sekarang posisi indicator direfresh begitu visibility tombol berdasarkan role diterapkan. Tidak ada perubahan Firestore schema/rules. v6.31: UX-4/UX-4.2/UX-5 — Visual Polish & Final Quality Gate (20 Agustus 2026). CSS/markup only, tidak ada perubahan Firestore schema/rules/transaction logic. (1) Button shape diaudit — sudah konsisten pill/rounded-14px, tidak ada perubahan kode. (2) Hero number typography — .trx-stock-box-value & .trx-success-final-value ditambah font-family:var(--font-mono) supaya angka stok/hasil transaksi terasa data-grade, selaras .dash-card-value. (3) Loading state distandarkan — komponen baru .app-loading/.app-loading-spinner (reuse @keyframes spin dari .boot-ring) menggantikan teks polos "Memuat…" di list utama Master, panel batch migrasi, dan modal Stock Card riwayat transaksi. (4) Token warna primary — var(--color-primary)/rgba(var(--red-600-rgb)) dipakai konsisten di komponen loading baru, tanpa mass-refactor reference lama. (5) Radius field form di modal Cetak Label/Cetak Kartu Stok & textarea alasan recovery diselaraskan ke 12px (dari 10px/8px), konsisten dgn field form lain. (6) Accessibility — 17 icon-only button (tombol close modal, kembali, cetak, hapus pencarian, tambah item, scan) ditambah aria-label deskriptif. Semua perubahan diverifikasi node --check (JS syntax OK) dan diff manual baris-per-baris; UX-1/UX-2/UX-3 (safety, workflow speed, complex workflow) tidak tersentuh.
+const APP_VERSION = 'v6.42'; // v6.42: fitur baru — Cetak Label Rak (Banyak Rak) di Pengaturan > Tools > Cetak & Ekspor, sejajar dengan Cetak Label (Banyak Item) & Cetak Kartu Stok (Banyak Item). Sebelumnya cetak label rak cuma bisa satu-per-satu lewat halaman "Cek Per Rak". Sekarang bisa pilih banyak rak sekaligus (search + qty per rak) lalu digabung jadi satu proses cetak/preview, pakai desain label QR yang SAMA PERSIS dengan printRackLabel single (lbl-card/lbl-grid), lewat modal ukuran kertas A4/A5 yang sudah ada (reuse modal-papersize, tipe baru 'rack-label-batch'). Murni UI baru + fungsi cetak client-side (window.print/print-area) — TIDAK ada perubahan Firestore schema/rules/transaction logic/data rak. JS syntax diverifikasi node --check OK, div balance modal baru diverifikasi seimbang (7/7), tidak ada duplicate id baru selain yang sudah pre-existing (pw, f-cancel, didokumentasikan di v6.41).
+// riwayat sebelumnya — v6.41: UI VISUAL QA — Release Polish setelah v6.40 UI Upgrade. CSS-only, TIDAK ada perubahan JS/business logic. (1) Focus-visible outline outward 2px (v6.40) dipecah: .nav-item (rapat di bottom-nav) & .m-row (bertumpuk hairline-only, tanpa gap) diubah ke outline INWARD (-2px) supaya ring tidak berisiko kepotong/tumpang-tindih tetangga — elemen lain (btn-primary/btn-ghost/btn-action/icon-btn/icon-btn-sm/action-tile/m-add-btn/modal-close/segmented button) tetap outward karena punya ruang sekitar. (2) .dash-card-clickable:focus-visible sebelumnya masih pakai var(--danger) (merah) dari sebelum UI Upgrade — diseragamkan ke var(--color-primary) (hijau) supaya semua focus ring konsisten satu warna. Diaudit juga: overflow-x guard global masih utuh, hierarki hero-number (30px, Stock Card) > KPI primary (24px) > KPI secondary (18px) tidak berubah, tidak ada CSS selector/brace baru yang rusak (362/362 balance), JS syntax PASS (node --check). Ditemukan 2 duplicate id ("f-cancel","pw") — PRE-EXISTING dari sebelum UI Upgrade (dipakai di template string form/print berbeda yang tidak pernah render bersamaan di DOM), didokumentasikan sebagai P3, tidak diubah (di luar scope visual QA, berisiko kalau disentuh tanpa tes JS mendalam). v6.40: UI UPGRADE — Premium Industrial Visual Redesign (CSS/markup-visual only, TIDAK ada perubahan business logic/API/database/transaction engine/stock calculation/migration/reconciliation/recovery/audit/validation/workflow/requestId/idempotency/double-submit guard). (1) Background diganti total — candy pastel blob (kuning/cyan/pink/ungu) yang generic-SaaS/childish diganti neutral cool-gray + ambient glow hijau brand tipis di 2 sudut + garis blueprint/technical grid halus yang memudar ke tepi (identitas manufacturing/warehouse); markup <span class="b1-b5"> dipertahankan (display:none) untuk nol risiko. (2) Dashboard KPI — 2 kartu primary (Item Aktif/Stok Rendah) sekarang punya elevation lebih kuat (shadow-md) + aksen garis brand tipis di tepi atas, jadi hierarki primary vs secondary KPI langsung terbaca tanpa mengandalkan ukuran font saja. (3) List row Master — padding dirapikan 13px/16px (dari 12px/14px) untuk rhythm yang lebih premium/lega. (4) Search Master — field-wrap lebih solid (border & shadow-sm) + makin solid saat focus, terasa sebagai command/operational search, bukan input biasa. (5) Header app — tb-name dapat letter-spacing halus, terasa lebih typeset. (6) Accessibility — tambah :focus-visible ring (var(--color-primary)) generik ke tombol/kontrol interaktif yang sebelumnya belum punya indikator fokus keyboard eksplisit (btn-primary/btn-ghost/btn-action/icon-btn/icon-btn-sm/nav-item/m-row/action-tile/m-add-btn/modal-close/segmented button) — melengkapi aria-label UX-5, tidak mengubah behavior. Semua perubahan CSS-only kecuali diberi catatan; JS syntax diverifikasi node --check OK, CSS brace-balance diverifikasi manual (361/361). UX-1/UX-2/UX-3/UX-4/UX-5 tidak tersentuh — tidak ada perubahan elemen/atribut yang dipakai event handler, hanya style. v6.32: FIX bug — garis indicator (underline hijau) bottom nav masih salah posisi (nempel di antara History/Pengaturan meski tab aktif Master), bug lanjutan dari v6.30. Root cause sebenarnya CSS: .nav-indicator posisinya position:absolute tanpa `left` eksplisit, jadi browser pakai "static position" bawaan dari flex layout (justify-content:space-around) sebagai titik nol — titik nol ini BUKAN 0 dan ikut bergeser begitu jumlah tombol nav yang tampil berubah (Master/Scan muncul setelah role diketahui), sehingga transform:translateX(...) yang dihitung dari getBoundingClientRect jadi ditumpuk di atas baseline yang salah/tidak konsisten antar item nav. Fix: tambah `left:0` eksplisit di CSS .nav-indicator supaya translateX selalu dihitung dari titik nol yang pasti (kiri dalam nav bar), match dengan referensi navRect.left yang dipakai di updateNavIndicator(). Tambahan: 2 tempat yang membuka form Transaksi langsung (openTransaksiForm dari Master, dan dari hasil Scan QR) sebelumnya melepas class .active dari semua tombol nav tanpa memanggil updateNavIndicator, sehingga indicator bisa nyangkut di posisi tab sebelumnya — sekarang eksplisit disembunyikan (reuse updateNavIndicator('transaksi'), sama seperti perilaku FAB Scan). CSS/JS-logic only, tidak ada perubahan Firestore schema/rules/transaction logic. v6.23: Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi. v6.24: fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu. v6.25: FIX bug lama — list Kategori di menu Master selalu kosong (currentTab+'s' salah generate 'categorys', bukan 'categories'). v6.26: baris list Item di Master — tambah baris Spesifikasi (muncul kalau field terisi, buat bedain item bernama mirip/terpotong), hapus badge Status AKTIF/ARSIP (redundan, urutan sort sudah taruh ARSIP di bawah). v6.27: font huruf & angka diganti ke standar native sistem (iOS/Android/Windows) — hapus dependency Google Fonts (Sora/Inter/JetBrains Mono), pakai -apple-system/Segoe UI/Roboto untuk teks & ui-monospace/SF Mono/Roboto Mono untuk angka-kode. v6.28: tombol Keluar di header atas diganti dengan badge nama user yang sedang login (avatar inisial + nama) — tap badge membuka halaman Pengaturan, tombol Keluar tetap ada di sana (btn-logout-2). v6.29: REVISI — badge nama user di header dihapus lagi, header kembali hanya menampilkan nama aplikasi + status Online. Profil user (nama/role/avatar) tetap tampil di halaman Pengaturan seperti semula. v6.30: FIX bug — garis indicator (underline hijau) bottom nav salah posisi setelah login (nempel di tab lain, bukan di tab aktif sebenarnya). Root cause: posisi indicator dihitung saat tombol Master/Scan masih hidden (default), lalu begitu role user diketahui dan tombol-tombol itu dimunculkan, layout nav bar bergeser (justify-content:space-around) tapi indicator tidak dihitung ulang. Sekarang posisi indicator direfresh begitu visibility tombol berdasarkan role diterapkan. Tidak ada perubahan Firestore schema/rules. v6.31: UX-4/UX-4.2/UX-5 — Visual Polish & Final Quality Gate (20 Agustus 2026). CSS/markup only, tidak ada perubahan Firestore schema/rules/transaction logic. (1) Button shape diaudit — sudah konsisten pill/rounded-14px, tidak ada perubahan kode. (2) Hero number typography — .trx-stock-box-value & .trx-success-final-value ditambah font-family:var(--font-mono) supaya angka stok/hasil transaksi terasa data-grade, selaras .dash-card-value. (3) Loading state distandarkan — komponen baru .app-loading/.app-loading-spinner (reuse @keyframes spin dari .boot-ring) menggantikan teks polos "Memuat…" di list utama Master, panel batch migrasi, dan modal Stock Card riwayat transaksi. (4) Token warna primary — var(--color-primary)/rgba(var(--red-600-rgb)) dipakai konsisten di komponen loading baru, tanpa mass-refactor reference lama. (5) Radius field form di modal Cetak Label/Cetak Kartu Stok & textarea alasan recovery diselaraskan ke 12px (dari 10px/8px), konsisten dgn field form lain. (6) Accessibility — 17 icon-only button (tombol close modal, kembali, cetak, hapus pencarian, tambah item, scan) ditambah aria-label deskriptif. Semua perubahan diverifikasi node --check (JS syntax OK) dan diff manual baris-per-baris; UX-1/UX-2/UX-3 (safety, workflow speed, complex workflow) tidak tersentuh.
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -4063,7 +4097,7 @@ const APP_TITLE = document.title;
 
 // type: 'kartu' | 'kartu-batch' | 'label' | 'label-batch' | 'rack-label' | 'rack-stock'
 // 'kartu*' butuh pilih ukuran kertas; 'label*' tidak; 'rack-*' tetap perilaku lama (1x klik ukuran langsung cetak).
-function _papersizeNeedsSize(type){ return type==='kartu'||type==='kartu-batch'||type==='rack-label'||type==='rack-stock'; }
+function _papersizeNeedsSize(type){ return type==='kartu'||type==='kartu-batch'||type==='rack-label'||type==='rack-label-batch'||type==='rack-stock'; }
 function _papersizeHasModeChoice(type){ return type==='kartu'||type==='kartu-batch'||type==='label'||type==='label-batch'; }
 
 function _resetPapersizeUI(){
@@ -4108,6 +4142,14 @@ $('#papersize-size-row').querySelectorAll('button[data-size]').forEach(btn => {
       _closePapersizeModal();
       if (type === 'rack-label') printRackLabel(item, size);
       else printRackStockList(item, size);
+      return;
+    }
+    // rack-label-batch: sama seperti rack-label (langsung eksekusi tanpa pilihan cetak/PDF),
+    // tapi dari daftar banyak rak sekaligus (pendingPrintItems, bukan pendingPrintItem tunggal).
+    if (type === 'rack-label-batch') {
+      const entries = pendingPrintItems;
+      _closePapersizeModal();
+      printRackLabelsBatch(entries, size);
       return;
     }
     // kartu / kartu-batch: hanya tandai pilihan, tunggu klik Cetak/PDF.
@@ -4486,6 +4528,46 @@ async function printRackLabel(rack, size) {
   showPrintPreview();
 }
 
+// ---- CETAK LABEL RAK — BANYAK RAK SEKALIGUS ----
+// entries: [{ rack, qty }] — qty = berapa kali label rak itu diulang.
+// Semua label dari semua rak digabung jadi satu grid (sama desain lbl-card
+// dengan printRackLabel), dicetak/di-preview dalam satu proses.
+async function printRackLabelsBatch(entries, size) {
+  if (!entries || !entries.length) { toast('Tidak ada rak dipilih'); return; }
+  if (!size) { openBatchPrintPicker(entries, 'rack-label-batch'); return; }
+  if (typeof QRCode === 'undefined') { toast('Gagal memuat library QR. Cek koneksi internet.'); return; }
+
+  const printArea = $('#print-area');
+  const dateForFile = new Date().toISOString().slice(0, 10);
+
+  const cards = [];
+  entries.forEach(e => {
+    const rack = e.rack;
+    if (!rack) return;
+    for (let n = 0; n < e.qty; n++) cards.push(rack);
+  });
+  if (!cards.length) { toast('Tidak ada rak dipilih'); return; }
+
+  const cardsHtml = cards.map((rack, i) => `
+    <div class="lbl-card">
+      <div class="lbl-qr" id="lbl-qr-${i}"></div>
+      <div class="lbl-info">
+        <div class="lbl-co">PT RAYARD DELI INDONESIA</div>
+        <div class="lbl-code">${esc(rack.rackCode || '—')}</div>
+        <div class="lbl-name">${esc(rack.rackName || '')}</div>
+      </div>
+    </div>`).join('');
+
+  printArea.innerHTML = `<div class="lbl-grid">${cardsHtml}</div>`;
+  cards.forEach((rack, i) => {
+    new QRCode($(`#lbl-qr-${i}`), { text: rack.rackCode || rack.id, width: 60, height: 60, correctLevel: QRCode.CorrectLevel.M });
+  });
+
+  setPrintPageSize(size);
+  document.title = `LabelRak_Massal_${dateForFile}`;
+  showPrintPreview();
+}
+
 // ---- CETAK REKAP STOK PER RAK (FASE 2) ----
 // Daftar semua item + qty yang ada di satu rak, untuk stock opname fisik.
 function printRackStockList(rack, size) {
@@ -4750,6 +4832,110 @@ $('#labelbatch-proceed').addEventListener('click', () => {
   const entries = Array.from(labelBatchSelected.entries()).map(([id, qty]) => ({ item: state.items[id], qty }));
   $('#modal-labelbatch-overlay').classList.remove('show');
   printLabelsBatch(entries);
+});
+
+// ---- Modal pemilihan rak untuk cetak label rak massal ----
+const rackBatchSelected = new Map(); // rackId -> qty
+
+function openRackBatchModal() {
+  rackBatchSelected.clear();
+  $('#rackbatch-search').value = '';
+  renderRackBatchList('');
+  $('#modal-rackbatch-overlay').classList.add('show');
+}
+function getFilteredRackBatchItems(searchTerm) {
+  const term = (searchTerm || '').trim().toLowerCase();
+  let racks = Object.values(state.racks || {}).filter(r => r.status !== 'ARCHIVED');
+  if (term) {
+    racks = racks.filter(r =>
+      (r.rackCode || '').toLowerCase().includes(term) ||
+      (r.rackName || '').toLowerCase().includes(term)
+    );
+  }
+  return racks;
+}
+function renderRackBatchList(searchTerm) {
+  const listEl = $('#rackbatch-list');
+  const racks = getFilteredRackBatchItems(searchTerm);
+  racks.sort((a, b) => (a.rackCode || '').localeCompare(b.rackCode || ''));
+
+  if (!racks.length) {
+    listEl.innerHTML = '<p style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;">Tidak ada rak cocok.</p>';
+    updateRackBatchCount();
+    return;
+  }
+
+  listEl.innerHTML = racks.map(r => {
+    const checked = rackBatchSelected.has(r.id);
+    const qty = rackBatchSelected.get(r.id) || 1;
+    return `<div class="lb-row" data-id="${r.id}">
+      <input type="checkbox" class="lb-cb" ${checked ? 'checked' : ''}>
+      <div class="lb-row-info">
+        <div class="lb-row-name">${esc(r.rackCode || r.id)}</div>
+        <div class="lb-row-sub">${esc(r.rackName || '')}</div>
+      </div>
+      <div class="lb-row-qty" style="${checked ? '' : 'visibility:hidden;'}">
+        <span style="font-size:11px;color:var(--ink-600);">×</span>
+        <input type="number" class="lb-qty" min="1" value="${qty}">
+      </div>
+    </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.lb-row').forEach(row => {
+    const id = row.dataset.id;
+    const cb = row.querySelector('.lb-cb');
+    const qtyWrap = row.querySelector('.lb-row-qty');
+    const qtyInput = row.querySelector('.lb-qty');
+    const info = row.querySelector('.lb-row-info');
+
+    function toggle(checked) {
+      cb.checked = checked;
+      qtyWrap.style.visibility = checked ? 'visible' : 'hidden';
+      if (checked) rackBatchSelected.set(id, parseInt(qtyInput.value, 10) || 1);
+      else rackBatchSelected.delete(id);
+      updateRackBatchCount();
+    }
+    info.addEventListener('click', () => toggle(!cb.checked));
+    cb.addEventListener('click', (e) => { e.stopPropagation(); toggle(cb.checked); });
+    qtyInput.addEventListener('click', (e) => e.stopPropagation());
+    qtyInput.addEventListener('change', () => {
+      const v = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+      qtyInput.value = v;
+      if (rackBatchSelected.has(id)) rackBatchSelected.set(id, v);
+    });
+  });
+
+  updateRackBatchCount();
+}
+function updateRackBatchCount() {
+  const totalRacks = rackBatchSelected.size;
+  const totalLabels = Array.from(rackBatchSelected.values()).reduce((a, b) => a + b, 0);
+  $('#rackbatch-count').textContent = totalRacks
+    ? `${totalRacks} rak dipilih · ${totalLabels} label`
+    : '0 rak dipilih';
+}
+
+const btnOpenRackBatch = $('#btn-open-rackbatch');
+if (btnOpenRackBatch) btnOpenRackBatch.addEventListener('click', openRackBatchModal);
+
+$('#modal-rackbatch-close').addEventListener('click', () => $('#modal-rackbatch-overlay').classList.remove('show'));
+$('#modal-rackbatch-overlay').addEventListener('click', (e) => { if (e.target === $('#modal-rackbatch-overlay')) $('#modal-rackbatch-overlay').classList.remove('show'); });
+$('#rackbatch-search').addEventListener('input', (e) => renderRackBatchList(e.target.value));
+$('#rackbatch-selectall').addEventListener('click', () => {
+  getFilteredRackBatchItems($('#rackbatch-search').value).forEach(r => {
+    if (!rackBatchSelected.has(r.id)) rackBatchSelected.set(r.id, 1);
+  });
+  renderRackBatchList($('#rackbatch-search').value);
+});
+$('#rackbatch-clearall').addEventListener('click', () => {
+  rackBatchSelected.clear();
+  renderRackBatchList($('#rackbatch-search').value);
+});
+$('#rackbatch-proceed').addEventListener('click', () => {
+  if (!rackBatchSelected.size) { toast('Pilih minimal 1 rak dulu'); return; }
+  const entries = Array.from(rackBatchSelected.entries()).map(([id, qty]) => ({ rack: state.racks[id], qty }));
+  $('#modal-rackbatch-overlay').classList.remove('show');
+  printRackLabelsBatch(entries);
 });
 
 // ---- MODAL PILIH ITEM: CETAK KARTU STOK MASSAL (tanpa qty, 1 kartu/item) ----
