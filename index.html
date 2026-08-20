@@ -225,6 +225,22 @@
     font-size:14px;color:var(--ink-900);width:100%;
   }
   .field-wrap input::placeholder{color:var(--ink-400);}
+  /* UI REFINEMENT #7 F2 (P1): the only disabled <input> in the app (Kode Rak,
+     locked on edit) had zero disabled-state CSS — it rendered identical to
+     every editable pill field beside it, risking operator confusion about
+     why it won't accept edits. :has() already relied on elsewhere in this
+     file (see .dash-cards+.glass block), so safe to reuse here. */
+  .field-wrap:has(input:disabled){background:rgba(255,255,255,.45);}
+  .field-wrap input:disabled{color:var(--ink-400);cursor:not-allowed;}
+  /* FORM VALIDATION AUDIT: native required/pattern constraints genuinely gate
+     submit on modal-form & trx-form (verified — no novalidate, no JS bypass,
+     submit handlers run only after native validation passes). :user-invalid
+     only activates after user interaction or a failed submit attempt, so it
+     never shows red on an untouched empty field — satisfies "field belum
+     diisi ≠ field invalid". Reuses --warn (not --danger) per the app's own
+     established convention: routine validation ≠ actual system failure.
+     :has() pattern reused from the disabled-state rule directly above. */
+  .field-wrap:has(input:user-invalid){border-color:rgba(217,138,23,.45);box-shadow:0 0 0 3px rgba(217,138,23,.14);}
   #login-error{
     display:none;width:100%;background:rgba(214,54,44,.12);border:1px solid rgba(214,54,44,.25);
     color:var(--danger);font-size:12px;padding:9px 12px;border-radius:var(--radius-sm);margin-bottom:12px;text-align:center;
@@ -471,6 +487,30 @@
   .hist-date{color:var(--ink-400);}
   .m-empty{text-align:center;padding:30px 10px;color:var(--ink-400);font-size:12.5px;}
 
+  /* ================================================================
+     UI REFINEMENT #5 — MASTER ITEM LIST READABILITY (scoped to #m-list
+     only; .m-row/.m-row-tags/.badge classes are shared with History,
+     Rack, Low-Stock rows elsewhere, so every rule here is prefixed
+     #m-list to avoid touching those). CSS-only, 0 HTML/JS diff.
+     ================================================================ */
+  /* F1 (P2): stock/rack badges previously packed tight against each other
+     with a bare 6px magic-number gap; bumped to --space-2 token so the
+     higher-priority stock value reads as visually separate from the
+     secondary rack tag. */
+  #m-list .m-row .m-row-tags{gap:var(--space-2);}
+  /* F2 (P2): the stock badge (always first in .m-row-tags for item rows)
+     had no minimum width, so its digits landed at a different horizontal
+     position on every row depending on value length — breaks the "scan
+     straight down a column" pattern operators rely on for stock checks.
+     min-width + right-aligned content gives a consistent digit column;
+     values wider than the minimum simply grow past it, unaffected. */
+  #m-list .m-row .m-row-tags .badge:first-child{min-width:54px;justify-content:flex-end;}
+  /* F3 (P2): rows with a Specification line (3 lines) vs without (2 lines)
+     had different heights, breaking scan rhythm down the list. Reserving
+     a consistent min-height on the text block means every row occupies
+     the same vertical space regardless of whether Specification is present. */
+  #m-list .m-row-main{min-height:46px;display:flex;flex-direction:column;justify-content:center;}
+
   /* ---------- MODAL ---------- */
   .modal-overlay{
     position:fixed;inset:0;z-index:800;background:rgba(21,27,43,.45);
@@ -519,7 +559,7 @@
      nav bottom-sheet-style masih lebih usable daripada dipaksa desktop) ---- */
   @media (min-width:768px) and (max-width:1023px){
     main{max-width:720px;padding:20px;}
-    .dash-cards{grid-template-columns:repeat(3,1fr);}
+    main .dash-cards{grid-template-columns:repeat(3,1fr);}
     .modal-sheet{max-width:560px;}
   }
 
@@ -528,11 +568,11 @@
     /* #app jadi flex column supaya nav (DOM-nya tetap setelah main/modal,
        tidak diubah) bisa divisualkan di antara topbar & main via `order`,
        tanpa memindah satupun elemen di HTML. */
-    #app{display:flex;flex-direction:column;padding-bottom:0;}
+    #app.show{display:flex;flex-direction:column;padding-bottom:0;}
 
     header.topbar{
       order:1;position:sticky;top:0;margin:0;border-radius:0;
-      padding:12px 24px;
+      padding:12px max(24px, calc((100% - 900px)/2 + 24px));
     }
 
     /* Nav: hanya 4 destinasi (Dashboard/Master/History/Pengaturan) + 1 FAB
@@ -542,7 +582,7 @@
        overlap dgn conn-pill status di topbar kanan). */
     nav.bottom-nav{
       order:2;position:static;left:auto;right:auto;bottom:auto;
-      width:auto;margin:10px 24px 0;border-radius:16px;padding:6px;
+      width:auto;margin:10px max(24px, calc((100% - 900px)/2 + 24px)) 0;border-radius:16px;padding:6px;
       justify-content:flex-start;
     }
     /* underline indicator didesain khusus utk geometri bottom-nav mobile
@@ -551,17 +591,22 @@
        tidak berisiko nyangkut/salah posisi seperti bug lama v6.30/v6.32
        yang justru muncul dari perhitungan translateX yang bergeser. */
     .nav-indicator{display:none;}
-    .nav-item{flex:none;max-width:none;flex-direction:row;padding:8px 16px;min-height:38px;}
+    .nav-item{flex:none;max-width:none;flex-direction:row;gap:var(--space-2);padding:8px 16px;min-height:38px;}
     .nav-item span{font-size:11.5px;}
+    /* Scan tetap operational primary action di compact horizontal nav —
+       fab-circle diberi ukuran & shadow sedikit di atas nav-item biasa
+       (reuse box-shadow .tb-badge yang sudah ada, bukan token baru) supaya
+       Scan tidak melebur rata dengan item navigasi lain. Tidak ada
+       animasi/glow baru, ikon tidak diubah. */
     .nav-item-fab{margin-top:0;}
-    .nav-item-fab .fab-circle{width:36px;height:36px;box-shadow:none;}
-    .nav-item-fab .fab-circle svg{width:16px;height:16px;}
+    .nav-item-fab .fab-circle{width:40px;height:40px;box-shadow:0 4px 12px -4px rgba(20,108,67,.5);}
+    .nav-item-fab .fab-circle svg{width:17px;height:17px;}
 
-    main{order:3;max-width:900px;padding:20px 24px;margin:0 auto;}
+    main{order:3;width:100%;max-width:900px;padding:20px 24px;margin:0 auto;}
 
     /* Dashboard KPI: 4 kolom (2 primary + 2 secondary per baris pertama
        kalau 6 kartu total), breathing room lebih lega dari mobile 2-kolom */
-    .dash-cards{grid-template-columns:repeat(4,1fr);gap:14px;}
+    main .dash-cards{grid-template-columns:repeat(4,1fr);gap:14px;}
 
     /* Modal: sudah center sejak breakpoint 560px (existing) — desktop
        cuma beri ruang lebih supaya tidak terasa sempit di layar lebar.
@@ -572,6 +617,11 @@
     #modal-labelbatch-overlay .modal-sheet,
     #modal-rackbatch-overlay .modal-sheet,
     #modal-kartubatch-overlay .modal-sheet{max-width:680px;}
+    /* UI REFINEMENT #6 F4 (P3): sheet lebih lebar (560-680px) di desktop tapi
+       padding horizontal masih 20px warisan mobile — konten jadi terasa
+       mepet ke tepi relatif thd ruang yang tersedia. max-width TIDAK diubah
+       (sesuai §2), hanya breathing room kiri/kanan. */
+    .modal-sheet{padding-left:var(--space-6);padding-right:var(--space-6);}
 
     /* List row Master: breathing room lebih lega. TIDAK direstrukturisasi
        jadi grid kolom terpisah (Item | Spec | Stock | Status | Action) —
@@ -586,11 +636,13 @@
      (button height/font-size/icon size sengaja TIDAK ditambah) ---- */
   @media (min-width:1280px){
     main{max-width:1120px;}
-    header.topbar{padding:14px 32px;}
-    nav.bottom-nav{margin:10px 32px 0;}
+    header.topbar{padding:14px max(32px, calc((100% - 1120px)/2 + 24px));}
+    nav.bottom-nav{margin:10px max(32px, calc((100% - 1120px)/2 + 24px)) 0;}
   }
   @media (min-width:1440px){
     main{max-width:1260px;}
+    header.topbar{padding-left:max(32px, calc((100% - 1260px)/2 + 24px));padding-right:max(32px, calc((100% - 1260px)/2 + 24px));}
+    nav.bottom-nav{margin-left:max(32px, calc((100% - 1260px)/2 + 24px));margin-right:max(32px, calc((100% - 1260px)/2 + 24px));}
   }
 
   .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
@@ -621,7 +673,20 @@
   .m-field select, .m-field textarea{
     width:100%;padding:11px 14px;border-radius:12px;border:1px solid rgba(30,36,48,.12);
     font-size:13.5px;background:rgba(255,255,255,.85);color:var(--ink-900);outline:none;font-family:inherit;
+    transition:border-color .15s ease,box-shadow .15s ease;
   }
+  /* UI POLISH AUDIT — Finding #1 (P1): outline:none di atas sebelumnya tidak
+     punya replacement fokus sama sekali (beda dari .field-wrap input yang
+     dikompensasi .field-wrap:focus-within, dan .stg-input yang sudah punya
+     .stg-input:focus). Pola & token disamakan persis dgn .stg-input:focus
+     yang sudah ada — CSS-only, tidak menyentuh HTML/JS/validation logic. */
+  .m-field select:focus, .m-field textarea:focus{
+    border-color:var(--color-primary);box-shadow:0 0 0 3px rgba(var(--red-600-rgb),.12);
+  }
+  /* FORM VALIDATION AUDIT: bare (unwrapped) select — trx-itemId — same
+     :user-invalid rationale as .field-wrap rule above; :focus wins via
+     source order when both would otherwise apply. */
+  .m-field select:user-invalid{border-color:var(--warn);box-shadow:0 0 0 3px rgba(217,138,23,.14);}
   .m-field textarea{resize:vertical;min-height:56px;}
   .m-field .field-wrap{background:rgba(255,255,255,.85);border-radius:12px;}
   .m-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -633,12 +698,50 @@
   }
   .trx-stock-box-label{font-size:10.5px;font-weight:700;color:var(--ink-600);letter-spacing:.03em;}
   .trx-stock-box-value{font-size:15px;font-weight:800;color:var(--ink-900);font-family:var(--font-mono);}
+  /* UI QUALITY PASS — Phase 2 Finding (P2): #trx-qty was the only number in
+     the ITEM → CURRENT STOCK → QUANTITY → RESULT STOCK chain still styled as
+     a plain .field-wrap input (14px regular), while its neighbors here
+     (.trx-stock-box-value, directly above) are already "data-grade" per the
+     app's own v6.31 convention (mono, 800 weight, larger). Scoped to #trx-qty
+     only — no other .field-wrap input touched, no other form affected. */
+  #trx-qty{font-family:var(--font-mono);font-size:19px;font-weight:800;letter-spacing:-.01em;}
   .trx-stock-box.result{border-color:rgba(20,108,67,.22);}
   .trx-stock-box.result.insufficient{border-color:rgba(214,54,44,.3);}
   .trx-stock-box.result.insufficient .trx-stock-box-value{color:var(--danger);}
   .trx-warn-box{
     font-size:12px;line-height:1.6;color:#fff;background:var(--danger);
     padding:10px 12px;border-radius:10px;margin:-2px 0 12px;font-weight:600;white-space:pre-line;
+  }
+  /* UI REFINEMENT #7 F1 (P1): #trx-insufficient-warning (pre-submit validation —
+     "kurangi qty") & #trx-error-panel (genuine post-submit failure — network/
+     permission/idempotency) shared the identical solid-red .trx-warn-box look,
+     so a real submission error read exactly like a routine "reduce quantity"
+     nudge. Insufficient-stock gets the app's existing light-tint --warn banner
+     treatment (same rgba formula as .dash-error-banner) instead — #trx-error-panel
+     keeps solid --danger untouched, so severity is now visually distinct.
+     Text uses --ink-900 (not --warn) to keep contrast solid on the light tint. */
+  #trx-insufficient-warning.trx-warn-box{
+    background:rgba(217,138,23,.13);border:1px solid rgba(217,138,23,.35);
+    color:var(--ink-900);
+  }
+  /* PHASE 3.1 — P1 FIX: #trx-anomaly-warning (advisory, non-blocking) vs
+     #trx-insufficient-warning (blocking, disables submit) previously used
+     near-identical ambers (inline #a15c00 / rgba(255,193,7,.16) here vs the
+     --warn-based rule above), so the two could not be told apart when
+     stacked. Inline color/background overridden via !important (only way to
+     safely beat inline-style specificity without touching HTML/JS — same
+     technique already used elsewhere in this file, e.g. .dash-cards+.glass).
+     Hierarchy: background .07 (vs blocking's .13), border .22 1px (vs
+     blocking's .35 1px), font-weight 500 (vs blocking's inherited 600) —
+     advisory reads lighter/quieter, blocking reads heavier/more urgent.
+     Text kept at --ink-900 (not the amber hue) on both, for AA contrast on a
+     light tint per accessibility constraint — matches #trx-insufficient-
+     warning's own established convention immediately above. */
+  #trx-anomaly-warning{
+    color:var(--ink-900)!important;
+    background:rgba(217,138,23,.07)!important;
+    border:1px solid rgba(217,138,23,.22);
+    font-weight:500;
   }
   .trx-success-panel{
     background:rgba(30,158,100,.08);border:1.5px solid rgba(30,158,100,.35);
@@ -649,12 +752,19 @@
   .trx-success-qty{font-size:12px;color:var(--ink-600);margin:2px 0 8px;}
   .trx-success-final-label{font-size:10px;color:var(--ink-400);text-transform:uppercase;letter-spacing:.04em;}
   .trx-success-final-value{font-size:16px;font-weight:800;color:var(--ok);font-family:var(--font-mono);}
-  .m-actions{display:flex;gap:10px;margin-top:16px;}
+  .m-actions{display:flex;gap:10px;margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--line-subtle);}
   .btn-ghost{
     flex:1;padding:12px;border-radius:999px;border:1.5px solid rgba(30,36,48,.15);
     background:transparent;color:var(--ink-700,var(--ink-900));font-weight:700;font-size:13px;cursor:pointer;
   }
   .btn-primary.flex1{flex:1;margin-top:0;}
+  /* UI REFINEMENT #6 F1 (P1): Batal & Simpan sebelumnya flex:1 berdua (50/50) —
+     primary/save kalah ruang meski sudah beda warna, tidak sejalan dgn target
+     "primary paling mudah ditemukan". Scoped ke .m-actions saja (.btn-ghost
+     standalone di luar .m-actions, mis. tombol "Ubah Pilihan" print-preview,
+     tidak tersentuh — flex:1 basenya tetap sama). */
+  .m-actions .btn-ghost{flex:.8;}
+  .m-actions .btn-primary.flex1{flex:1.3;}
 
   /* ---------- DETAIL ITEM (PREMIUM PASS) ---------- */
   .detail-subhead{display:flex;align-items:center;gap:12px;margin:-4px 0 16px;}
@@ -778,6 +888,22 @@
     cursor:pointer;
   }
   .dash-card-clickable:hover{transform:translateY(-1px);box-shadow:var(--shadow-md),var(--glass-highlight);}
+  /* UI REFINEMENT #3 — Dashboard section hierarchy: pisahkan tier "KPI →
+     operational sections" dari tier "operational → recent activity (secondary
+     info)" via spacing, sesuai target eksplisit spec (Dashboard title → KPI →
+     Operational sections → Recent activity/secondary info). Sebelumnya SEMUA
+     transisi antar section pakai margin-top:14px inline yang seragam, jadi 3
+     tier itu terasa flat. CSS-only, TIDAK menyentuh HTML — kedua panel target
+     tidak punya id/class unik sendiri, jadi dipilih lewat sibling-combinator
+     (Stok Rendah = .glass persis setelah .dash-cards) & :has() (Aktivitas
+     Terbaru = satu-satunya .glass yang membungkus #dash-recent-list di
+     dashboard) — bukan mengedit atribut style di markup. !important wajib
+     karena inline style HTML (specificity 1,0,0,0) selalu menang atas rule
+     CSS manapun tanpa itu. Gap operasional-ke-operasional (Stok Rendah→Cek
+     Per Rak→Transaksi Baru, tetap 14px) sengaja TIDAK diubah — itu satu
+     klaster aksi yang memang dirancang rapat/related, bukan tier terpisah. */
+  .dash-cards + .glass{margin-top:var(--space-6)!important;}
+  section[data-view="dashboard"] .glass:has(#dash-recent-list){margin-top:var(--space-7)!important;}
   .dash-card-clickable:active{transform:scale(.98);box-shadow:var(--shadow-pressed);}
   .dash-card-clickable:focus-visible{outline:2px solid var(--color-primary);outline-offset:-2px;} /* QA FIX: was var(--danger), tidak konsisten dgn ring focus lain */
   /* PHASE UX-2 P0 — Fix #1: error banner, pakai token --warn existing (bukan
