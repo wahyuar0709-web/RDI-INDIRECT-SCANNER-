@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v6.54</title>
+<title>RDI Indirect Inventory v6.55</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -2232,8 +2232,9 @@ document.addEventListener('keydown', function(e){
 // v6.24 — fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu.
 // v6.23 — Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi.
 // v6.54 — MAINTAINABILITY (comment/struktur only, TIDAK ada perubahan logic/data/schema). (1) Tambah blok DAFTAR ISI (TOC) di paling atas script, referensi ke nama section banner (bukan nomor baris, supaya tidak basi saat file bertambah panjang) — cari via Ctrl+F. (2) Tambah 8 section banner baru untuk modul yang sebelumnya tidak ditandai (Pengaturan & Tools, Navigasi & UI Helpers, Cetak Label Barang, Batch Print Modals, Dashboard & Low Stock, Master List Render, Form Modal & CRUD Generik, Detail Item Modal) — total kini 20 banner, konsisten format "// ================= NAMA =================" supaya bisa di-Ctrl+F & di-fold di editor manapun. (3) Changelog v6.31-v6.53 yang sebelumnya menumpuk jadi 1 baris raksasa (+ 3 baris "riwayat sebelumnya" terpisah, total >13rb karakter dalam 4 baris) dipecah jadi 1 baris = 1 versi, sorted terbaru di atas — mudah dibaca & mudah ditambah entry baru tanpa risiko salah edit di tengah blok teks panjang. Semua isi/histori dipertahankan 100%, tidak ada info yang dihapus. node --check PASS semua 5 blok script.
+// v6.55 — FIX bug user: row History Transaksi masih menampilkan info transaksi (rak/vendor/no SJ-PO/nama user) di baris ke-3, padahal seharusnya info item di History = PERSIS sama dengan Master (kode material/nama material/spesifikasi saja, via renderRow('item',...)). Baris trxSub dihapus total dari tampilan renderHistRow (bukan cuma vendor-nya, semua field rak/vendor/noSjPo/createdByName tidak lagi dirender di list — masih tersimpan utuh di dokumen transaksi Firestore untuk reconciliation/ledger/audit trail, tidak dihapus/diubah). Tanggal transaksi (kebutuhan spesifik History, tidak ada di Master) dipindah ke kolom kanan (m-row-tags) di atas badge TYPE, font kecil & dim, supaya tidak lagi bercampur dengan baris data item. JS-only, tidak ada perubahan Firestore schema/rules/transaction engine/stock calculation. node --check PASS.
 // ===============================================================
-const APP_VERSION = 'v6.54';
+const APP_VERSION = 'v6.55';
 console.log('RDI Indirect Inventory', APP_VERSION);
 const pgnVersionEl = document.getElementById('pgn-appversion');
 if (pgnVersionEl) pgnVersionEl.textContent = APP_VERSION;
@@ -4377,14 +4378,6 @@ function renderHistRow(t) {
   // label "SALDO AWAL"-nya dibawa oleh tag TYPE di kolom kanan (lihat typeLabel),
   // bukan lagi suffix kecil di title (lihat computeReconciliation/renderDashboard
   // untuk exclusion di KPI/metrik — tidak disentuh).
-  // RACK diprioritaskan lebih dulu (info sekunder yang tetap relevan operasional),
-  // DATE dipindah ke akhir baris & didim (lihat .hist-date) — tetap ada, tidak mendominasi.
-  const trxSub = [
-    t.rackId ? (state.racks[t.rackId]?.rackCode || '') : '',
-    isMasuk && !isOpening && t.vendorId ? (state.vendors[t.vendorId]?.vendorName || '') : '',
-    isMasuk && !isOpening && t.noSjPo ? t.noSjPo : '',
-    t.createdByName || ''
-  ].filter(Boolean).join(' · ');
   const dateStr = fmtDateTime(t.createdAt);
   // PREMIUM PASS 2: icon-chip kecil di kiri baris (fintech-modern transaction
   // list) — variant warna reuse .icon-chip.ok/.danger existing; .opening
@@ -4395,13 +4388,17 @@ function renderHistRow(t) {
       ? '<path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>'
       : '<path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>';
   const chipVariant = isOpening ? 'opening' : (isMasuk ? 'ok' : 'danger');
-  // v6.47: FIX overlap/kepotong — sebelumnya title menggabungkan TYPE+kode+nama
-  // jadi 1 baris nowrap-ellipsis yang sempit, nama item sering kepotong ("...").
-  // Sekarang struktur baris disamakan PERSIS dengan Master (renderRow('item',...)):
-  // title = nama item saja, sub = kode · unit, baris Spesifikasi kalau ada —
-  // TYPE MASUK/KELUAR/SALDO AWAL & qty dipindah ke kolom kanan (m-row-tags,
-  // ditumpuk vertikal) supaya tidak berebut ruang dgn nama item. Info transaksi
-  // (rak/vendor/no SJ-PO/nama user) + tanggal tetap ada, ditaruh di baris ke-3.
+  // v6.55: FIX — user melaporkan History menampilkan vendor (info transaksi)
+  // padahal seharusnya info item di History = PERSIS sama dengan Master (kode
+  // material, nama material, spesifikasi saja). Baris ke-3 (rak/vendor/no
+  // SJ-PO/nama user) DIHAPUS dari tampilan list — bukan cuma "kurangi vendor",
+  // tapi disamakan 100% dengan struktur renderRow('item',...): title=nama,
+  // sub=kode·unit, specLine=spesifikasi. Tanggal transaksi TETAP ditampilkan
+  // (kebutuhan History, beda dari Master) tapi dipindah ke kolom kanan
+  // (m-row-tags, di atas badge TYPE, kecil & dim) supaya tidak bercampur
+  // dengan data item. Rak/vendor/no SJ-PO/nama user TIDAK dihapus dari
+  // Firestore — hanya tidak dirender di list; tetap ada di dokumen transaksi
+  // untuk kebutuhan lain (reconciliation/audit trail/ledger), tidak disentuh.
   const itemName = item ? esc(item.name || '(tanpa nama)') : `(item ${esc(t.itemId||'—')})`;
   const codeUnitSub = item ? `${esc(item.itemCode||'')}${item.unit ? ' · '+esc(item.unit) : ''}` : '';
   const specLine = item?.specification ? `<div class="m-row-spec">${esc(item.specification)}</div>` : '';
@@ -4410,10 +4407,10 @@ function renderHistRow(t) {
     <div class="m-row-main">
       <div class="m-row-title">${itemName}</div>
       ${codeUnitSub ? `<div class="m-row-sub">${codeUnitSub}</div>` : ''}
-      <div class="m-row-sub">${trxSub ? esc(trxSub) + ' · ' : ''}<span class="hist-date">${dateStr}</span></div>
       ${specLine}
     </div>
     <div class="m-row-tags" style="flex-direction:column;align-items:flex-end;gap:4px;">
+      <span class="hist-date" style="font-size:11px;">${dateStr}</span>
       <span class="hist-type hist-type-${typeClass}">${typeLabel}</span>
       <span class="badge active" style="${qtyStyle}">${sign}${t.qty} ${esc(item?.unit||'')}</span>
     </div>
