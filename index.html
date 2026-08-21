@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>RDI Indirect Inventory v6.55</title>
+<title>RDI Indirect Inventory v6.59</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#146C43">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -1418,6 +1418,12 @@
         </div>
         <div id="hist-list"></div>
         <p id="hist-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:20px 0;" hidden>Belum ada transaksi.</p>
+        <!-- v6.57 — FITUR BARU: Muat Lebih. Listener realtime utama dibatasi limit(150)
+             (perf/quota), sebelumnya transaksi lebih lama dari itu tidak bisa dilihat
+             dari History sama sekali. Tombol ini fetch batch lebih lama (one-time getDocs,
+             bukan realtime) lewat startAfter, di-append ke data yang sudah ada. -->
+        <button type="button" class="btn-ghost" id="hist-load-more" style="width:100%;margin-top:10px;" hidden>Muat Lebih</button>
+        <p id="hist-load-more-status" style="text-align:center;font-size:12px;color:var(--ink-400);padding:10px 0 0;" hidden></p>
       </div>
     </section>
 
@@ -1443,6 +1449,12 @@
         </div>
         <button class="m-add-btn" id="m-add-btn" aria-label="Tambah item" title="Tambah">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
+        </button>
+        <!-- v6.56 — FITUR BARU: Tambah Rak Banyak (bulk create by letter range, mis. RAK-1-A s/d RAK-1-Q).
+             Hanya tampil di tab Rak (toggle di js/switchMasterTab), tidak mengubah tombol m-add-btn yang
+             sudah ada (masih dipakai untuk tambah 1 rak manual). TIDAK ADA fitur hapus rak yang ditambah/diubah. -->
+        <button class="m-add-btn" id="m-add-batch-btn" aria-label="Tambah rak banyak" title="Tambah Banyak" hidden>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v4H4zM4 10h16v4H4zM4 16h16v4H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 8.5v3M10.5 10h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
       </div>
 
@@ -1718,6 +1730,31 @@
         </div>
       </div>
 
+      <!-- ============ v6.59 — MANAJEMEN AKUN (Opsi 2) ============
+           Sebelumnya akun operator HANYA bisa dibuat manual di Firebase Console
+           (tidak ada jalur dari dalam app). Card ini: list akun + tombol Tambah
+           Akun Operator (pakai secondary Firebase App, lihat fbApp2/auth2 di atas)
+           + toggle Aktifkan/Nonaktifkan (bukan hapus — konsisten dgn pola
+           items/categories/vendors/racks, hard delete akun sengaja tidak ada). -->
+      <div class="glass stg-card is-collapsed" style="margin-top:14px;padding-bottom:18px;" data-role="ADMIN" hidden>
+        <div class="stg-card-head" role="button" tabindex="0" aria-expanded="false">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Manajemen Akun
+          </h2>
+          <div class="stg-card-head-right">
+            <span class="stg-chip">Baru</span>
+            <svg class="stg-chevron" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <p class="stg-card-sub">Kelola akun operator langsung dari app — tidak perlu lagi buka Firebase Console.</p>
+        <div class="stg-card-body">
+          <button type="button" class="btn-action gradient" id="btn-open-addaccount" style="width:100%;">+ Tambah Akun Operator</button>
+          <div id="account-list" style="margin-top:12px;"></div>
+          <p id="account-list-empty" style="text-align:center;font-size:12px;color:var(--ink-400);padding:14px 0;" hidden>Belum ada akun terdaftar.</p>
+        </div>
+      </div>
+
       <!-- ============ ROADMAP PHASE 6: MIGRASI DATA HISTORIS ============ -->
       <div class="glass stg-card is-collapsed" style="margin-top:14px;padding-bottom:18px;" data-role="ADMIN" hidden>
         <div class="stg-card-head" role="button" tabindex="0" aria-expanded="false">
@@ -1789,6 +1826,60 @@
         <button class="modal-close" id="modal-form-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <form id="modal-form"></form>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: TAMBAH RAK BANYAK (v6.56) ============
+       Bulk-create rak via range huruf, mis. prefix "RAK-1-" + Dari "A" + Sampai "Q"
+       -> generate RAK-1-A ... RAK-1-Q. Reuse struktur modal-overlay/modal-sheet/modal-head
+       yang sudah ada, TIDAK mengubah modal-form generik (form CRUD tunggal tetap utuh). -->
+  <div class="modal-overlay" id="modal-rakbatch-overlay">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h3>Tambah Rak Banyak</h3>
+        <button type="button" class="modal-close" id="modal-rakbatch-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <form id="rakbatch-form">
+        <div class="m-field"><label>Prefix Kode</label><div class="field-wrap"><input type="text" id="rb-prefix" required placeholder="RAK-1-"></div></div>
+        <div class="m-row-2">
+          <div class="m-field"><label>Huruf Dari</label><div class="field-wrap"><input type="text" id="rb-from" required maxlength="1" placeholder="A" style="text-transform:uppercase;"></div></div>
+          <div class="m-field"><label>Huruf Sampai</label><div class="field-wrap"><input type="text" id="rb-to" required maxlength="1" placeholder="Q" style="text-transform:uppercase;"></div></div>
+        </div>
+        <div class="m-field">
+          <label>Preview (<span id="rb-count">0</span> kode)</label>
+          <div id="rb-preview" style="font-size:12px;color:var(--ink-600);line-height:1.6;max-height:110px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px 10px;">—</div>
+        </div>
+        <p id="rb-warn" style="font-size:12px;color:var(--warn);margin:4px 0 0;" hidden></p>
+        <div class="m-actions">
+          <button type="button" class="btn-ghost" id="rb-cancel">Batal</button>
+          <button type="submit" class="btn-primary flex1" id="rb-submit">Buat Semua</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: TAMBAH AKUN OPERATOR (v6.59, Opsi 2) ============ -->
+  <div class="modal-overlay" id="modal-addaccount-overlay">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h3>Tambah Akun Operator</h3>
+        <button type="button" class="modal-close" id="modal-addaccount-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <form id="addaccount-form">
+        <div class="m-field"><label>Nama</label><div class="field-wrap"><input type="text" id="aa-name" required placeholder="Nama lengkap operator"></div></div>
+        <div class="m-field"><label>Email</label><div class="field-wrap"><input type="email" id="aa-email" required placeholder="operator@email.com"></div></div>
+        <div class="m-field"><label>Password Awal</label><div class="field-wrap"><input type="text" id="aa-password" required minlength="6" placeholder="Minimal 6 karakter"></div></div>
+        <div class="m-field"><label>Role</label><div class="field-wrap"><select id="aa-role" required>
+          <option value="WAREHOUSE">Warehouse (input transaksi)</option>
+          <option value="VIEWER">Viewer (lihat saja)</option>
+          <option value="ADMIN">Admin (akses penuh)</option>
+        </select></div></div>
+        <p style="font-size:11.5px;color:var(--ink-500);margin:4px 0 0;">Operator bisa reset password sendiri lewat "Lupa Password" di layar login.</p>
+        <div class="m-actions">
+          <button type="button" class="btn-ghost" id="aa-cancel">Batal</button>
+          <button type="submit" class="btn-primary flex1" id="aa-submit">Buat Akun</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1967,12 +2058,16 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
+  initializeAppCheck, ReCaptchaV3Provider
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app-check.js";
+import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
-  setPersistence, browserLocalPersistence, browserSessionPersistence, sendPasswordResetEmail
+  setPersistence, browserLocalPersistence, browserSessionPersistence, sendPasswordResetEmail,
+  createUserWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, getDocs, enableIndexedDbPersistence,
-  collection, query, orderBy, where, limit, onSnapshot, setDoc, updateDoc,
+  collection, query, orderBy, where, limit, startAfter, onSnapshot, setDoc, updateDoc,
   runTransaction, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
@@ -2025,8 +2120,42 @@ const firebaseConfig = {
 // =====================================================
 
 const fbApp = initializeApp(firebaseConfig);
+
+// ================= APP CHECK (v6.57) =================
+// Lapisan pertahanan TAMBAHAN di depan firestore.rules — bukan pengganti.
+// Tanpa Cloud Function (app ini sengaja tetap Spark plan), firestore.rules
+// adalah satu-satunya garis pertahanan server-side; App Check menambah lapisan
+// kedua yang menolak request yang TIDAK datang dari app resmi ini (mis. script
+// luar yang menyalin firebaseConfig dari view-source lalu memanggil Firestore
+// langsung), sebelum request itu sempat sampai ke evaluasi rules sama sekali.
+// Site key di bawah PUBLIK by design (sama seperti firebaseConfig di atas) —
+// yang rahasia adalah Secret Key, itu tersimpan di Firebase Console/Google
+// reCAPTCHA Admin, TIDAK PERNAH ditaruh di kode client.
+// Status saat ini: mode Unenforced di Firebase Console (App Check > APIs >
+// Cloud Firestore) — token sudah dikirim & termonitor di tab Metrics, TAPI
+// Firestore belum benar-benar menolak request tanpa token. Baru diubah ke
+// Enforced setelah metrik "Verified" mayoritas (>95%) selama beberapa hari,
+// supaya tidak ada risiko app resmi ikut ke-block gara-gara ada device/browser
+// pengguna yang belum sempat kirim token dengan benar.
+initializeAppCheck(fbApp, {
+  provider: new ReCaptchaV3Provider('6LfE15AtAAAAABCXuEztZPg3D75oqSldiyj5egL0'),
+  isTokenAutoRefreshEnabled: true
+});
+
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
+
+// ================= SECONDARY APP (v6.59 — Manajemen Akun Opsi 2) =================
+// Firebase Auth SDK: createUserWithEmailAndPassword() di instance yang SAMA dengan
+// sesi login otomatis me-login-kan pemanggil sebagai akun baru itu, mencampakkan
+// sesi ADMIN yang sedang aktif. Fix standar (tanpa Cloud Function): instance
+// Firebase App KEDUA (nama "secondary", config SAMA, project SAMA) khusus untuk
+// operasi create-user — auth2 ini logout/dibuang lagi setelah selesai, TIDAK
+// pernah menyentuh sesi ADMIN utama (auth/db di atas). Dokumen /users/{uid}
+// tetap ditulis lewat db (instance utama) supaya request.auth di rules Firestore
+// adalah ADMIN yang sesungguhnya, bukan akun baru yang barusan dibuat.
+const fbApp2 = initializeApp(firebaseConfig, 'secondary');
+const auth2 = getAuth(fbApp2);
 
 // ===================== CHANGELOG =====================
 // v6.0  — Roadmap Phase 6: Migrasi Data Historis Terkendali (staging, validasi,
@@ -2232,6 +2361,11 @@ document.addEventListener('keydown', function(e){
 // v6.24 — fitur baru Bulk Import Master Item (Tools) — upload Excel untuk daftarkan banyak item sekaligus, lewat jalur createWithUniqueCode yang sama dgn form Tambah Item satu-per-satu.
 // v6.23 — Batch Migrasi input diganti dari .csv ke .xlsx (SheetJS), termasuk Template Migrasi.
 // v6.54 — MAINTAINABILITY (comment/struktur only, TIDAK ada perubahan logic/data/schema). (1) Tambah blok DAFTAR ISI (TOC) di paling atas script, referensi ke nama section banner (bukan nomor baris, supaya tidak basi saat file bertambah panjang) — cari via Ctrl+F. (2) Tambah 8 section banner baru untuk modul yang sebelumnya tidak ditandai (Pengaturan & Tools, Navigasi & UI Helpers, Cetak Label Barang, Batch Print Modals, Dashboard & Low Stock, Master List Render, Form Modal & CRUD Generik, Detail Item Modal) — total kini 20 banner, konsisten format "// ================= NAMA =================" supaya bisa di-Ctrl+F & di-fold di editor manapun. (3) Changelog v6.31-v6.53 yang sebelumnya menumpuk jadi 1 baris raksasa (+ 3 baris "riwayat sebelumnya" terpisah, total >13rb karakter dalam 4 baris) dipecah jadi 1 baris = 1 versi, sorted terbaru di atas — mudah dibaca & mudah ditambah entry baru tanpa risiko salah edit di tengah blok teks panjang. Semua isi/histori dipertahankan 100%, tidak ada info yang dihapus. node --check PASS semua 5 blok script.
+// v6.59 — FITUR BARU: Manajemen Akun Operator dari dalam app (Opsi 2 — Client-side Admin, tanpa Cloud Function/Blaze). Sebelumnya SATU-SATUNYA cara bikin akun operator baru adalah manual di Firebase Console (rules /users allow write:if false total) — sekarang ADMIN bisa kelola langsung dari Pengaturan > kartu "Manajemen Akun" baru. WAJIB firestore.rules versi v6.6+ sudah di-deploy dulu (lihat firestore-5.rules terpisah) sebelum fitur ini bisa jalan — kalau belum, create/toggle akan gagal permission-denied. Mekanisme: instance Firebase App KEDUA (fbApp2/auth2, "secondary") dipakai khusus untuk createUserWithEmailAndPassword() — SDK Firebase Auth otomatis me-login-kan pemanggil sebagai akun baru itu kalau dipanggil di instance yang sama dengan sesi aktif, jadi instance kedua ini mencegah sesi ADMIN utama (auth/db) ke-logout. Setelah user Auth dibuat, auth2 langsung signOut (buang sesinya), lalu dokumen /users/{uid} ditulis lewat db (instance UTAMA) supaya request.auth di Rules adalah ADMIN yang sesungguhnya. Field yang disimpan: name/email/role/status:'ACTIVE'/createdAt/createdBy — email ditambahkan ke skema (sebelumnya dokumen user cuma simpan role+name, email hanya ada di Firebase Auth) supaya list akun bisa ditampilkan tanpa perlu akses Admin SDK dari client. Daftar akun di-load SEKALI (getDocs, bukan realtime) saat kartu dibuka pertama kali (hemat 1 read query kalau ADMIN tidak pernah buka kartu ini), dengan toggle Aktifkan/Nonaktifkan per akun (status ACTIVE/INACTIVE, BUKAN hapus — konsisten dengan pola items/categories/vendors/racks; akun sendiri yang sedang login tidak bisa dinonaktifkan dari sini, tombolnya disembunyikan). Password reset tetap lewat fitur "Lupa Password" yang sudah ada di layar login (sendPasswordResetEmail), tidak dibuat ulang. Import baru: createUserWithEmailAndPassword dari firebase-auth.js. Tidak ada perubahan ke transaction engine/stock calculation/schema item-kategori-vendor-rak. node --check PASS.
+// v6.58 — UPGRADE: Firebase App Check terpasang (provider ReCaptchaV3, site key publik terdaftar di kode). Lapisan pertahanan TAMBAHAN di depan firestore.rules yang sudah ada — bukan pengganti; menolak request yang tidak berasal dari app resmi (mis. script luar yang menyalin firebaseConfig lalu memanggil Firestore langsung) sebelum sempat dievaluasi rules. Relevan khusus untuk app ini karena sengaja tetap Spark plan tanpa Cloud Function, jadi rules+App Check adalah dua-duanya garis pertahanan server-side yang ada (tidak ada Admin SDK di belakang). initializeAppCheck() dipanggil tepat setelah initializeApp(), sebelum getAuth()/getFirestore(), supaya token App Check sudah aktif sebelum ada request Firestore apa pun terjadi. isTokenAutoRefreshEnabled:true supaya token diperbarui otomatis di sesi panjang (operator warehouse yang buka app seharian). STATUS SAAT INI: mode Unenforced di Firebase Console (App Check > APIs > Cloud Firestore) — token sudah terkirim & termonitor di tab Metrics, TAPI Firestore belum menolak request tanpa token. JANGAN diubah ke Enforced sampai tab Metrics menunjukkan mayoritas (>95%) request berstatus "Verified" selama beberapa hari — supaya tidak ada risiko app resmi ikut ke-block gara-gara ada device/browser pengguna yang belum sempat kirim token App Check dengan benar. Import baru: firebase-app-check.js (initializeAppCheck, ReCaptchaV3Provider). Tidak ada perubahan Firestore rules/schema/transaction engine/stock calculation di file ini — pengaturan Enforce/Unenforced murni dilakukan di Firebase Console, bukan di kode. node --check PASS.
+// v6.57 — FITUR BARU: "Muat Lebih" di History Transaksi. Sebelumnya listener realtime dibatasi limit(150) transaksi terbaru lintas semua item, TIDAK ADA cara melihat transaksi lebih lama dari itu di UI. Tambah tombol "Muat Lebih" di bawah list History — one-time getDocs (bukan realtime, supaya tidak menambah beban listener/quota) dengan startAfter memakai createdAt dokumen terlama yang sudah dimuat sebagai cursor, limit 150 per klik. Hasil digabung (dedupe by id) ke histOlderTransactions terpisah dari histTransactions (window realtime yang tetap live-update seperti semula, TIDAK diubah perilakunya). renderHistoryList() sekarang render dari getMergedHistTransactions() (gabungan realtime+older, sorted desc createdAt); filter search/tanggal/tipe yang sudah ada tetap berfungsi sama persis di atas data gabungan. Tombol otomatis berganti jadi teks status "Semua transaksi sudah dimuat" begitu batch kosong (mentok data terlama). Widget lain yang sengaja HANYA pakai window realtime terbaru (Recent Activity dashboard, Anomaly Soft Warning duplicate-check) TIDAK disentuh — tetap baca histTransactions mentah, bukan gabungan, sesuai fungsinya masing-masing. Import startAfter ditambah dari firebase-firestore.js. KETERBATASAN JUJUR: kalau ada transaksi baru masuk persis di boundary window 150 saat user sedang browsing riwayat lama, ada kemungkinan kecil transaksi di celah waktu itu sempat tidak muncul sampai listener realtime/older batch berikutnya menutupnya — dampaknya kosmetik tampilan History saja (bukan integritas ledger; semua transaksi tetap permanen tersimpan utuh di Firestore, transactions tetap immutable/tidak bisa diedit-dihapus seperti sebelumnya). JS-only, tidak ada perubahan Firestore rules/schema/transaction engine/stock calculation. node --check PASS.
+// v6.57 — FIX race condition di fitur Tambah Rak Banyak (v6.56). Sebelumnya skip-check kode yang sudah ada memakai state.racks (cache lokal client, hasil listener terakhir) lalu writeBatch.set() tanpa re-cek server saat commit — kalau 2 admin submit batch overlap nyaris bersamaan (mis. sama-sama isi RAK-1-A..Q), admin ke-2 bisa MENIMPA dokumen rak yang baru saja dibuat admin ke-1 (rackName/location/zone milik rak itu balik jadi kosong). Fix: ganti writeBatch dengan runTransaction — exists-check (tx.get() per kode) sekarang dilakukan DI DALAM transaction terhadap data server saat commit, bukan dari cache; Firestore otomatis retry transaction kalau ada tulisan bentrok di tengah jalan (optimistic concurrency), sehingga admin ke-2 akan melihat rak yang baru dibuat admin ke-1 dan otomatis skip. Pola ini konsisten dengan createWithUniqueCode() yang sudah lebih dulu ada di file ini untuk Item/Kategori/Vendor. Toast hasil sekarang berdasar jumlah rak yang BENAR-BENAR dibuat transaction (server-truth), bukan hitungan preview client. Preview/warning di modal (sebelum submit) tetap pakai state.racks — itu cuma hint visual, bukan lagi satu-satunya guard. JS-only, tidak ada perubahan Firestore rules/schema. node --check PASS.
+// v6.56 — FITUR BARU (permintaan user): Tambah Rak Banyak — buat banyak rak sekaligus dari 1 prefix + range huruf (mis. prefix "RAK-1-" + Dari "A" + Sampai "Q" -> 17 rak: RAK-1-A s/d RAK-1-Q). Tombol "+ Banyak" baru (id m-add-batch-btn) tampil khusus di tab Rak (Master), tombol "+" existing (m-add-btn, tambah 1 rak manual) tidak diubah. Modal baru (#modal-rakbatch-overlay) reuse struktur modal-overlay/modal-sheet/modal-head yang sudah ada; ada live preview kode + jumlah, dan warning kalau ada kode yang sudah dipakai (kode existing di-skip otomatis, tidak overwrite). Create pakai writeBatch (pola sama dgn writeBatch yang sudah dipakai di file ini), payload per-rak persis sama shape dgn create rak manual (rackCode/rackName/location/zone/status:'ACTIVE') supaya konsisten dgn firestore.rules yang sudah ada — TIDAK ada perubahan Firestore rules/schema/transaction engine/stock calculation. TIDAK ADA fitur hapus rak yang ditambahkan/diubah (dikonfirmasi user di luar scope). JS-only. node --check PASS.
 // v6.55 — FIX bug user: row History Transaksi masih menampilkan info transaksi (rak/vendor/no SJ-PO/nama user) di baris ke-3, padahal seharusnya info item di History = PERSIS sama dengan Master (kode material/nama material/spesifikasi saja, via renderRow('item',...)). Baris trxSub dihapus total dari tampilan renderHistRow (bukan cuma vendor-nya, semua field rak/vendor/noSjPo/createdByName tidak lagi dirender di list — masih tersimpan utuh di dokumen transaksi Firestore untuk reconciliation/ledger/audit trail, tidak dihapus/diubah). Tanggal transaksi (kebutuhan spesifik History, tidak ada di Master) dipindah ke kolom kanan (m-row-tags) di atas badge TYPE, font kecil & dim, supaya tidak lagi bercampur dengan baris data item. JS-only, tidak ada perubahan Firestore schema/rules/transaction engine/stock calculation. node --check PASS.
 // ===============================================================
 const APP_VERSION = 'v6.55';
@@ -4269,6 +4403,14 @@ let histListenerStarted = false;
 // atau '' kalau tidak diisi (artinya tidak dibatasi ke arah itu).
 let histDateFrom = '';
 let histDateTo = '';
+// v6.57 — Muat Lebih: batch transaksi lebih lama dari window realtime limit(150),
+// dimuat one-time via getDocs+startAfter saat tombol diklik (bukan realtime — kalau
+// mau realtime untuk SEMUA transaksi tanpa limit, quota Firestore free-tier bisa
+// jebol untuk ledger yang sudah besar). Digabung ke histTransactions saat render,
+// TIDAK menggantikan/reset listener realtime yang sudah ada.
+let histOlderTransactions = [];
+let histNoMoreOlder = false;
+let histLoadingMore = false;
 
 function startHistoryListener() {
   if (histListenerStarted) return;
@@ -4322,11 +4464,57 @@ function fmtDateTime(ts) {
   return ts.toDate().toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 
+// v6.57 — gabungkan window realtime (histTransactions, latest N, live-updating)
+// dengan batch lama yang sudah dimuat manual (histOlderTransactions, static sampai
+// "Muat Lebih" diklik lagi). Dedupe by id (guard kalau ada overlap di batas window)
+// lalu sort desc by createdAt supaya urutan tetap konsisten setelah digabung.
+function getMergedHistTransactions() {
+  const byId = new Map();
+  histTransactions.forEach(t => byId.set(t.id, t));
+  histOlderTransactions.forEach(t => { if (!byId.has(t.id)) byId.set(t.id, t); });
+  return Array.from(byId.values()).sort((a, b) => {
+    const at = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+    const bt = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+    return bt - at;
+  });
+}
+
+async function loadMoreHistory() {
+  if (histLoadingMore || histNoMoreOlder) return;
+  const merged = getMergedHistTransactions();
+  const cursor = merged.length ? merged[merged.length - 1].createdAt : null;
+  if (!cursor) return;
+  histLoadingMore = true;
+  const btn = $('#hist-load-more');
+  btn.disabled = true; btn.textContent = 'Memuat…';
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'transactions'), orderBy('createdAt', 'desc'), startAfter(cursor), limit(150)
+    ));
+    if (snap.empty) {
+      histNoMoreOlder = true;
+    } else {
+      snap.forEach(d => histOlderTransactions.push({ id: d.id, ...d.data() }));
+    }
+    renderHistoryList();
+  } catch (err) {
+    console.error('loadMoreHistory', err);
+    toast('Gagal memuat transaksi lama: ' + (err.message || 'error'));
+  } finally {
+    histLoadingMore = false;
+    btn.disabled = false; btn.textContent = 'Muat Lebih';
+  }
+}
+$('#hist-load-more').addEventListener('click', loadMoreHistory);
+
 function renderHistoryList() {
   const listEl = $('#hist-list');
   const emptyEl = $('#hist-empty');
+  const moreBtn = $('#hist-load-more');
+  const moreStatus = $('#hist-load-more-status');
   if (!listEl) return;
-  let data = histTransactions;
+  let data = getMergedHistTransactions();
+  const hasAnyLoaded = data.length > 0;
   if (histTypeFilter !== 'ALL') data = data.filter(t => t.type === histTypeFilter);
   if (histDateFrom || histDateTo) {
     // Batas awal jam 00:00:00.000, batas akhir jam 23:59:59.999 (inklusif kedua sisi).
@@ -4349,6 +4537,7 @@ function renderHistoryList() {
   if (!data.length) {
     listEl.innerHTML = '';
     emptyEl.hidden = false;
+    updateHistLoadMoreUi(moreBtn, moreStatus, hasAnyLoaded);
     return;
   }
   emptyEl.hidden = true;
@@ -4359,6 +4548,24 @@ function renderHistoryList() {
       if (item) openStockCard(item);
     });
   });
+  updateHistLoadMoreUi(moreBtn, moreStatus, hasAnyLoaded);
+}
+// v6.57 — tombol "Muat Lebih" tampil selama masih ada data yang sudah dimuat DAN
+// belum mentok batch terakhir (histNoMoreOlder). Begitu getDocs balikin batch kosong,
+// diganti teks status "Semua transaksi sudah dimuat" (tombol disembunyikan permanen
+// untuk sesi ini). Sengaja independen dari hasil filter aktif (search/tanggal/tipe) —
+// "Muat Lebih" selalu menambah data MENTAH dari server, bukan dari hasil filter.
+function updateHistLoadMoreUi(moreBtn, moreStatus, hasAnyLoaded) {
+  if (!moreBtn || !moreStatus) return;
+  if (!hasAnyLoaded) { moreBtn.hidden = true; moreStatus.hidden = true; return; }
+  if (histNoMoreOlder) {
+    moreBtn.hidden = true;
+    moreStatus.hidden = false;
+    moreStatus.textContent = 'Semua transaksi sudah dimuat';
+  } else {
+    moreBtn.hidden = false;
+    moreStatus.hidden = true;
+  }
 }
 
 function renderHistRow(t) {
@@ -5613,6 +5820,7 @@ $('#master-tabs').addEventListener('click', (e) => {
   $('#m-search').placeholder = currentTab === 'item'
     ? 'Cari kode, nama, spesifikasi, rak…'
     : 'Cari kode atau nama…';
+  $('#m-add-batch-btn').hidden = currentTab !== 'rack'; // v6.56: tombol Tambah Rak Banyak khusus tab Rak
   renderMasterList();
 });
 $('#m-search').addEventListener('input', (e) => {
@@ -6075,6 +6283,234 @@ formEl.addEventListener('submit', async (e) => {
     submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
   }
 });
+
+// ================= TAMBAH RAK BANYAK (v6.56) =================
+// FITUR BARU sesuai permintaan user: generate banyak kode rak sekaligus dari
+// 1 prefix + range huruf (mis. prefix "RAK-1-", dari "A" sampai "Q" -> 17 rak:
+// RAK-1-A, RAK-1-B, ... RAK-1-Q). TIDAK ada fitur hapus rak (di luar scope,
+// dikonfirmasi user tidak diperlukan). Rak yang kodenya sudah ada di state.racks
+// di-skip otomatis (tidak overwrite data existing), sisanya dibuat via writeBatch
+// (pola sama dgn writeBatch yang sudah dipakai di file ini) dengan status ACTIVE,
+// payload persis sama shape-nya dengan create rak manual (rackCode/rackName/
+// location/zone/status) supaya konsisten dgn firestore.rules yang sudah ada.
+const rakBatchOverlay = $('#modal-rakbatch-overlay');
+const rakBatchForm = $('#rakbatch-form');
+$('#m-add-batch-btn').addEventListener('click', () => {
+  rakBatchForm.reset();
+  $('#rb-preview').textContent = '—';
+  $('#rb-count').textContent = '0';
+  $('#rb-warn').hidden = true;
+  rakBatchOverlay.classList.add('show');
+});
+$('#modal-rakbatch-close').addEventListener('click', () => rakBatchOverlay.classList.remove('show'));
+$('#rb-cancel').addEventListener('click', () => rakBatchOverlay.classList.remove('show'));
+rakBatchOverlay.addEventListener('click', (e) => { if (e.target === rakBatchOverlay) rakBatchOverlay.classList.remove('show'); });
+
+function computeRakBatchCodes() {
+  const prefix = $('#rb-prefix').value.trim().toUpperCase();
+  const from = $('#rb-from').value.trim().toUpperCase();
+  const to = $('#rb-to').value.trim().toUpperCase();
+  const fromCode = from.charCodeAt(0), toCode = to.charCodeAt(0);
+  if (!prefix || from.length !== 1 || to.length !== 1 || fromCode < 65 || fromCode > 90 || toCode < 65 || toCode > 90 || fromCode > toCode) {
+    return null; // invalid: huruf wajib A-Z, "Dari" tidak boleh setelah "Sampai"
+  }
+  const codes = [];
+  for (let c = fromCode; c <= toCode; c++) codes.push(prefix + String.fromCharCode(c));
+  return codes;
+}
+function renderRakBatchPreview() {
+  const codes = computeRakBatchCodes();
+  const warnEl = $('#rb-warn');
+  if (!codes) {
+    $('#rb-preview').textContent = '—';
+    $('#rb-count').textContent = '0';
+    warnEl.hidden = true;
+    return;
+  }
+  const existing = codes.filter(c => state.racks[c]);
+  $('#rb-preview').textContent = codes.join(', ');
+  $('#rb-count').textContent = codes.length;
+  if (existing.length) {
+    warnEl.hidden = false;
+    warnEl.textContent = `${existing.length} kode sudah ada & akan dilewati: ${existing.join(', ')}`;
+  } else {
+    warnEl.hidden = true;
+  }
+}
+['rb-prefix','rb-from','rb-to'].forEach(id => $('#'+id).addEventListener('input', renderRakBatchPreview));
+
+rakBatchForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const codes = computeRakBatchCodes();
+  const submitBtn = $('#rb-submit');
+  if (!codes || !codes.length) { toast('Prefix/huruf tidak valid'); return; }
+  submitBtn.disabled = true; submitBtn.textContent = 'Membuat…';
+  try {
+    // v6.57 — FIX race condition: sebelumnya skip-check pakai state.racks (cache
+    // lokal client, bisa stale) lalu writeBatch.set() tanpa re-cek server -> kalau
+    // 2 admin submit batch overlap nyaris bersamaan, admin ke-2 bisa MENIMPA rak
+    // yang baru saja dibuat admin ke-1 (rackName/location/zone jadi kosong lagi).
+    // Fix: pindah ke runTransaction dengan tx.get() PER KODE saat commit (bukan
+    // dari cache) sebelum tx.set() — exists-check jadi atomic terhadap server,
+    // konsisten dengan pola createWithUniqueCode() yang sudah ada di file ini.
+    // Firestore otomatis retry transaction kalau ada write bentrok di tengah jalan.
+    const created = await runTransaction(db, async (tx) => {
+      const snaps = await Promise.all(codes.map(code => tx.get(doc(db, 'racks', code))));
+      const toCreate = [];
+      snaps.forEach((snap, i) => { if (!snap.exists()) toCreate.push(codes[i]); });
+      toCreate.forEach(code => {
+        tx.set(doc(db, 'racks', code), { rackCode: code, rackName: '', location: '', zone: '', status: 'ACTIVE' });
+      });
+      return toCreate;
+    });
+    rakBatchOverlay.classList.remove('show');
+    if (!created.length) toast('Semua kode sudah ada, tidak ada yang dibuat');
+    else toast(`${created.length} rak berhasil dibuat`);
+  } catch (err) {
+    console.error(err);
+    toast('Gagal membuat rak: ' + (err.message || 'error'));
+  } finally {
+    submitBtn.disabled = false; submitBtn.textContent = 'Buat Semua';
+  }
+});
+
+// ================= MANAJEMEN AKUN (v6.59, Opsi 2) =================
+// Sebelumnya akun operator HANYA bisa dibuat manual di Firebase Console (rules
+// /users allow write:if false total). Sekarang ADMIN bisa: (1) lihat daftar akun
+// [getDocs sekali saat card dibuka, BUKAN realtime — daftar akun jarang berubah,
+// tidak perlu listener permanen], (2) buat akun baru lewat fbApp2/auth2 (secondary
+// Firebase App instance, lihat komentar di atas dekat initializeApp) supaya sesi
+// ADMIN utama tidak ke-logout, (3) nonaktifkan/aktifkan akun (status ACTIVE/
+// INACTIVE, BUKAN hapus — konsisten dgn pola items/categories/vendors/racks).
+// firestore.rules WAJIB sudah versi baru (v6.6+, allow create/update: if isAdmin())
+// sebelum fitur ini bisa jalan — kalau rules belum di-deploy, create/toggle akan
+// gagal dengan error permission-denied.
+let accountListCache = [];
+
+async function loadAccountList() {
+  const listEl = $('#account-list');
+  const emptyEl = $('#account-list-empty');
+  listEl.innerHTML = '<p style="text-align:center;font-size:12px;color:var(--ink-400);padding:14px 0;">Memuat…</p>';
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    accountListCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderAccountList();
+  } catch (err) {
+    console.error('loadAccountList', err);
+    listEl.innerHTML = '';
+    emptyEl.hidden = false;
+    emptyEl.textContent = 'Gagal memuat daftar akun: ' + (err.message || 'error');
+  }
+}
+function renderAccountList() {
+  const listEl = $('#account-list');
+  const emptyEl = $('#account-list-empty');
+  if (!accountListCache.length) {
+    listEl.innerHTML = '';
+    emptyEl.hidden = false;
+    emptyEl.textContent = 'Belum ada akun terdaftar.';
+    return;
+  }
+  emptyEl.hidden = true;
+  const roleLabel = { ADMIN: 'Admin', WAREHOUSE: 'Warehouse', VIEWER: 'Viewer' };
+  listEl.innerHTML = accountListCache.map(u => {
+    const inactive = u.status === 'INACTIVE';
+    const badge = inactive ? '<span class="badge archived">NONAKTIF</span>' : '<span class="badge active">AKTIF</span>';
+    const isSelf = auth.currentUser && auth.currentUser.uid === u.id;
+    return `<div class="m-row glass" data-uid="${u.id}">
+      <div class="m-row-main">
+        <div class="m-row-title">${esc(u.name || '(tanpa nama)')}${isSelf ? ' <span style="font-size:10px;color:var(--ink-400);">(Anda)</span>' : ''}</div>
+        <div class="m-row-sub">${esc(u.email || '')} · ${roleLabel[u.role] || u.role}</div>
+      </div>
+      <div class="m-row-tags">${badge}
+        ${isSelf ? '' : `<button type="button" class="icon-btn-sm" data-toggle-account="${u.id}" data-next="${inactive ? 'ACTIVE' : 'INACTIVE'}" title="${inactive ? 'Aktifkan' : 'Nonaktifkan'}">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4L19 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>`}
+      </div>
+    </div>`;
+  }).join('');
+  listEl.querySelectorAll('[data-toggle-account]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const uid = btn.dataset.toggleAccount;
+      const nextStatus = btn.dataset.next;
+      const user = accountListCache.find(u => u.id === uid);
+      if (!user) return;
+      btn.disabled = true;
+      try {
+        await updateDoc(doc(db, 'users', uid), { status: nextStatus });
+        toast(nextStatus === 'ACTIVE' ? 'Akun diaktifkan' : 'Akun dinonaktifkan');
+        await loadAccountList();
+      } catch (err) {
+        console.error('toggleAccount', err);
+        toast('Gagal mengubah status: ' + (err.message || 'error'));
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+const addAccountOverlay = $('#modal-addaccount-overlay');
+const addAccountForm = $('#addaccount-form');
+$('#btn-open-addaccount').addEventListener('click', () => {
+  addAccountForm.reset();
+  addAccountOverlay.classList.add('show');
+});
+$('#modal-addaccount-close').addEventListener('click', () => addAccountOverlay.classList.remove('show'));
+$('#aa-cancel').addEventListener('click', () => addAccountOverlay.classList.remove('show'));
+addAccountOverlay.addEventListener('click', (e) => { if (e.target === addAccountOverlay) addAccountOverlay.classList.remove('show'); });
+
+addAccountForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = $('#aa-name').value.trim();
+  const email = $('#aa-email').value.trim();
+  const password = $('#aa-password').value;
+  const role = $('#aa-role').value;
+  const submitBtn = $('#aa-submit');
+  if (!name || !email || password.length < 6 || !role) { toast('Lengkapi semua field (password minimal 6 karakter)'); return; }
+  submitBtn.disabled = true; submitBtn.textContent = 'Membuat…';
+  try {
+    // Create di auth2 (secondary app) supaya sesi ADMIN di auth (primary) tidak
+    // ke-logout. Lalu dokumen /users ditulis lewat db (primary) supaya
+    // request.auth di Rules adalah ADMIN sesungguhnya, bukan akun baru ini.
+    const cred = await createUserWithEmailAndPassword(auth2, email, password);
+    const newUid = cred.user.uid;
+    await signOut(auth2); // bersihkan sesi di instance kedua, tidak menyentuh auth utama
+    await setDoc(doc(db, 'users', newUid), {
+      name, email, role, status: 'ACTIVE',
+      createdAt: serverTimestamp(), createdBy: auth.currentUser.uid
+    });
+    addAccountOverlay.classList.remove('show');
+    toast(`Akun ${name} berhasil dibuat`);
+    await loadAccountList();
+  } catch (err) {
+    console.error('addAccount', err);
+    let msg = err.message || 'error';
+    if (err.code === 'auth/email-already-in-use') msg = 'Email sudah terdaftar';
+    if (err.code === 'auth/invalid-email') msg = 'Format email tidak valid';
+    if (err.code === 'auth/weak-password') msg = 'Password terlalu lemah (minimal 6 karakter)';
+    toast('Gagal membuat akun: ' + msg);
+  } finally {
+    submitBtn.disabled = false; submitBtn.textContent = 'Buat Akun';
+  }
+});
+
+// Muat daftar akun saat card Manajemen Akun dibuka (bukan langsung saat boot —
+// hemat 1 read query kalau ADMIN tidak pernah buka card ini).
+const accountCard = $('#btn-open-addaccount')?.closest('.stg-card');
+if (accountCard) {
+  const head = accountCard.querySelector('.stg-card-head');
+  let accountListLoaded = false;
+  head?.addEventListener('click', () => {
+    // is-collapsed di-toggle oleh handler stg-card-head generik yang sudah ada;
+    // tunggu 1 tick supaya class sudah ter-update sebelum dicek.
+    setTimeout(() => {
+      if (!accountCard.classList.contains('is-collapsed') && !accountListLoaded) {
+        accountListLoaded = true;
+        loadAccountList();
+      }
+    }, 0);
+  });
+}
 
 // ---- detail item ----
 const detailOverlay = $('#modal-detail-overlay');
